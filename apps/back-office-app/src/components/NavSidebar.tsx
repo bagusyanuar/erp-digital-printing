@@ -1,3 +1,4 @@
+import { NavLink } from "react-router-dom";
 import {
   Sidebar, SidebarHeader, SidebarAppSwitcher,
   SidebarContent, SidebarGroup, SidebarItem, SidebarItemTree, SidebarFooter
@@ -6,7 +7,7 @@ import {
   LuLayoutDashboard, LuPackage, LuDatabase, LuHistory, LuTruck,
   LuFileText, LuCreditCard, LuSettings, LuBox, LuPrinter, LuUsers, LuScissors, LuGauge, LuBanknote,
   LuSignature, LuTags, LuBriefcase
-} from "react-icons/lu";
+} from "@erp-digital-printing/ui/icons";
 
 export const NavSidebar = () => {
   return (
@@ -33,7 +34,11 @@ export const NavSidebar = () => {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarItem icon={<LuLayoutDashboard />} label="Dashboard" active />
+          <NavLink to="/dashboard">
+            {({ isActive }) => (
+              <SidebarItem icon={<LuLayoutDashboard />} label="Dashboard" active={isActive} />
+            )}
+          </NavLink>
           <SidebarItem icon={<LuGauge />} label="Status Antrean" badge="12" />
         </SidebarGroup>
 

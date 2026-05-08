@@ -13,6 +13,7 @@ export default defineConfig({
     alias: {
       "@presentation": path.resolve(__dirname, "../../modules/presentation/src"),
       "@ui": path.resolve(__dirname, "../../packages/ui/src/components"),
+      "@shell": path.resolve(__dirname, "./src"),
     },
   },
 })

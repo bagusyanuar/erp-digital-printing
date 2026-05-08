@@ -14,7 +14,8 @@
     "baseUrl": ".",
     "paths": {
       "@presentation/*": ["modules/presentation/src/*"],
-      "@ui/*": ["packages/ui/src/components/*"]
+      "@ui/*": ["packages/ui/src/components/*"],
+      "@shell/*": ["apps/back-office-app/src/*"]
     }
   }
 }
