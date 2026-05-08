@@ -1,28 +1,13 @@
-import { lazy, Suspense } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import brandLogo from "../assets/brand-logo.png";
+import { authRoutes } from "./modules/auth.routes";
+import { dashboardRoutes } from "./modules/dashboard.routes";
+import { sharedRoutes } from "./modules/shared.routes";
 
-// Lazy loading pages
-const LoginPage = lazy(() => import("@presentation/auth/pages/LoginPage"));
-const DashboardPage = lazy(() => import("../pages/DashboardPage"));
-
+// Main Router Configuration merging all modules
 const router = createBrowserRouter([
-  {
-    path: "/",
-    element: (
-      <Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading Login...</div>}>
-        <LoginPage logo={brandLogo} />
-      </Suspense>
-    ),
-  },
-  {
-    path: "/dashboard",
-    element: (
-      <Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading Dashboard...</div>}>
-        <DashboardPage />
-      </Suspense>
-    ),
-  },
+  ...authRoutes,
+  ...dashboardRoutes,
+  ...sharedRoutes,
 ]);
 
 export default function AppRouter() {
