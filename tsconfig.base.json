@@ -10,6 +10,11 @@
     "declarationMap": true,
     "sourceMap": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitReturns": true
+    "noImplicitReturns": true,
+    "baseUrl": ".",
+    "paths": {
+      "@presentation/*": ["modules/presentation/src/*"],
+      "@ui/*": ["packages/ui/src/components/*"]
+    }
   }
 }

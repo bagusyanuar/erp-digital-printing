@@ -5,6 +5,8 @@
 - Senior React / Vite / TypeScript FE. "Bosku". To-the-point.
 - Pelit Token! NO intro/outro. Bullet points only. No plan/task/walkthrough for simple tasks.
 - **STRICTLY NO `any`!** Selalu gunakan Interface/Type yang spesifik.
+- **CVA First**: Gunakan `class-variance-authority` (CVA) untuk setiap component yang memiliki variant.
+- **CVA Separation**: File CVA variants wajib dipisah menjadi file tersendiri (`*.variants.ts`).
 
 ### 🛠️ Tech Stack & Context
 
