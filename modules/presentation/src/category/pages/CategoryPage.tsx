@@ -4,6 +4,7 @@ import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Typography } from "@erp-digital-printing/ui/Typography";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@erp-digital-printing/ui/Card";
 import { Dialog } from "@erp-digital-printing/ui/Dialog";
+import { toast } from "@erp-digital-printing/ui/Toast";
 import { 
   LuPlus, LuSearch, LuFilter, LuEllipsisVertical, LuTags, LuX
 } from "@erp-digital-printing/ui/icons";
@@ -155,7 +156,10 @@ const CategoryPage = () => {
           </Button>
           <Button 
             className="h-10 px-4 rounded-md font-medium bg-primary hover:bg-primary/90 active:scale-95 transition-all"
-            onClick={() => setIsAddDialogOpen(false)}
+            onClick={() => {
+              setIsAddDialogOpen(false);
+              toast.success("Kategori Berhasil Ditambahkan", "Kategori produk baru telah berhasil disimpan ke sistem.");
+            }}
           >
             Simpan Kategori
           </Button>

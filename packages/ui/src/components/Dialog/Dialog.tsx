@@ -69,9 +69,10 @@ export const Dialog = ({
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6" key="dialog-overlay-container">
           {/* Overlay */}
           <motion.div
+            key="dialog-backdrop"
             {...overlayAnimation}
             onClick={onCloseRef.current}
             className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
@@ -79,6 +80,7 @@ export const Dialog = ({
 
           {/* Content */}
           <motion.div
+            key="dialog-content-wrapper"
             {...contentAnimation}
             className={cn(
               "relative w-full z-10",
@@ -104,4 +106,3 @@ export const Dialog = ({
     document.body
   );
 };
-
