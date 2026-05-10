@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Typography } from "@erp-digital-printing/ui/Typography";
@@ -6,20 +6,27 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Dialog } from "@erp-digital-printing/ui/Dialog";
 import { toast } from "@erp-digital-printing/ui/Toast";
 import { 
-  LuPlus, LuSearch, LuFilter, LuEllipsisVertical, LuTags, LuX
+  LuPlus, LuSearch, LuFilter, LuTags, LuX
 } from "@erp-digital-printing/ui/icons";
+import { flexRender } from "@tanstack/react-table";
+import { 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableRow, 
+  TableHead, 
+  TableCell,
+  TablePagination
+} from "@erp-digital-printing/ui/Table";
+import { useCategoryTable } from "../hooks/useCategoryTable";
 
 const CategoryPage = () => {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-
-  // Dummy Data yang relevan dengan Digital Printing
-  const categories = [
-    { id: 1, name: "Large Format", code: "CAT-LF", totalProducts: 45, status: "Active" },
-    { id: 2, name: "Sticker & Label", code: "CAT-SL", totalProducts: 128, status: "Active" },
-    { id: 3, name: "Indoor/Outdoor", code: "CAT-IO", totalProducts: 32, status: "Active" },
-    { id: 4, name: "Merchandise", code: "CAT-MC", totalProducts: 12, status: "Inactive" },
-    { id: 5, name: "Finishing Service", code: "CAT-FS", totalProducts: 8, status: "Active" },
-  ];
+  const { 
+    table, 
+    data, 
+    isAddDialogOpen, 
+    setIsAddDialogOpen 
+  } = useCategoryTable();
 
   return (
     <div className="p-6 space-y-8 font-sans bg-background min-h-screen animate-in fade-in duration-700">
@@ -70,74 +77,41 @@ const CategoryPage = () => {
 
         {/* Table Body */}
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-muted/30 text-left border-b border-border">
-                <th className="px-6 py-4">
-                  <Typography variant="small" weight="black" className="text-muted-foreground uppercase tracking-widest text-[10px]">Info Kategori</Typography>
-                </th>
-                <th className="px-6 py-4">
-                  <Typography variant="small" weight="black" className="text-muted-foreground uppercase tracking-widest text-[10px]">ID / Kode</Typography>
-                </th>
-                <th className="px-6 py-4 text-center">
-                  <Typography variant="small" weight="black" className="text-muted-foreground uppercase tracking-widest text-[10px]">Total Produk</Typography>
-                </th>
-                <th className="px-6 py-4">
-                  <Typography variant="small" weight="black" className="text-muted-foreground uppercase tracking-widest text-[10px]">Status</Typography>
-                </th>
-                <th className="px-6 py-4 text-right">
-                  <Typography variant="small" weight="black" className="text-muted-foreground uppercase tracking-widest text-[10px]">Aksi</Typography>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {categories.map((cat) => (
-                <tr key={cat.id} className="group hover:bg-muted/20 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm">
-                        {cat.name.charAt(0)}
-                      </div>
-                      <Typography weight="bold" className="group-hover:text-primary transition-colors">{cat.name}</Typography>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <code className="bg-muted px-2 py-1 rounded text-[11px] font-bold text-muted-foreground border border-border/50">
-                      {cat.code}
-                    </code>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-sidebar-accent text-[10px] font-black text-muted-foreground uppercase">
-                      {cat.totalProducts} Item
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                      cat.status === 'Active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
-                    }`}>
-                      <div className={`h-1.5 w-1.5 rounded-full ${cat.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                      {cat.status}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-sidebar-accent">
-                      <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </td>
-                </tr>
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map(headerGroup => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map(header => (
+                    <TableHead key={header.id} className={header.column.id === "actions" || header.column.id === "totalProducts" ? "text-center" : ""}>
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map(row => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
 
-        {/* Table Footer */}
-        <CardFooter className="flex items-center justify-between bg-muted/5 border-t border-border mt-0 p-4">
-          <Typography variant="small" weight="bold" className="text-muted-foreground uppercase tracking-wider">Menampilkan 5 dari 24 kategori</Typography>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-8 px-4" disabled>Previous</Button>
-            <Button variant="outline" size="sm" className="h-8 px-4">Next</Button>
-          </div>
-        </CardFooter>
+        {/* Table Footer / Pagination */}
+        <TablePagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          pageSize={table.getState().pagination.pageSize}
+          totalEntries={data.length}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+          onPageSizeChange={(size) => table.setPageSize(size)}
+        />
       </Card>
 
       {/* Add Category Dialog */}
