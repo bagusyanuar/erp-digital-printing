@@ -22,23 +22,49 @@ const CategoryPage = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6 animate-in fade-in duration-700">
+    <div className="p-6 space-y-8 font-sans bg-background min-h-screen animate-in fade-in duration-700">
+      {/* Header Section (Outside Card) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-3">
+            <LuTags className="text-primary" size={32} />
+            Master Kategori
+          </h1>
+          <p className="text-muted-foreground font-medium">
+            Kelola kategori produk dan jasa percetakan Anda.
+          </p>
+        </div>
+      </div>
+
       {/* Main Table Section */}
-      <Card className="overflow-hidden">
+      <Card className="rounded-3xl overflow-hidden shadow-sm border-border/50">
         {/* Table Header / Toolbar */}
-        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border bg-muted/5">
-          <div className="flex flex-col gap-0.5">
-            <CardTitle variant="h4">Master Kategori</CardTitle>
-            <CardDescription>Kelola kategori produk dan jasa percetakan Anda.</CardDescription>
-          </div>
-          <div className="flex items-center gap-3">
+        <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/30 p-6 bg-card">
+          {/* Left Side: Search */}
+          <div className="flex-1 max-w-md">
             <TextField 
               placeholder="Cari kategori..." 
               prefixIcon={LuSearch}
-              className="w-full md:w-64"
+              className="w-full"
             />
-            <Button variant="outline" prefixIcon={LuFilter} size="sm">Filter</Button>
-            <Button variant="default" prefixIcon={LuPlus} size="sm" onClick={() => setIsAddDialogOpen(true)}>Tambah Kategori</Button>
+          </div>
+
+          {/* Right Side: Actions */}
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              className="h-10 px-4 rounded-xl font-bold border-border/50 hover:bg-muted transition-all flex items-center gap-2"
+            >
+              <LuFilter size={18} />
+              Filter
+            </Button>
+            <Button 
+              className="h-10 px-4 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+              onClick={() => setIsAddDialogOpen(true)}
+            >
+              <LuPlus size={18} />
+              Tambah Kategori
+            </Button>
           </div>
         </CardHeader>
 
