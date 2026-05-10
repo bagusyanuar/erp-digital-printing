@@ -21,13 +21,14 @@ export interface SidebarGroupProps {
   className?: string;
 }
 
-export interface SidebarItemProps extends React.ComponentPropsWithoutRef<"div"> {
+export interface SidebarItemProps extends React.HTMLAttributes<HTMLElement> {
   icon?: ReactNode;
   label: string;
   active?: boolean;
   href?: string;
   badge?: string | number;
   hasArrow?: boolean;
+  asChild?: boolean;
 }
 
 export interface SidebarAppSwitcherProps {

@@ -34,9 +34,11 @@ export const NavSidebar = () => {
 
       <SidebarContent>
         <SidebarGroup>
-          <NavLink to="/dashboard">
+          <NavLink to="/dashboard" className="contents">
             {({ isActive }) => (
-              <SidebarItem icon={<LuLayoutDashboard />} label="Dashboard" active={isActive} />
+              <SidebarItem asChild icon={<LuLayoutDashboard />} label="Dashboard" active={isActive}>
+                <button />
+              </SidebarItem>
             )}
           </NavLink>
           <SidebarItem icon={<LuGauge />} label="Status Antrean" badge="12" />
@@ -68,7 +70,13 @@ export const NavSidebar = () => {
         </SidebarGroup>
 
         <SidebarGroup label="Master Data">
-          <SidebarItem icon={<LuTags />} label="Kategori Produk" />
+          <NavLink to="/category" className="contents">
+            {({ isActive }) => (
+              <SidebarItem asChild icon={<LuTags />} label="Kategori Produk" active={isActive}>
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
           <SidebarItem icon={<LuDatabase />} label="Produk & Jasa" />
           <SidebarItem icon={<LuBriefcase />} label="Biro / Reseller" />
           <SidebarItem icon={<LuUsers />} label="Database Supplier" />
