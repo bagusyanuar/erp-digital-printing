@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Typography } from "@erp-digital-printing/ui/Typography";
