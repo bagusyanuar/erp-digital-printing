@@ -1,12 +1,32 @@
 import { NavLink } from "react-router-dom";
 import {
-  Sidebar, SidebarHeader, SidebarAppSwitcher,
-  SidebarContent, SidebarGroup, SidebarItem, SidebarItemTree, SidebarFooter
+  Sidebar,
+  SidebarHeader,
+  SidebarAppSwitcher,
+  SidebarContent,
+  SidebarGroup,
+  SidebarItem,
+  SidebarItemTree,
+  SidebarFooter,
 } from "@erp-digital-printing/ui/Sidebar";
 import {
-  LuLayoutDashboard, LuPackage, LuDatabase, LuHistory, LuTruck,
-  LuFileText, LuCreditCard, LuSettings, LuBox, LuPrinter, LuUsers, LuScissors, LuGauge, LuBanknote,
-  LuSignature, LuTags, LuBriefcase
+  LuLayoutDashboard,
+  LuPackage,
+  LuDatabase,
+  LuHistory,
+  LuTruck,
+  LuFileText,
+  LuCreditCard,
+  LuSettings,
+  LuBox,
+  LuPrinter,
+  LuUsers,
+  LuScissors,
+  LuGauge,
+  LuBanknote,
+  LuSignature,
+  LuTags,
+  LuBriefcase,
 } from "@erp-digital-printing/ui/icons";
 
 export const NavSidebar = () => {
@@ -18,8 +38,12 @@ export const NavSidebar = () => {
             <LuBox className="h-6 w-6" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xl font-black text-sidebar-foreground tracking-tighter leading-none">MADE</span>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-1">Digital Printing ERP</span>
+            <span className="text-xl font-black text-sidebar-foreground tracking-tighter leading-none">
+              MADE
+            </span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-1">
+              Digital Printing ERP
+            </span>
           </div>
         </div>
       </SidebarHeader>
@@ -28,7 +52,7 @@ export const NavSidebar = () => {
         currentApp={{
           name: "Digital Printing",
           description: "Production & Sales",
-          icon: <LuPrinter className="h-6 w-6" />
+          icon: <LuPrinter className="h-6 w-6" />,
         }}
       />
 
@@ -36,7 +60,12 @@ export const NavSidebar = () => {
         <SidebarGroup>
           <NavLink to="/dashboard" className="contents">
             {({ isActive }) => (
-              <SidebarItem asChild icon={<LuLayoutDashboard />} label="Dashboard" active={isActive}>
+              <SidebarItem
+                asChild
+                icon={<LuLayoutDashboard />}
+                label="Dashboard"
+                active={isActive}
+              >
                 <button />
               </SidebarItem>
             )}
@@ -72,12 +101,28 @@ export const NavSidebar = () => {
         <SidebarGroup label="Master Data">
           <NavLink to="/category" className="contents">
             {({ isActive }) => (
-              <SidebarItem asChild icon={<LuTags />} label="Kategori Produk" active={isActive}>
+              <SidebarItem
+                asChild
+                icon={<LuTags />}
+                label="Kategori Produk"
+                active={isActive}
+              >
                 <button />
               </SidebarItem>
             )}
           </NavLink>
-          <SidebarItem icon={<LuDatabase />} label="Produk & Jasa" />
+          <NavLink to="/product" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuDatabase />}
+                label="Produk & Jasa"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
           <SidebarItem icon={<LuBriefcase />} label="Biro / Reseller" />
           <SidebarItem icon={<LuUsers />} label="Database Supplier" />
           <SidebarItem icon={<LuSettings />} label="Konfigurasi Mesin" />
@@ -92,7 +137,7 @@ export const NavSidebar = () => {
       <SidebarFooter
         user={{
           name: "Bagus Yanuar",
-          role: "Administrator"
+          role: "Administrator",
         }}
       />
     </Sidebar>
