@@ -1,31 +1,14 @@
 import { lazy, Suspense } from "react";
-import { type RouteObject, Outlet } from "react-router-dom";
-import {
-  AppLayout,
-  AppLayoutHeader,
-  AppLayoutContent,
-} from "@erp-digital-printing/ui/Layout";
-import { NavSidebar } from "@shell/components/NavSidebar";
+import { type RouteObject } from "react-router-dom";
 
 const PresentationProduct = lazy(
   () => import("@presentation/product/pages/ProductPage"),
 );
 
-const DashboardLayout = () => {
-  return (
-    <AppLayout sidebar={<NavSidebar />}>
-      <AppLayoutHeader title="Product" />
-      <AppLayoutContent className="p-0">
-        <Outlet />
-      </AppLayoutContent>
-    </AppLayout>
-  );
-};
-
 export const productRoutes: RouteObject[] = [
   {
     path: "/product",
-    element: <DashboardLayout />,
+    handle: { title: "Product" },
     children: [
       {
         index: true,

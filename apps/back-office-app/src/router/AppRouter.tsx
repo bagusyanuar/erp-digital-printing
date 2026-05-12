@@ -5,6 +5,7 @@ import { sharedRoutes } from "./modules/shared.routes";
 import { categoryRoutes } from "./modules/category.routes";
 import { productRoutes } from "./modules/product.routes";
 import { PageLoader } from "../components/PageLoader";
+import MainLayout from "../layouts/MainLayout";
 
 const Root = () => {
   return (
@@ -21,10 +22,15 @@ const router = createBrowserRouter([
     element: <Root />,
     children: [
       ...authRoutes,
-      ...dashboardRoutes,
+      {
+        element: <MainLayout />,
+        children: [
+          ...dashboardRoutes,
+          ...categoryRoutes,
+          ...productRoutes,
+        ],
+      },
       ...sharedRoutes,
-      ...categoryRoutes,
-      ...productRoutes,
     ],
   },
 ]);
