@@ -1,18 +1,18 @@
 import { lazy, Suspense } from "react";
 import { type RouteObject } from "react-router-dom";
 
-const PresentationProduct = lazy(
-  () => import("@presentation/product/pages/ProductPage"),
+const VariantList = lazy(
+  () => import("@presentation/variant/pages/VariantPage"),
 );
 
-const FormProduct = lazy(
-  () => import("@presentation/product/pages/FormProduct"),
+const FormVariant = lazy(
+  () => import("@presentation/variant/pages/FormVariant"),
 );
 
-export const productRoutes: RouteObject[] = [
+export const variantRoutes: RouteObject[] = [
   {
-    path: "/product",
-    handle: { title: "Product" },
+    path: "/variant",
+    handle: { title: "Master Bahan" },
     children: [
       {
         index: true,
@@ -24,13 +24,13 @@ export const productRoutes: RouteObject[] = [
               </div>
             }
           >
-            <PresentationProduct />
+            <VariantList />
           </Suspense>
         ),
       },
       {
         path: "create",
-        handle: { title: "Create Product" },
+        handle: { title: "Create Variant" },
         element: (
           <Suspense
             fallback={
@@ -39,7 +39,7 @@ export const productRoutes: RouteObject[] = [
               </div>
             }
           >
-            <FormProduct />
+            <FormVariant />
           </Suspense>
         ),
       },

@@ -4,6 +4,8 @@ import { dashboardRoutes } from "./modules/dashboard.routes";
 import { sharedRoutes } from "./modules/shared.routes";
 import { categoryRoutes } from "./modules/category.routes";
 import { productRoutes } from "./modules/product.routes";
+import { attributeRoutes } from "./modules/attribute.routes";
+import { customerRoutes } from "./modules/customer.routes";
 import { PageLoader } from "../components/PageLoader";
 import MainLayout from "../layouts/MainLayout";
 
@@ -28,6 +30,8 @@ const router = createBrowserRouter([
           ...dashboardRoutes,
           ...categoryRoutes,
           ...productRoutes,
+          ...attributeRoutes,
+          ...customerRoutes,
         ],
       },
       ...sharedRoutes,

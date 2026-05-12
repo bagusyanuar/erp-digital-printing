@@ -123,6 +123,30 @@ export const NavSidebar = () => {
               </SidebarItem>
             )}
           </NavLink>
+          <NavLink to="/attribute" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuBox />}
+                label="Master Atribut"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
+          <NavLink to="/customer/level" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuUsers />}
+                label="Level Pelanggan"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
           <SidebarItem icon={<LuBriefcase />} label="Biro / Reseller" />
           <SidebarItem icon={<LuUsers />} label="Database Supplier" />
           <SidebarItem icon={<LuSettings />} label="Konfigurasi Mesin" />
