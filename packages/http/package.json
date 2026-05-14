@@ -1,0 +1,22 @@
+{
+  "name": "@erp-digital-printing/http",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "HTTP Client for ERP Digital Printing",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@erp-digital-printing/libs": "workspace:*",
+    "axios": "^1.15.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^24.12.0",
+    "vite": "^7.1.0"
+  }
+}

@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import fs from "node:fs";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -12,5 +13,13 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), tsconfigPaths()],
   resolve: {
     dedupe: ["react", "react-dom"],
+  },
+  server: {
+    https: {
+      key: fs.readFileSync(path.resolve(__dirname, "../../.ssl/_wildcard.made-printing.local+1-key.pem")),
+      cert: fs.readFileSync(path.resolve(__dirname, "../../.ssl/_wildcard.made-printing.local+1.pem")),
+    },
+    host: "made-printing.local",
+    port: 5173,
   },
 });
