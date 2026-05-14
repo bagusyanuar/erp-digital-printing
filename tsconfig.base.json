@@ -13,6 +13,7 @@
     "noImplicitReturns": true,
     "baseUrl": ".",
     "paths": {
+      "@core/*": ["modules/core/src/*"],
       "@presentation/*": ["modules/presentation/src/*"],
       "@ui/*": ["packages/ui/src/components/*"],
       "@shell/*": ["apps/back-office-app/src/*"],

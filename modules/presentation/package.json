@@ -12,6 +12,7 @@
     "react-dom": "^19.2.4"
   },
   "dependencies": {
+    "@erp-digital-printing/core": "workspace:*",
     "@erp-digital-printing/ui": "workspace:*",
     "@tanstack/react-table": "^8.21.3",
     "framer-motion": "^12.38.0",

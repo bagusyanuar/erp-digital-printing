@@ -115,8 +115,23 @@ importers:
         specifier: ^7.1.0
         version: 7.3.3(@types/node@25.6.0)(jiti@2.7.0)(lightningcss@1.32.0)
 
+  modules/core:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.12.0
+        version: 24.12.4
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.1.0
+        version: 7.3.3(@types/node@24.12.4)(jiti@2.7.0)(lightningcss@1.32.0)
+
   modules/presentation:
     dependencies:
+      '@erp-digital-printing/core':
+        specifier: workspace:*
+        version: link:../core
       '@erp-digital-printing/ui':
         specifier: workspace:*
         version: link:../../packages/ui
