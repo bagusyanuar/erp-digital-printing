@@ -10,7 +10,9 @@ import type { AppContainer } from "@presentation/shared/di/DIContext";
  * Cukup tambahkan property baru saat modul baru dibuat.
  */
 export function createAppContainer(): AppContainer {
-  const httpClient = createHttpClient(() => useAuthStore.getState().accessToken);
+  const httpClient = createHttpClient(
+    () => useAuthStore.getState().accessToken,
+  );
 
   return {
     auth: {
