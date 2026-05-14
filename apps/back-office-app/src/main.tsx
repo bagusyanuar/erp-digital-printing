@@ -1,13 +1,18 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
-import { getApiUrl } from '@erp-digital-printing/libs'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { createAppContainer } from "./di/app.container";
+import { AppProviders } from "./providers/AppProviders";
+import "./index.css";
+import App from "./App.tsx";
 
-console.log('🚀 API URL:', getApiUrl())
+// 1. Rakit seluruh dependency (Composition Root)
+const container = createAppContainer();
 
-createRoot(document.getElementById('root')!).render(
+// 2. Render aplikasi dengan provider terpusat
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
-  </StrictMode>,
-)
+    <AppProviders container={container}>
+      <App />
+    </AppProviders>
+  </StrictMode>
+);

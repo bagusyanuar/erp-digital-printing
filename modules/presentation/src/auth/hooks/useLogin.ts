@@ -1,11 +1,23 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
 import { loginInputSchema } from "@infrastructure/auth/validators";
-import type { LoginInput } from "@core/auth/applications/inputs";
-import * as React from "react";
+import type { LoginInput } from "@core/auth/applications/inputs/auth.input";
+import { useAuthStore } from "../stores/auth.store";
+import { useAuthDI } from "./useAuthDI";
 
+/**
+ * useLogin Hook
+ * 
+ * Hook ini mengintegrasikan:
+ * - React Hook Form + Zod untuk validasi form.
+ * - TanStack Query (useMutation) untuk eksekusi API.
+ * - Dependency Injection (useAuthDI) untuk mendapatkan Use Case.
+ * - Zustand (useAuthStore) untuk menyimpan session token.
+ */
 export const useLogin = () => {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const { loginUseCase } = useAuthDI();
+  const setToken = useAuthStore((state) => state.setToken);
 
   const {
     register,
@@ -20,30 +32,35 @@ export const useLogin = () => {
     },
   });
 
+  // Integrasi TanStack Query
+  const { mutate, isPending } = useMutation({
+    mutationFn: (data: LoginInput) => loginUseCase.execute(data),
+    onSuccess: (data) => {
+      // Simpan token ke global state (Zustand)
+      setToken(data.accessToken);
+      console.log("Login Success! Token saved to store.");
+
+      // Di sini nanti bisa tambahkan redirect (misal navigate('/dashboard'))
+    },
+    onError: (error) => {
+      // Error handling global (bisa lewat toast atau setting error ke RHF)
+      console.error("Login Error:", error);
+    },
+  });
+
   // Helper untuk sinkronisasi dengan component custom yang mungkin butuh onChange manual
   const handleChange = (name: keyof LoginInput, value: string) => {
     setValue(name, value, { shouldValidate: true });
   };
 
-  const onSubmit = async (data: LoginInput) => {
-    setIsLoading(true);
-    try {
-      // Logic login akan memanggil Usecase di sini nanti
-      console.log("Submitting login form (RHF + Zod):", data);
-
-      // Simulasi delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-    } catch (error) {
-      console.error("Login failed:", error);
-    } finally {
-      setIsLoading(false);
-    }
+  const onSubmit = (data: LoginInput) => {
+    mutate(data);
   };
 
   return {
     register,
     errors,
-    isLoading,
+    isLoading: isPending,
     setValue,
     handleChange, // Tetap kita expose untuk kemudahan transisi
     handleSubmit: handleSubmit(onSubmit),

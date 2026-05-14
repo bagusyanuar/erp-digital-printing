@@ -13,6 +13,7 @@
     "@erp-digital-printing/libs": "workspace:*",
     "@erp-digital-printing/presentation": "workspace:*",
     "@erp-digital-printing/ui": "workspace:*",
+    "@tanstack/react-query": "^5.100.10",
     "framer-motion": "^12.38.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
