@@ -8,6 +8,7 @@ import { PasswordField } from "@erp-digital-printing/ui/PasswordField";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { Checkbox } from "@erp-digital-printing/ui/Checkbox";
 import { Label } from "@erp-digital-printing/ui/Label";
+import { HelperText } from "@erp-digital-printing/ui/HelperText";
 import { useLogin } from "../hooks/useLogin";
 
 interface LoginPageProps {
@@ -15,7 +16,7 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ logo }: LoginPageProps) {
-  const { form, isLoading, handleChange, handleSubmit } = useLogin();
+  const { register, errors, isLoading, handleSubmit } = useLogin();
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 font-sans text-foreground">
@@ -64,12 +65,16 @@ export default function LoginPage({ logo }: LoginPageProps) {
               <Label htmlFor="username">Username atau Email</Label>
               <TextField
                 id="username"
-                value={form.username}
-                onChange={(e) => handleChange("username", e.target.value)}
+                {...register("username")}
                 placeholder="bosku@digitalprint.com"
                 prefixIcon={LuMail}
-                required
+                variant={errors.username ? "error" : "default"}
               />
+              {errors.username && (
+                <HelperText variant="error">
+                  {errors.username.message}
+                </HelperText>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -84,12 +89,16 @@ export default function LoginPage({ logo }: LoginPageProps) {
               </div>
               <PasswordField
                 id="password"
-                value={form.password}
-                onChange={(e) => handleChange("password", e.target.value)}
+                {...register("password")}
                 placeholder="••••••••"
                 prefixIcon={LuLock}
-                required
+                variant={errors.password ? "error" : "default"}
               />
+              {errors.password && (
+                <HelperText variant="error">
+                  {errors.password.message}
+                </HelperText>
+              )}
             </div>
 
             <div className="flex items-center space-x-3 px-1">

@@ -1,0 +1,30 @@
+{
+  "name": "@erp-digital-printing/infrastructure",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./src/*.ts",
+        "./src/*/index.ts"
+      ]
+    }
+  },
+  "dependencies": {
+    "@erp-digital-printing/core": "workspace:*",
+    "@erp-digital-printing/http": "workspace:*",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.0",
+    "typescript": "~5.9.3"
+  }
+}

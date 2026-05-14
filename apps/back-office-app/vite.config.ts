@@ -12,6 +12,14 @@ export default defineConfig({
     tailwindcss(),
     tsconfigPaths(),
   ],
+  resolve: {
+    alias: {
+      "@core": path.resolve(__dirname, "../../modules/core/src"),
+      "@infrastructure": path.resolve(__dirname, "../../modules/infrastructure/src"),
+      "@presentation": path.resolve(__dirname, "../../modules/presentation/src"),
+    },
+    dedupe: ["zod", "react", "react-dom"],
+  },
   server: {
     https: {
       key: fs.readFileSync(path.resolve(__dirname, "../../.ssl/_wildcard.made-printing.local+1-key.pem")),
