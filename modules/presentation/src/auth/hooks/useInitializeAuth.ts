@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuthDI } from "./useAuthDI";
 import { useAuthStore } from "../stores/auth.store";
-import { toast } from "@erp-digital-printing/ui/Toast";
 
 /**
  * useInitializeAuth
- * 
+ *
  * Hook ini bertanggung jawab untuk melakukan "Silent Refresh" saat aplikasi pertama kali dimuat.
  * Ini memastikan bahwa jika user mereload halaman, status login tetap terjaga selama cookie refresh_token valid.
  */
