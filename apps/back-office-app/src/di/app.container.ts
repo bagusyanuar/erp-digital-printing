@@ -17,6 +17,7 @@ export function createAppContainer(): AppContainer {
   const httpClient = createHttpClient(
     () => useAuthStore.getState().accessToken,
     (token) => useAuthStore.getState().setToken(token),
+    () => useAuthStore.getState().clearToken(),
   );
 
   return {

@@ -9,6 +9,9 @@ import { customerRoutes } from "./modules/customer.routes";
 import { PageLoader } from "../components/PageLoader";
 import MainLayout from "../layouts/MainLayout";
 
+import { ProtectedRoute } from "@presentation/shared/guards/ProtectedRoute";
+import { PublicRoute } from "@presentation/shared/guards/PublicRoute";
+
 const Root = () => {
   return (
     <>
@@ -23,17 +26,28 @@ const router = createBrowserRouter([
   {
     element: <Root />,
     children: [
-      ...authRoutes,
+      // Rute Publik (Hanya bisa diakses jika BELUM login)
       {
-        element: <MainLayout />,
+        element: <PublicRoute />,
+        children: [...authRoutes],
+      },
+      // Rute Terproteksi (Hanya bisa diakses jika SUDAH login)
+      {
+        element: <ProtectedRoute />,
         children: [
-          ...dashboardRoutes,
-          ...categoryRoutes,
-          ...productRoutes,
-          ...attributeRoutes,
-          ...customerRoutes,
+          {
+            element: <MainLayout />,
+            children: [
+              ...dashboardRoutes,
+              ...categoryRoutes,
+              ...productRoutes,
+              ...attributeRoutes,
+              ...customerRoutes,
+            ],
+          },
         ],
       },
+      // Rute Bersama (Bisa diakses siapa saja, misal 404)
       ...sharedRoutes,
     ],
   },

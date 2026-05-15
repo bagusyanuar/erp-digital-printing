@@ -20,6 +20,7 @@ export const responseInterceptor = (response: AxiosResponse) => {
 export const createResponseErrorInterceptor = (
   instance: AxiosInstance,
   onTokenRefreshed?: TokenSetter,
+  onAuthFailure?: () => void | Promise<void>,
 ) => {
   return async (error: AxiosError) => {
     const originalRequest = error.config as CustomRequestConfig;
@@ -56,8 +57,9 @@ export const createResponseErrorInterceptor = (
         // Jika refresh gagal (misal refresh_token di cookie juga expired)
         console.error("Session expired. Please login again.");
 
-        // Opsional: Redirect ke login atau hapus state user
-        // window.location.href = '/login';
+        if (onAuthFailure) {
+          await onAuthFailure();
+        }
 
         return Promise.reject(refreshError);
       }

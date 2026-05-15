@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 
 interface AuthState {
   accessToken: string | null;
@@ -12,15 +13,23 @@ interface AuthActions {
 
 export type AuthStore = AuthState & AuthActions;
 
-export const useAuthStore = create<AuthStore>((set) => ({
-  accessToken: null,
-  isAuthenticated: false,
+export const useAuthStore = create<AuthStore>()(
+  devtools(
+    (set) => ({
+      accessToken: null,
+      isAuthenticated: false,
 
-  setToken: (token: string) => {
-    set({ accessToken: token, isAuthenticated: true });
-  },
+      setToken: (token: string) => {
+        set({ accessToken: token, isAuthenticated: true }, false, "auth/setToken");
+      },
 
-  clearToken: () => {
-    set({ accessToken: null, isAuthenticated: false });
-  },
-}));
+      clearToken: () => {
+        set({ accessToken: null, isAuthenticated: false }, false, "auth/clearToken");
+      },
+    }),
+    { 
+      name: "AuthStore", 
+      enabled: import.meta.env.DEV 
+    }
+  )
+);

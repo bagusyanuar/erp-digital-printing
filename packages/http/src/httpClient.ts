@@ -14,17 +14,21 @@ import {
 export interface HttpClientConfig extends AxiosRequestConfig {
   getToken?: TokenGetter;
   onTokenRefreshed?: TokenSetter;
+  onAuthFailure?: () => void | Promise<void>;
 }
 
 export class HttpClient {
   private instance: AxiosInstance;
   private getToken?: TokenGetter;
   private onTokenRefreshed?: TokenSetter;
+  private onAuthFailure?: () => void | Promise<void>;
 
   constructor(config?: HttpClientConfig) {
-    const { getToken, onTokenRefreshed, ...axiosConfig } = config || {};
+    const { getToken, onTokenRefreshed, onAuthFailure, ...axiosConfig } =
+      config || {};
     this.getToken = getToken;
     this.onTokenRefreshed = onTokenRefreshed;
+    this.onAuthFailure = onAuthFailure;
 
     this.instance = axios.create({
       baseURL: getApiUrl(),
@@ -50,7 +54,11 @@ export class HttpClient {
     // Response Interceptor
     this.instance.interceptors.response.use(
       responseInterceptor,
-      createResponseErrorInterceptor(this.instance, this.onTokenRefreshed),
+      createResponseErrorInterceptor(
+        this.instance,
+        this.onTokenRefreshed,
+        this.onAuthFailure,
+      ),
     );
   }
 

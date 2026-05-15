@@ -11,4 +11,5 @@ import type { TokenGetter, TokenSetter } from "@erp-digital-printing/http";
 export const createHttpClient = (
   getToken?: TokenGetter,
   onTokenRefreshed?: TokenSetter,
-): HttpClient => new HttpClient({ getToken, onTokenRefreshed });
+  onAuthFailure?: () => void | Promise<void>,
+): HttpClient => new HttpClient({ getToken, onTokenRefreshed, onAuthFailure });
