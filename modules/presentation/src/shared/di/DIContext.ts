@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { Login } from "@core/auth/applications/usecases/auth.usecase";
+import type { Login, Refresh, Logout } from "@core/auth/applications/usecases/auth.usecase";
 
 // ──────────────────────────────────────────────
 // Module Use Case Types
@@ -8,6 +8,8 @@ import type { Login } from "@core/auth/applications/usecases/auth.usecase";
 
 export interface AuthUseCases {
   loginUseCase: Login;
+  refreshUseCase: Refresh;
+  logoutUseCase: Logout;
 }
 
 // ──────────────────────────────────────────────

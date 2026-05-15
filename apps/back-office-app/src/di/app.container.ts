@@ -1,5 +1,9 @@
 import { createHttpClient } from "@infrastructure/libs/http";
-import { createLoginUseCase } from "@infrastructure/auth/containers/auth.container";
+import {
+  createLoginUseCase,
+  createRefreshUseCase,
+  createLogoutUseCase,
+} from "@infrastructure/auth/containers/auth.container";
 import { useAuthStore } from "@presentation/auth/stores/auth.store";
 import type { AppContainer } from "@presentation/shared/di/DIContext";
 
@@ -12,11 +16,14 @@ import type { AppContainer } from "@presentation/shared/di/DIContext";
 export function createAppContainer(): AppContainer {
   const httpClient = createHttpClient(
     () => useAuthStore.getState().accessToken,
+    (token) => useAuthStore.getState().setToken(token),
   );
 
   return {
     auth: {
       loginUseCase: createLoginUseCase(httpClient),
+      refreshUseCase: createRefreshUseCase(httpClient),
+      logoutUseCase: createLogoutUseCase(httpClient),
     },
   };
 }

@@ -18,7 +18,7 @@ export default defineConfig({
       "@infrastructure": path.resolve(__dirname, "../../modules/infrastructure/src"),
       "@presentation": path.resolve(__dirname, "../../modules/presentation/src"),
     },
-    dedupe: ["zod", "react", "react-dom", "@tanstack/react-query"],
+    dedupe: ["zod", "react", "react-dom", "react-router-dom", "@tanstack/react-query", "framer-motion", "zustand"],
   },
   server: {
     https: {

@@ -1,7 +1,7 @@
 import type { AxiosInstance, AxiosRequestConfig } from "axios";
 import axios from "axios";
 import { getApiUrl } from "@erp-digital-printing/libs";
-import type { TokenGetter } from "./interceptors/request";
+import type { TokenGetter, TokenSetter } from "./interceptors/request";
 import {
   createRequestInterceptor,
   requestErrorInterceptor,
@@ -13,15 +13,18 @@ import {
 
 export interface HttpClientConfig extends AxiosRequestConfig {
   getToken?: TokenGetter;
+  onTokenRefreshed?: TokenSetter;
 }
 
 export class HttpClient {
   private instance: AxiosInstance;
   private getToken?: TokenGetter;
+  private onTokenRefreshed?: TokenSetter;
 
   constructor(config?: HttpClientConfig) {
-    const { getToken, ...axiosConfig } = config || {};
+    const { getToken, onTokenRefreshed, ...axiosConfig } = config || {};
     this.getToken = getToken;
+    this.onTokenRefreshed = onTokenRefreshed;
 
     this.instance = axios.create({
       baseURL: getApiUrl(),
@@ -47,7 +50,7 @@ export class HttpClient {
     // Response Interceptor
     this.instance.interceptors.response.use(
       responseInterceptor,
-      createResponseErrorInterceptor(this.instance),
+      createResponseErrorInterceptor(this.instance, this.onTokenRefreshed),
     );
   }
 

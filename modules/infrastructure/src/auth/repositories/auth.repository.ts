@@ -27,4 +27,16 @@ export class ApiAuthRepository implements AuthRepository {
 
     return mapLoginResponseToModel(response.data);
   }
+
+  async refresh(): Promise<LoginModel> {
+    // Cookie refresh_token dikirim otomatis
+    const response = await this.http.post<ApiResponse<LoginResponse>>(
+      "/auth/refresh",
+    );
+    return mapLoginResponseToModel(response.data);
+  }
+
+  async logout(): Promise<void> {
+    await this.http.post("/auth/logout");
+  }
 }

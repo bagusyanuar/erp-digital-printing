@@ -5,6 +5,8 @@ import { loginInputSchema } from "@infrastructure/auth/validators";
 import type { LoginInput } from "@core/auth/applications/inputs/auth.input";
 import { useAuthStore } from "../stores/auth.store";
 import { useAuthDI } from "./useAuthDI";
+import { useNavigate } from "react-router-dom";
+import { toast } from "@erp-digital-printing/ui/Toast";
 
 /**
  * useLogin Hook
@@ -18,6 +20,7 @@ import { useAuthDI } from "./useAuthDI";
 export const useLogin = () => {
   const { loginUseCase } = useAuthDI();
   const setToken = useAuthStore((state) => state.setToken);
+  const navigate = useNavigate();
 
   const {
     register,
@@ -38,12 +41,22 @@ export const useLogin = () => {
     onSuccess: (data) => {
       // Simpan token ke global state (Zustand)
       setToken(data.accessToken);
-      console.log("Login Success! Token saved to store.");
-
-      // Di sini nanti bisa tambahkan redirect (misal navigate('/dashboard'))
+      
+      toast.success("Login Berhasil", "Selamat datang kembali di ERP Digital Printing.");
+      
+      // Redirect ke dashboard
+      navigate("/dashboard");
     },
-    onError: (error) => {
-      // Error handling global (bisa lewat toast atau setting error ke RHF)
+    onError: (error: unknown) => {
+      // Error handling global
+      let errorMessage = "Terjadi kesalahan saat login. Periksa kembali akun Anda.";
+
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        errorMessage = axiosError.response?.data?.message || errorMessage;
+      }
+      
+      toast.error("Login Gagal", errorMessage);
       console.error("Login Error:", error);
     },
   });

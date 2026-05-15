@@ -6,4 +6,4 @@
 - **CVA Separation**: File CVA variants wajib dipisah menjadi file tersendiri (`*.variants.ts`).
 - **Icon Naming**: Gunakan standar Lucide v0.400+ untuk `react-icons/lu` (v5+). Contoh: `LuCircleCheck` (bukan `LuCheckCircle`), `LuEllipsisVertical` (bukan `LuMoreVertical`).
 - **Flow**: NO auto-run. Manual trigger only.
-- **Strict Typing**: Dilarang keras menggunakan `any`. Gunakan tipe data yang spesifik atau `unknown` jika tipe data benar-benar tidak diketahui. Pastikan ESLint rule `@typescript-eslint/no-explicit-any` selalu aktif dengan level `error`.
+- **STRICT NO ANY**: Dilarang keras menggunakan keyword `any` di seluruh codebase tanpa pengecualian (Zero Tolerance). Gunakan interface, type, atau `unknown` + type guard. Pastikan ESLint rule `@typescript-eslint/no-explicit-any` selalu aktif dengan level `error`.

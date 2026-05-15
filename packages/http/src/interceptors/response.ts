@@ -4,6 +4,7 @@ import type {
   AxiosInstance,
   InternalAxiosRequestConfig,
 } from "axios";
+import type { TokenSetter } from "./request";
 
 interface CustomRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -16,7 +17,10 @@ export const responseInterceptor = (response: AxiosResponse) => {
 /**
  * Factory untuk error interceptor agar bisa mengakses instance axios untuk retry
  */
-export const createResponseErrorInterceptor = (instance: AxiosInstance) => {
+export const createResponseErrorInterceptor = (
+  instance: AxiosInstance,
+  onTokenRefreshed?: TokenSetter,
+) => {
   return async (error: AxiosError) => {
     const originalRequest = error.config as CustomRequestConfig;
 
@@ -33,9 +37,20 @@ export const createResponseErrorInterceptor = (instance: AxiosInstance) => {
       try {
         // Hit endpoint refresh.
         // Karena withCredentials: true, browser otomatis mengirim cookie refresh_token.
-        await instance.post("/auth/refresh");
+        const refreshResponse = await instance.post<{ data: { access_token: string } }>("/auth/refresh");
+        const newToken = refreshResponse.data?.data?.access_token;
 
-        // Jika refresh sukses, ulangi original request
+        if (newToken) {
+          // Update store (Zustand) lewat callback
+          if (onTokenRefreshed) {
+            await onTokenRefreshed(newToken);
+          }
+
+          // Update header request yang gagal tadi
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        }
+
+        // Ulangi original request
         return instance(originalRequest);
       } catch (refreshError) {
         // Jika refresh gagal (misal refresh_token di cookie juga expired)

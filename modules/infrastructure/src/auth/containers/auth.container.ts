@@ -1,14 +1,27 @@
 import { ApiAuthRepository } from "@infrastructure/auth/repositories/auth.repository";
-import { Login } from "@core/auth/applications/usecases/auth.usecase";
+import { Login, Refresh, Logout } from "@core/auth/applications/usecases/auth.usecase";
 import { type HttpClient } from "@erp-digital-printing/http";
 
 /**
  * createLoginUseCase
- *
- * Factory function untuk merakit dependency Login Use Case.
- * Bundler bisa men-tree-shake fungsi ini jika tidak dipanggil.
  */
 export function createLoginUseCase(http: HttpClient): Login {
   const repository = new ApiAuthRepository(http);
   return new Login(repository);
+}
+
+/**
+ * createRefreshUseCase
+ */
+export function createRefreshUseCase(http: HttpClient): Refresh {
+  const repository = new ApiAuthRepository(http);
+  return new Refresh(repository);
+}
+
+/**
+ * createLogoutUseCase
+ */
+export function createLogoutUseCase(http: HttpClient): Logout {
+  const repository = new ApiAuthRepository(http);
+  return new Logout(repository);
 }

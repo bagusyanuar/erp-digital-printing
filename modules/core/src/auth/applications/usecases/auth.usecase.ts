@@ -9,3 +9,19 @@ export class Login {
     return await this.authRepository.login(input);
   }
 }
+
+export class Refresh {
+  constructor(private readonly authRepository: AuthRepository) {}
+
+  async execute(): Promise<LoginModel> {
+    return await this.authRepository.refresh();
+  }
+}
+
+export class Logout {
+  constructor(private readonly authRepository: AuthRepository) {}
+
+  async execute(): Promise<void> {
+    return await this.authRepository.logout();
+  }
+}

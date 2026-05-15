@@ -9,6 +9,8 @@ export type TokenGetter = () =>
   | undefined
   | Promise<string | null | undefined>;
 
+export type TokenSetter = (token: string) => void | Promise<void>;
+
 export const createRequestInterceptor = (getToken?: TokenGetter) => {
   return async (config: InternalAxiosRequestConfig) => {
     // Jika ada function getToken, panggil dan masukkan ke header Authorization
