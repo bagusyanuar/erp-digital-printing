@@ -135,18 +135,6 @@ export const NavSidebar = () => {
               </SidebarItem>
             )}
           </NavLink>
-          <NavLink to="/customer/level" className="contents">
-            {({ isActive }) => (
-              <SidebarItem
-                asChild
-                icon={<LuUsers />}
-                label="Level Pelanggan"
-                active={isActive}
-              >
-                <button />
-              </SidebarItem>
-            )}
-          </NavLink>
           <NavLink to="/reseller" className="contents">
             {({ isActive }) => (
               <SidebarItem
