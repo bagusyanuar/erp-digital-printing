@@ -1,6 +1,6 @@
 import type { ResellerRepository } from "../../domains/repositories";
 import type { ResellerModel } from "../../domains/models";
-import type { ResellerParams } from "../inputs";
+import type { ResellerParams, CreateResellerInput } from "../inputs";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 export class GetResellers {
@@ -18,5 +18,13 @@ export class GetResellerById {
 
   async execute(id: string): Promise<ResellerModel> {
     return await this.resellerRepository.getResellerById(id);
+  }
+}
+
+export class CreateReseller {
+  constructor(private readonly resellerRepository: ResellerRepository) {}
+
+  async execute(input: CreateResellerInput): Promise<ResellerModel> {
+    return await this.resellerRepository.create(input);
   }
 }

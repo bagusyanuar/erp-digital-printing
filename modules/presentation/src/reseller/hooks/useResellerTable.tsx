@@ -6,13 +6,15 @@ import {
   getFilteredRowModel,
   createColumnHelper,
 } from "@tanstack/react-table";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useResellerDI } from "./useResellerDI";
 import { toast } from "@erp-digital-printing/ui/Toast";
 import { resellerKeys } from "@infrastructure/reseller/keys";
 import { Typography } from "@erp-digital-printing/ui/Typography";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { LuEllipsisVertical } from "@erp-digital-printing/ui/icons";
+import type { CreateResellerInput } from "@core/reseller/applications/inputs";
+import type { AppError } from "@core/shared/errors/domain.error";
 
 export interface CustomerLevel {
   id: string;
@@ -50,10 +52,11 @@ const formatRupiah = (value: number) => {
 export const useResellerTable = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
-  const { getResellersUseCase } = useResellerDI();
+  const { getResellersUseCase, createResellerUseCase } = useResellerDI();
+  const queryClient = useQueryClient();
 
   // Fetch real data from the API
-  const { data: response, isLoading } = useQuery({
+  const { data: response, isLoading, isFetching } = useQuery({
     queryKey: resellerKeys.list({ limit: 100 }),
     queryFn: () => getResellersUseCase.execute({ limit: 100 }),
   });
@@ -84,20 +87,28 @@ export const useResellerTable = () => {
     );
   }, [response]);
 
-  const addReseller = (
-    _newReseller: Omit<
-      Reseller,
-      | "id"
-      | "customer_level_id"
-      | "customer_level"
-      | "created_at"
-      | "updated_at"
-      | "deleted_at"
-    >,
-  ) => {
-    toast.info(
-      "Fitur Tambah Mitra belum terhubung ke API (Usecase/infra belum tersedia).",
-    );
+  // Create Reseller Mutation
+  const createMutation = useMutation({
+    mutationFn: (input: CreateResellerInput) =>
+      createResellerUseCase.execute(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: resellerKeys.all });
+      toast.success(
+        "Reseller Berhasil Ditambahkan",
+        "Data reseller baru telah disimpan ke dalam sistem.",
+      );
+      setIsAddDialogOpen(false);
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Menambahkan Reseller",
+        error.message || "Terjadi kesalahan.",
+      );
+    },
+  });
+
+  const addReseller = (newReseller: CreateResellerInput) => {
+    createMutation.mutate(newReseller);
   };
 
   const columns = useMemo(
@@ -195,7 +206,8 @@ export const useResellerTable = () => {
     table,
     data,
     columns,
-    isLoading,
+    isLoading: isLoading || isFetching,
+    isAdding: createMutation.isPending,
     isAddDialogOpen,
     setIsAddDialogOpen,
     globalFilter,

@@ -5,3 +5,11 @@ export interface ResellerParams extends PaginationParams {
   sort?: string;
   sortBy?: string;
 }
+
+export interface CreateResellerInput {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  creditLimit: number;
+}
