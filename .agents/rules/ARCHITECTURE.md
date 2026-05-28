@@ -49,3 +49,15 @@ Proyek dibagi menjadi tiga modul utama:
     - *To Schema*: Memetakan dari parameter `Input` (Core) menjadi `Request Schema` (Payload API).
 - **Keuntungan**: Jika sewaktu-waktu ada perubahan struktur (keys) JSON dari sisi Backend, kita **HANYA** perlu mengubah `Schema` dan `Mapper` di layer Infrastructure. Kode pada layer Core dan Presentation akan tetap aman dan tidak perlu disentuh sama sekali.
 - **Presentation Adapter**: Jika bentuk state yang dibutuhkan React Component (ViewModel) berbeda dari Model murni, lakukan ekstraksi menggunakan `useMemo` langsung di dalam custom hook presentasi (hindari logic transformasi kompleks di dalam komponen TSX).
+
+## 6. Form Validation & Schema Validation (Zod & React Hook Form)
+- **Letak Validator**: Skema validasi Zod wajib diletakkan di layer Infrastructure: `modules/infrastructure/src/[nama_modul]/validators/[nama_modul].validator.ts`.
+- **Ekspor Entrypoint**: Setiap validator wajib diekspor dari index file `modules/infrastructure/src/[nama_modul]/validators/index.ts` untuk mempermudah konsumsi di modul presentation.
+- **Strict Casting DTO/Input**: Skema Zod wajib di-cast secara kuat (*strongly typed*) ke interface DTO/Input yang didefinisikan di layer Core:
+  ```typescript
+  export const resellerInputSchema = z.object({ ... }) as z.ZodType<CreateResellerInput>;
+  ```
+- **Form Binding (Presentation)**:
+  - Gunakan `react-hook-form` dikombinasikan dengan `@hookform/resolvers/zod` di komponen/halaman formulir.
+  - Gunakan opsi binding `{ valueAsNumber: true }` untuk input bertipe angka agar terjadi *automatic casting* sebelum masuk ke validasi Zod.
+  - Gunakan komponen `<HelperText variant="error">` di bawah kolom input untuk menampilkan umpan balik validasi secara responsif kepada pengguna.

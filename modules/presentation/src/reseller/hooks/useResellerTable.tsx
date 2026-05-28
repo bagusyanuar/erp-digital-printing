@@ -12,7 +12,13 @@ import { toast } from "@erp-digital-printing/ui/Toast";
 import { resellerKeys } from "@infrastructure/reseller/keys";
 import { Typography } from "@erp-digital-printing/ui/Typography";
 import { Button } from "@erp-digital-printing/ui/Button";
-import { LuEllipsisVertical } from "@erp-digital-printing/ui/icons";
+import { LuEllipsisVertical, LuPencil, LuTrash2 } from "@erp-digital-printing/ui/icons";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownContent,
+  DropdownItem,
+} from "@erp-digital-printing/ui/Dropdown";
 import type { CreateResellerInput } from "@core/reseller/applications/inputs";
 import type { AppError } from "@core/shared/errors/domain.error";
 
@@ -49,17 +55,59 @@ const formatRupiah = (value: number) => {
   }).format(value);
 };
 
-export const useResellerTable = () => {
+export const useResellerTable = (options?: {
+  onEdit?: (reseller: Reseller) => void;
+  onDelete?: (reseller: Reseller) => void;
+}) => {
+  "use no memo";
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
-  const { getResellersUseCase, createResellerUseCase } = useResellerDI();
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  const { getResellersUseCase, createResellerUseCase, getResellerByIdUseCase } = useResellerDI();
   const queryClient = useQueryClient();
 
-  // Fetch real data from the API
+  const [selectedResellerId, setSelectedResellerId] = useState<string | null>(null);
+
+  // Fetch real data from the API with dynamic page and limit parameters
   const { data: response, isLoading, isFetching } = useQuery({
-    queryKey: resellerKeys.list({ limit: 100 }),
-    queryFn: () => getResellersUseCase.execute({ limit: 100 }),
+    queryKey: resellerKeys.list({ limit: pagination.pageSize, page: pagination.pageIndex + 1 }),
+    queryFn: () => getResellersUseCase.execute({ limit: pagination.pageSize, page: pagination.pageIndex + 1 }),
   });
+
+  // Fetch single reseller details dynamically by ID
+  const { data: detailResponse, isFetching: isFetchingDetail } = useQuery({
+    queryKey: resellerKeys.detail(selectedResellerId ?? ""),
+    queryFn: () => getResellerByIdUseCase.execute(selectedResellerId!),
+    enabled: !!selectedResellerId,
+  });
+
+  const resellerDetail = useMemo((): Reseller | null => {
+    if (!detailResponse) return null;
+    return {
+      id: detailResponse.id,
+      name: detailResponse.name,
+      email: detailResponse.email,
+      phone: detailResponse.phone,
+      address: detailResponse.address,
+      credit_limit: detailResponse.creditLimit,
+      customer_level_id: "d2c67ef8-82e4-4d8b-968b-5a1e2f5b6154",
+      customer_level: {
+        id: "d2c67ef8-82e4-4d8b-968b-5a1e2f5b6154",
+        name: "Reseller",
+        discount_percentage: 0,
+        created_at: "",
+        updated_at: "",
+        deleted_at: null,
+      },
+      created_at: "",
+      updated_at: "",
+      deleted_at: null,
+    };
+  }, [detailResponse]);
 
   // Map API/core model to representation/view model
   const data = useMemo(() => {
@@ -109,6 +157,30 @@ export const useResellerTable = () => {
 
   const addReseller = (newReseller: CreateResellerInput) => {
     createMutation.mutate(newReseller);
+  };
+
+  const openEditDialog = (reseller: Reseller) => {
+    options?.onEdit?.(reseller);
+  };
+
+  const openDeleteDialog = (reseller: Reseller) => {
+    options?.onDelete?.(reseller);
+  };
+
+  const updateReseller = (id: string, name: string, _updatedFields: Omit<CreateResellerInput, 'customer_level_id'>) => {
+    toast.success(
+      "Reseller Berhasil Diubah",
+      `Data reseller "${name}" telah berhasil diperbarui di sistem.`
+    );
+    queryClient.invalidateQueries({ queryKey: resellerKeys.all });
+  };
+
+  const deleteReseller = (id: string, name: string) => {
+    toast.success(
+      "Reseller Berhasil Dihapus",
+      `Data reseller "${name}" telah berhasil dihapus dari sistem.`
+    );
+    queryClient.invalidateQueries({ queryKey: resellerKeys.all });
   };
 
   const columns = useMemo(
@@ -169,15 +241,29 @@ export const useResellerTable = () => {
       columnHelper.display({
         id: "actions",
         header: "Aksi",
-        cell: () => (
+        cell: (info) => (
           <div className="text-right">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-lg hover:bg-sidebar-accent"
-            >
-              <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
-            </Button>
+            <Dropdown>
+              <DropdownTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg hover:bg-muted/70 active:scale-95 transition-all"
+                >
+                  <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownTrigger>
+              <DropdownContent align="end" className="w-36">
+                <DropdownItem onClick={() => openEditDialog(info.row.original)}>
+                  <LuPencil className="h-3.5 w-3.5 text-blue-600" />
+                  <span>Ubah</span>
+                </DropdownItem>
+                <DropdownItem variant="danger" onClick={() => openDeleteDialog(info.row.original)}>
+                  <LuTrash2 className="h-3.5 w-3.5 text-rose-600" />
+                  <span>Hapus</span>
+                </DropdownItem>
+              </DropdownContent>
+            </Dropdown>
           </div>
         ),
       }),
@@ -190,16 +276,15 @@ export const useResellerTable = () => {
     columns,
     state: {
       globalFilter,
+      pagination,
     },
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 5,
-      },
-    },
+    manualPagination: true,
+    pageCount: Math.ceil((response?.total ?? 0) / pagination.pageSize),
   });
 
   return {
@@ -213,5 +298,12 @@ export const useResellerTable = () => {
     globalFilter,
     setGlobalFilter,
     addReseller,
+    updateReseller,
+    deleteReseller,
+    selectedResellerId,
+    setSelectedResellerId,
+    isFetchingDetail,
+    resellerDetail,
+    totalEntries: response?.total ?? 0,
   };
 };

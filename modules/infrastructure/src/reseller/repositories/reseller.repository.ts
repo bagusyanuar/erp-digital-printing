@@ -34,7 +34,12 @@ export class ApiResellerRepository implements ResellerRepository {
   }
 
   async getResellerById(id: string): Promise<ResellerModel> {
-    throw new Error("Method not implemented.");
+    return safeApiCall(async () => {
+      const response = await this.http.get<ApiResponse<ResellerResponse>>(
+        `/resellers/${id}`,
+      );
+      return mapResellerResponseToModel(response.data);
+    });
   }
 
   async create(input: CreateResellerInput): Promise<ResellerModel> {

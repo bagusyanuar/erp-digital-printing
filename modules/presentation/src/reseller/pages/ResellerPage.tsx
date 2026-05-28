@@ -29,9 +29,40 @@ import {
   TableCell,
   TablePagination,
 } from "@erp-digital-printing/ui/Table";
-import { useResellerTable } from "../hooks/useResellerTable";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { HelperText } from "@erp-digital-printing/ui/HelperText";
+import { resellerInputSchema } from "@infrastructure/reseller/validators";
+import type { CreateResellerInput } from "@core/reseller/applications/inputs";
+import { useResellerTable, type Reseller } from "../hooks/useResellerTable";
 
 const ResellerPage = () => {
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedReseller, setSelectedReseller] = useState<Reseller | null>(null);
+
+  const addForm = useForm<CreateResellerInput>({
+    resolver: zodResolver(resellerInputSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      creditLimit: 0,
+    },
+  });
+
+  const editForm = useForm<CreateResellerInput>({
+    resolver: zodResolver(resellerInputSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      creditLimit: 0,
+    },
+  });
+
   const {
     table,
     columns,
@@ -42,39 +73,52 @@ const ResellerPage = () => {
     globalFilter,
     setGlobalFilter,
     addReseller,
-  } = useResellerTable();
+    updateReseller,
+    deleteReseller,
+    selectedResellerId,
+    setSelectedResellerId,
+    isFetchingDetail,
+    resellerDetail,
+    totalEntries,
+  } = useResellerTable({
+    onEdit: (reseller) => {
+      setSelectedReseller(reseller);
+      setSelectedResellerId(reseller.id);
+      setIsEditDialogOpen(true);
+    },
+    onDelete: (reseller) => {
+      setSelectedReseller(reseller);
+      setIsDeleteDialogOpen(true);
+    },
+  });
 
-  // State Form untuk reseller baru
-  const [newResellerName, setNewResellerName] = useState("");
-  const [newResellerEmail, setNewResellerEmail] = useState("");
-  const [newResellerPhone, setNewResellerPhone] = useState("");
-  const [newResellerAddress, setNewResellerAddress] = useState("");
-  const [newResellerCreditLimit, setNewResellerCreditLimit] = useState(0);
+  const { register: registerAdd, formState: { errors: errorsAdd } } = addForm;
+  const { register: registerEdit, formState: { errors: errorsEdit } } = editForm;
 
-  const handleSaveReseller = () => {
-    if (!newResellerName.trim()) {
-      toast.error(
-        "Nama wajib diisi",
-        "Silakan masukkan nama reseller/biro terlebih dahulu.",
-      );
-      return;
+  React.useEffect(() => {
+    if (resellerDetail) {
+      editForm.reset({
+        name: resellerDetail.name,
+        email: resellerDetail.email,
+        phone: resellerDetail.phone,
+        address: resellerDetail.address,
+        creditLimit: resellerDetail.credit_limit,
+      });
     }
+  }, [resellerDetail, editForm]);
 
-    addReseller({
-      name: newResellerName,
-      email: newResellerEmail,
-      phone: newResellerPhone,
-      address: newResellerAddress,
-      creditLimit: Number(newResellerCreditLimit) || 0,
-    });
+  const handleSaveReseller = addForm.handleSubmit((data) => {
+    addReseller(data);
+    addForm.reset();
+  });
 
-    // Reset Form
-    setNewResellerName("");
-    setNewResellerEmail("");
-    setNewResellerPhone("");
-    setNewResellerAddress("");
-    setNewResellerCreditLimit(0);
-  };
+  const handleUpdateReseller = editForm.handleSubmit((data) => {
+    if (!selectedReseller) return;
+    updateReseller(selectedReseller.id, selectedReseller.name, data);
+    setIsEditDialogOpen(false);
+    setSelectedReseller(null);
+    setSelectedResellerId(null);
+  });
 
   return (
     <div className="p-6 space-y-8 font-sans bg-background min-h-screen animate-in fade-in duration-700">
@@ -191,7 +235,7 @@ const ResellerPage = () => {
           currentPage={table.getState().pagination.pageIndex + 1}
           totalPages={table.getPageCount()}
           pageSize={table.getState().pagination.pageSize}
-          totalEntries={table.getFilteredRowModel().rows.length}
+          totalEntries={totalEntries}
           onPageChange={(page) => table.setPageIndex(page - 1)}
           onPageSizeChange={(size) => table.setPageSize(size)}
         />
@@ -235,12 +279,15 @@ const ResellerPage = () => {
             </Label>
             <TextField
               id="resellerName"
+              {...registerAdd("name")}
               placeholder="Contoh: Joni Biro, Sinar Printing, dll"
               className="border-border/50 focus:bg-background transition-all"
-              value={newResellerName}
-              onChange={(e) => setNewResellerName(e.target.value)}
+              variant={errorsAdd.name ? "error" : "default"}
               disabled={isAdding}
             />
+            {errorsAdd.name && (
+              <HelperText variant="error">{errorsAdd.name.message}</HelperText>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -251,12 +298,15 @@ const ResellerPage = () => {
               <TextField
                 id="resellerEmail"
                 type="email"
+                {...registerAdd("email")}
                 placeholder="Contoh: biro.joni@gmail.com"
                 className="border-border/50 focus:bg-background transition-all"
-                value={newResellerEmail}
-                onChange={(e) => setNewResellerEmail(e.target.value)}
+                variant={errorsAdd.email ? "error" : "default"}
                 disabled={isAdding}
               />
+              {errorsAdd.email && (
+                <HelperText variant="error">{errorsAdd.email.message}</HelperText>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="resellerPhone" className="text-sm font-semibold">
@@ -264,12 +314,15 @@ const ResellerPage = () => {
               </Label>
               <TextField
                 id="resellerPhone"
+                {...registerAdd("phone")}
                 placeholder="Contoh: 081234567890"
                 className="border-border/50 focus:bg-background transition-all"
-                value={newResellerPhone}
-                onChange={(e) => setNewResellerPhone(e.target.value)}
+                variant={errorsAdd.phone ? "error" : "default"}
                 disabled={isAdding}
               />
+              {errorsAdd.phone && (
+                <HelperText variant="error">{errorsAdd.phone.message}</HelperText>
+              )}
             </div>
           </div>
 
@@ -283,14 +336,15 @@ const ResellerPage = () => {
             <TextField
               id="resellerCreditLimit"
               type="number"
+              {...registerAdd("creditLimit", { valueAsNumber: true })}
               placeholder="Contoh: 5000000"
               className="border-border/50 focus:bg-background transition-all"
-              value={newResellerCreditLimit || ""}
-              onChange={(e) =>
-                setNewResellerCreditLimit(Number(e.target.value))
-              }
+              variant={errorsAdd.creditLimit ? "error" : "default"}
               disabled={isAdding}
             />
+            {errorsAdd.creditLimit && (
+              <HelperText variant="error">{errorsAdd.creditLimit.message}</HelperText>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -299,12 +353,16 @@ const ResellerPage = () => {
             </Label>
             <textarea
               id="resellerAddress"
-              className="w-full min-h-[80px] rounded-md border border-border/50 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 resize-none"
+              {...registerAdd("address")}
+              className={`w-full min-h-[80px] rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 resize-none ${
+                errorsAdd.address ? "border-rose-500 focus-visible:ring-rose-500" : "border-border/50"
+              }`}
               placeholder="Tuliskan alamat lengkap mitra biro/reseller..."
-              value={newResellerAddress}
-              onChange={(e) => setNewResellerAddress(e.target.value)}
               disabled={isAdding}
             />
+            {errorsAdd.address && (
+              <HelperText variant="error">{errorsAdd.address.message}</HelperText>
+            )}
           </div>
         </CardContent>
 
@@ -323,6 +381,206 @@ const ResellerPage = () => {
             disabled={isAdding}
           >
             {isAdding ? "Menyimpan..." : "Simpan Mitra"}
+          </Button>
+        </CardFooter>
+      </Dialog>
+
+      {/* Edit Reseller Dialog */}
+      <Dialog
+        isOpen={isEditDialogOpen}
+        onClose={() => {
+          setIsEditDialogOpen(false);
+          setSelectedResellerId(null);
+        }}
+        size="md"
+        showCloseButton={false}
+      >
+        <CardHeader className="px-6 py-4 border-b border-border/50 flex flex-row items-start justify-between gap-4">
+          <div className="space-y-0.5">
+            <h2 className="text-xl font-bold tracking-tight text-foreground">
+              Ubah Data Reseller
+            </h2>
+            <p className="text-xs text-muted-foreground font-medium">
+              Perbarui rincian informasi dan kredit limit plafon untuk mitra ini.
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-md text-muted-foreground hover:bg-muted active:scale-90 transition-all -mr-2 -mt-0.5"
+            onClick={() => {
+              setIsEditDialogOpen(false);
+              setSelectedResellerId(null);
+            }}
+            disabled={isFetchingDetail || isAdding}
+          >
+            <LuX className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+
+        <CardContent className="p-6">
+          {isFetchingDetail ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+              <p className="text-sm font-semibold text-muted-foreground animate-pulse">
+                Memuat data mitra...
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="editResellerName" className="text-sm font-semibold">
+                  Nama Biro / Reseller
+                </Label>
+                <TextField
+                  id="editResellerName"
+                  {...registerEdit("name")}
+                  placeholder="Contoh: CV. Jaya Grafika"
+                  className="border-border/50 focus:bg-background transition-all"
+                  variant={errorsEdit.name ? "error" : "default"}
+                  disabled={isAdding}
+                />
+                {errorsEdit.name && (
+                  <HelperText variant="error">{errorsEdit.name.message}</HelperText>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editResellerEmail" className="text-sm font-semibold">
+                    Email Mitra
+                  </Label>
+                  <TextField
+                    id="editResellerEmail"
+                    type="email"
+                    {...registerEdit("email")}
+                    placeholder="Contoh: biro.joni@gmail.com"
+                    className="border-border/50 focus:bg-background transition-all"
+                    variant={errorsEdit.email ? "error" : "default"}
+                    disabled={isAdding}
+                  />
+                  {errorsEdit.email && (
+                    <HelperText variant="error">{errorsEdit.email.message}</HelperText>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editResellerPhone" className="text-sm font-semibold">
+                    Nomor Telepon / WA
+                  </Label>
+                  <TextField
+                    id="editResellerPhone"
+                    {...registerEdit("phone")}
+                    placeholder="Contoh: 081234567890"
+                    className="border-border/50 focus:bg-background transition-all"
+                    variant={errorsEdit.phone ? "error" : "default"}
+                    disabled={isAdding}
+                  />
+                  {errorsEdit.phone && (
+                    <HelperText variant="error">{errorsEdit.phone.message}</HelperText>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="editResellerCreditLimit"
+                  className="text-sm font-semibold"
+                >
+                  Limit Kredit (Rupiah Plafon)
+                </Label>
+                <TextField
+                  id="editResellerCreditLimit"
+                  type="number"
+                  {...registerEdit("creditLimit", { valueAsNumber: true })}
+                  placeholder="Contoh: 5000000"
+                  className="border-border/50 focus:bg-background transition-all"
+                  variant={errorsEdit.creditLimit ? "error" : "default"}
+                  disabled={isAdding}
+                />
+                {errorsEdit.creditLimit && (
+                  <HelperText variant="error">{errorsEdit.creditLimit.message}</HelperText>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editResellerAddress" className="text-sm font-semibold">
+                  Alamat Kantor/Toko
+                </Label>
+                <textarea
+                  id="editResellerAddress"
+                  {...registerEdit("address")}
+                  className={`w-full min-h-[80px] rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 resize-none ${
+                    errorsEdit.address ? "border-rose-500 focus-visible:ring-rose-500" : "border-border/50"
+                  }`}
+                  placeholder="Tuliskan alamat lengkap mitra biro/reseller..."
+                  disabled={isAdding}
+                />
+                {errorsEdit.address && (
+                  <HelperText variant="error">{errorsEdit.address.message}</HelperText>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+
+        <CardFooter className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            className="h-10 px-4 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
+            onClick={() => {
+              setIsEditDialogOpen(false);
+              setSelectedResellerId(null);
+            }}
+            disabled={isAdding}
+          >
+            Batal
+          </Button>
+          <Button
+            className="h-10 px-4 rounded-md font-medium bg-primary hover:bg-primary/90 active:scale-95 transition-all"
+            onClick={handleUpdateReseller}
+            disabled={isFetchingDetail || isAdding}
+          >
+            {isAdding ? "Menyimpan..." : "Simpan Perubahan"}
+          </Button>
+        </CardFooter>
+      </Dialog>
+
+      {/* Delete Reseller Dialog */}
+      <Dialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        size="sm"
+        showCloseButton={false}
+      >
+        <CardHeader className="px-6 py-4 border-b border-border/50">
+          <h2 className="text-lg font-bold tracking-tight text-rose-600">
+            Hapus Mitra Reseller
+          </h2>
+        </CardHeader>
+        <CardContent className="p-6">
+          <p className="text-sm text-foreground font-medium">
+            Apakah Anda yakin ingin menghapus mitra <strong>{selectedReseller?.name}</strong>? Tindakan ini tidak dapat dibatalkan.
+          </p>
+        </CardContent>
+        <CardFooter className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            className="h-9 px-3 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
+            onClick={() => setIsDeleteDialogOpen(false)}
+          >
+            Batal
+          </Button>
+          <Button
+            className="h-9 px-3 rounded-md font-medium bg-rose-600 hover:bg-rose-700 text-white active:scale-95 transition-all"
+            onClick={() => {
+              if (selectedReseller) {
+                deleteReseller(selectedReseller.id, selectedReseller.name);
+                setIsDeleteDialogOpen(false);
+                setSelectedReseller(null);
+              }
+            }}
+          >
+            Ya, Hapus
           </Button>
         </CardFooter>
       </Dialog>

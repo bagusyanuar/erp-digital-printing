@@ -6,7 +6,7 @@ import {
 } from "@infrastructure/auth/containers/auth.container";
 import { useAuthStore } from "@presentation/auth/stores/auth.store";
 import type { AppContainer } from "@presentation/shared/di/DIContext";
-import { getResellerUseCase, createResellerUseCase } from "@infrastructure/reseller/containers/reseller.container";
+import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase } from "@infrastructure/reseller/containers/reseller.container";
 
 /**
  * createAppContainer
@@ -30,6 +30,7 @@ export function createAppContainer(): AppContainer {
     reseller: {
       getResellersUseCase: getResellerUseCase(httpClient),
       createResellerUseCase: createResellerUseCase(httpClient),
+      getResellerByIdUseCase: getResellerByIdUseCase(httpClient),
     },
   };
 }
