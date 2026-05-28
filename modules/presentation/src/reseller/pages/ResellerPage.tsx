@@ -18,6 +18,7 @@ import {
   LuFilter,
   LuBriefcase,
   LuX,
+  LuTrash2,
 } from "@erp-digital-printing/ui/icons";
 import { flexRender } from "@tanstack/react-table";
 import {
@@ -39,7 +40,9 @@ import { useResellerTable, type Reseller } from "../hooks/useResellerTable";
 const ResellerPage = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedReseller, setSelectedReseller] = useState<Reseller | null>(null);
+  const [selectedReseller, setSelectedReseller] = useState<Reseller | null>(
+    null,
+  );
 
   const addForm = useForm<CreateResellerInput>({
     resolver: zodResolver(resellerInputSchema),
@@ -79,6 +82,7 @@ const ResellerPage = () => {
     setSelectedResellerId,
     isFetchingDetail,
     isUpdating,
+    isDeleting,
     resellerDetail,
     totalEntries,
   } = useResellerTable({
@@ -93,8 +97,14 @@ const ResellerPage = () => {
     },
   });
 
-  const { register: registerAdd, formState: { errors: errorsAdd } } = addForm;
-  const { register: registerEdit, formState: { errors: errorsEdit } } = editForm;
+  const {
+    register: registerAdd,
+    formState: { errors: errorsAdd },
+  } = addForm;
+  const {
+    register: registerEdit,
+    formState: { errors: errorsEdit },
+  } = editForm;
 
   React.useEffect(() => {
     if (resellerDetail) {
@@ -154,13 +164,6 @@ const ResellerPage = () => {
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              className="h-10 px-4 rounded-xl font-bold border-border/50 hover:bg-muted transition-all flex items-center gap-2"
-            >
-              <LuFilter size={18} />
-              Filter
-            </Button>
             <Button
               className="h-10 px-4 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
               onClick={() => setIsAddDialogOpen(true)}
@@ -307,7 +310,9 @@ const ResellerPage = () => {
                 disabled={isAdding}
               />
               {errorsAdd.email && (
-                <HelperText variant="error">{errorsAdd.email.message}</HelperText>
+                <HelperText variant="error">
+                  {errorsAdd.email.message}
+                </HelperText>
               )}
             </div>
             <div className="space-y-2">
@@ -323,7 +328,9 @@ const ResellerPage = () => {
                 disabled={isAdding}
               />
               {errorsAdd.phone && (
-                <HelperText variant="error">{errorsAdd.phone.message}</HelperText>
+                <HelperText variant="error">
+                  {errorsAdd.phone.message}
+                </HelperText>
               )}
             </div>
           </div>
@@ -345,7 +352,9 @@ const ResellerPage = () => {
               disabled={isAdding}
             />
             {errorsAdd.creditLimit && (
-              <HelperText variant="error">{errorsAdd.creditLimit.message}</HelperText>
+              <HelperText variant="error">
+                {errorsAdd.creditLimit.message}
+              </HelperText>
             )}
           </div>
 
@@ -357,13 +366,17 @@ const ResellerPage = () => {
               id="resellerAddress"
               {...registerAdd("address")}
               className={`w-full min-h-[80px] rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 resize-none ${
-                errorsAdd.address ? "border-rose-500 focus-visible:ring-rose-500" : "border-border/50"
+                errorsAdd.address
+                  ? "border-rose-500 focus-visible:ring-rose-500"
+                  : "border-border/50"
               }`}
               placeholder="Tuliskan alamat lengkap mitra biro/reseller..."
               disabled={isAdding}
             />
             {errorsAdd.address && (
-              <HelperText variant="error">{errorsAdd.address.message}</HelperText>
+              <HelperText variant="error">
+                {errorsAdd.address.message}
+              </HelperText>
             )}
           </div>
         </CardContent>
@@ -403,7 +416,8 @@ const ResellerPage = () => {
               Ubah Data Reseller
             </h2>
             <p className="text-xs text-muted-foreground font-medium">
-              Perbarui rincian informasi dan kredit limit plafon untuk mitra ini.
+              Perbarui rincian informasi dan kredit limit plafon untuk mitra
+              ini.
             </p>
           </div>
           <Button
@@ -431,7 +445,10 @@ const ResellerPage = () => {
           ) : (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="editResellerName" className="text-sm font-semibold">
+                <Label
+                  htmlFor="editResellerName"
+                  className="text-sm font-semibold"
+                >
                   Nama Biro / Reseller
                 </Label>
                 <TextField
@@ -443,13 +460,18 @@ const ResellerPage = () => {
                   disabled={isUpdating}
                 />
                 {errorsEdit.name && (
-                  <HelperText variant="error">{errorsEdit.name.message}</HelperText>
+                  <HelperText variant="error">
+                    {errorsEdit.name.message}
+                  </HelperText>
                 )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="editResellerEmail" className="text-sm font-semibold">
+                  <Label
+                    htmlFor="editResellerEmail"
+                    className="text-sm font-semibold"
+                  >
                     Email Mitra
                   </Label>
                   <TextField
@@ -462,11 +484,16 @@ const ResellerPage = () => {
                     disabled={isUpdating}
                   />
                   {errorsEdit.email && (
-                    <HelperText variant="error">{errorsEdit.email.message}</HelperText>
+                    <HelperText variant="error">
+                      {errorsEdit.email.message}
+                    </HelperText>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="editResellerPhone" className="text-sm font-semibold">
+                  <Label
+                    htmlFor="editResellerPhone"
+                    className="text-sm font-semibold"
+                  >
                     Nomor Telepon / WA
                   </Label>
                   <TextField
@@ -478,7 +505,9 @@ const ResellerPage = () => {
                     disabled={isUpdating}
                   />
                   {errorsEdit.phone && (
-                    <HelperText variant="error">{errorsEdit.phone.message}</HelperText>
+                    <HelperText variant="error">
+                      {errorsEdit.phone.message}
+                    </HelperText>
                   )}
                 </div>
               </div>
@@ -500,25 +529,34 @@ const ResellerPage = () => {
                   disabled={isUpdating}
                 />
                 {errorsEdit.creditLimit && (
-                  <HelperText variant="error">{errorsEdit.creditLimit.message}</HelperText>
+                  <HelperText variant="error">
+                    {errorsEdit.creditLimit.message}
+                  </HelperText>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="editResellerAddress" className="text-sm font-semibold">
+                <Label
+                  htmlFor="editResellerAddress"
+                  className="text-sm font-semibold"
+                >
                   Alamat Kantor/Toko
                 </Label>
                 <textarea
                   id="editResellerAddress"
                   {...registerEdit("address")}
                   className={`w-full min-h-[80px] rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 resize-none ${
-                    errorsEdit.address ? "border-rose-500 focus-visible:ring-rose-500" : "border-border/50"
+                    errorsEdit.address
+                      ? "border-rose-500 focus-visible:ring-rose-500"
+                      : "border-border/50"
                   }`}
                   placeholder="Tuliskan alamat lengkap mitra biro/reseller..."
                   disabled={isUpdating}
                 />
                 {errorsEdit.address && (
-                  <HelperText variant="error">{errorsEdit.address.message}</HelperText>
+                  <HelperText variant="error">
+                    {errorsEdit.address.message}
+                  </HelperText>
                 )}
               </div>
             </div>
@@ -554,37 +592,69 @@ const ResellerPage = () => {
         size="sm"
         showCloseButton={false}
       >
-        <CardHeader className="px-6 py-4 border-b border-border/50">
-          <h2 className="text-lg font-bold tracking-tight text-rose-600">
-            Hapus Mitra Reseller
-          </h2>
-        </CardHeader>
-        <CardContent className="p-6">
-          <p className="text-sm text-foreground font-medium">
-            Apakah Anda yakin ingin menghapus mitra <strong>{selectedReseller?.name}</strong>? Tindakan ini tidak dapat dibatalkan.
-          </p>
-        </CardContent>
-        <CardFooter className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">
+        <div className="relative p-6 text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
+          {/* Header Close Button */}
           <Button
-            variant="outline"
-            className="h-9 px-3 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
+            variant="ghost"
+            size="icon"
+            className="absolute right-4 top-4 h-8 w-8 rounded-md text-muted-foreground hover:bg-muted active:scale-90 transition-all"
             onClick={() => setIsDeleteDialogOpen(false)}
+            disabled={isDeleting}
           >
-            Batal
+            <LuX className="h-4 w-4" />
           </Button>
-          <Button
-            className="h-9 px-3 rounded-md font-medium bg-rose-600 hover:bg-rose-700 text-white active:scale-95 transition-all"
-            onClick={() => {
-              if (selectedReseller) {
-                deleteReseller(selectedReseller.id, selectedReseller.name);
-                setIsDeleteDialogOpen(false);
-                setSelectedReseller(null);
-              }
-            }}
-          >
-            Ya, Hapus
-          </Button>
-        </CardFooter>
+
+          {/* Destructive Warning Icon Container */}
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/10 dark:bg-rose-500/20 border border-rose-500/20 text-rose-600 dark:text-rose-400 shadow-inner">
+            <LuTrash2
+              className={`h-7 w-7 ${isDeleting ? "animate-spin" : "animate-bounce"}`}
+              style={{ animationDuration: isDeleting ? "1s" : "3s" }}
+            />
+          </div>
+
+          {/* Content */}
+          <div className="space-y-2">
+            <h3 className="text-xl font-extrabold tracking-tight text-foreground">
+              Hapus Mitra Reseller
+            </h3>
+            <p className="text-sm text-muted-foreground leading-relaxed px-2">
+              Apakah Anda yakin ingin menghapus mitra{" "}
+              <strong className="text-foreground font-black">
+                {selectedReseller?.name}
+              </strong>
+              ?<br />
+              Tindakan ini bersifat permanen dan seluruh data plafon kredit
+              mitra akan dihapus dari sistem.
+            </p>
+          </div>
+
+          {/* Buttons Footer */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto min-w-[100px] h-10 rounded-xl font-bold border-border/60 hover:bg-muted/50 active:scale-95 transition-all text-sm"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Batal
+            </Button>
+            <Button
+              className="w-full sm:w-auto min-w-[120px] h-10 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/20 active:scale-95 transition-all text-sm flex items-center justify-center gap-2"
+              onClick={() => {
+                if (selectedReseller) {
+                  deleteReseller(selectedReseller.id, () => {
+                    setIsDeleteDialogOpen(false);
+                    setSelectedReseller(null);
+                  });
+                }
+              }}
+              disabled={isDeleting}
+            >
+              <LuTrash2 className="h-4 w-4" />
+              {isDeleting ? "Menghapus..." : "Ya, Hapus"}
+            </Button>
+          </div>
+        </div>
       </Dialog>
     </div>
   );

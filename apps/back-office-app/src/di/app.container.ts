@@ -6,7 +6,7 @@ import {
 } from "@infrastructure/auth/containers/auth.container";
 import { useAuthStore } from "@presentation/auth/stores/auth.store";
 import type { AppContainer } from "@presentation/shared/di/DIContext";
-import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase, updateResellerUseCase } from "@infrastructure/reseller/containers/reseller.container";
+import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase, updateResellerUseCase, deleteResellerUseCase } from "@infrastructure/reseller/containers/reseller.container";
 
 /**
  * createAppContainer
@@ -32,6 +32,7 @@ export function createAppContainer(): AppContainer {
       createResellerUseCase: createResellerUseCase(httpClient),
       getResellerByIdUseCase: getResellerByIdUseCase(httpClient),
       updateResellerUseCase: updateResellerUseCase(httpClient),
+      deleteResellerUseCase: deleteResellerUseCase(httpClient),
     },
   };
 }

@@ -9,4 +9,5 @@ export interface ResellerRepository {
   getResellerById(id: string): Promise<ResellerModel>;
   create(input: CreateResellerInput): Promise<ResellerModel>;
   update(id: string, input: CreateResellerInput): Promise<ResellerModel>;
+  delete(id: string): Promise<void>;
 }

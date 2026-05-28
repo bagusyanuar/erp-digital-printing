@@ -84,6 +84,7 @@ export const useResellerTable = (options?: {
     createResellerUseCase,
     getResellerByIdUseCase,
     updateResellerUseCase,
+    deleteResellerUseCase,
   } = useResellerDI();
   const queryClient = useQueryClient();
 
@@ -110,6 +111,7 @@ export const useResellerTable = (options?: {
       }),
     staleTime: 10_000,
     gcTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   // Fetch single reseller details dynamically by ID
@@ -117,6 +119,7 @@ export const useResellerTable = (options?: {
     queryKey: resellerKeys.detail(selectedResellerId ?? ""),
     queryFn: () => getResellerByIdUseCase.execute(selectedResellerId!),
     enabled: !!selectedResellerId,
+    refetchOnWindowFocus: false,
   });
 
   const resellerDetail = useMemo((): Reseller | null => {
@@ -208,6 +211,24 @@ export const useResellerTable = (options?: {
     },
   });
 
+  // Delete Reseller Mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteResellerUseCase.execute(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: resellerKeys.all });
+      toast.success(
+        "Reseller Berhasil Dihapus",
+        "Data reseller telah berhasil dihapus dari sistem.",
+      );
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Menghapus Reseller",
+        error.message || "Terjadi kesalahan.",
+      );
+    },
+  });
+
   const addReseller = (newReseller: CreateResellerInput) => {
     createMutation.mutate(newReseller);
   };
@@ -235,12 +256,12 @@ export const useResellerTable = (options?: {
     );
   };
 
-  const deleteReseller = (id: string, name: string) => {
-    toast.success(
-      "Reseller Berhasil Dihapus",
-      `Data reseller "${name}" telah berhasil dihapus dari sistem.`,
-    );
-    queryClient.invalidateQueries({ queryKey: resellerKeys.all });
+  const deleteReseller = (id: string, onSuccess?: () => void) => {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        onSuccess?.();
+      },
+    });
   };
 
   const columns = useMemo(
@@ -358,6 +379,7 @@ export const useResellerTable = (options?: {
     isLoading: isLoading || isFetching,
     isAdding: createMutation.isPending,
     isUpdating: updateMutation.isPending,
+    isDeleting: deleteMutation.isPending,
     isAddDialogOpen,
     setIsAddDialogOpen,
     globalFilter,

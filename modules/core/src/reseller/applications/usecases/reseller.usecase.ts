@@ -36,3 +36,11 @@ export class UpdateReseller {
     return await this.resellerRepository.update(id, input);
   }
 }
+
+export class DeleteReseller {
+  constructor(private readonly resellerRepository: ResellerRepository) {}
+
+  async execute(id: string): Promise<void> {
+    await this.resellerRepository.delete(id);
+  }
+}

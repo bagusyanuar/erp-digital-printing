@@ -4,7 +4,7 @@ import type {
   Refresh,
   Logout,
 } from "@core/auth/applications/usecases/auth.usecase";
-import type { GetResellers, CreateReseller, GetResellerById, UpdateReseller } from "@core/reseller/applications/usecases/reseller.usecase";
+import type { GetResellers, CreateReseller, GetResellerById, UpdateReseller, DeleteReseller } from "@core/reseller/applications/usecases/reseller.usecase";
 
 // ──────────────────────────────────────────────
 // Module Use Case Types
@@ -22,6 +22,7 @@ export interface GetResellerUseCases {
   createResellerUseCase: CreateReseller;
   getResellerByIdUseCase: GetResellerById;
   updateResellerUseCase: UpdateReseller;
+  deleteResellerUseCase: DeleteReseller;
 }
 
 // ──────────────────────────────────────────────

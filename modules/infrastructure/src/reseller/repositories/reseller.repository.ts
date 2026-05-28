@@ -63,4 +63,10 @@ export class ApiResellerRepository implements ResellerRepository {
       return mapResellerResponseToModel(response.data);
     });
   }
+
+  async delete(id: string): Promise<void> {
+    return safeApiCall(async () => {
+      await this.http.delete(`/resellers/${id}`);
+    });
+  }
 }
