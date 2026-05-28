@@ -7,6 +7,7 @@ import {
   mapLoginInputToRequest,
   mapLoginResponseToModel,
 } from "@infrastructure/auth/mappers";
+import { safeApiCall } from "@infrastructure/libs/error";
 import type { ApiResponse } from "@infrastructure/libs/api-response";
 
 /**
@@ -19,24 +20,30 @@ export class ApiAuthRepository implements AuthRepository {
   constructor(private readonly http: HttpClient) {}
 
   async login(input: LoginInput): Promise<LoginModel> {
-    const request = mapLoginInputToRequest(input);
-    const response = await this.http.post<ApiResponse<LoginResponse>>(
-      "/auth/login",
-      request,
-    );
+    return safeApiCall(async () => {
+      const request = mapLoginInputToRequest(input);
+      const response = await this.http.post<ApiResponse<LoginResponse>>(
+        "/auth/login",
+        request,
+      );
 
-    return mapLoginResponseToModel(response.data);
+      return mapLoginResponseToModel(response.data);
+    });
   }
 
   async refresh(): Promise<LoginModel> {
-    // Cookie refresh_token dikirim otomatis
-    const response = await this.http.post<ApiResponse<LoginResponse>>(
-      "/auth/refresh",
-    );
-    return mapLoginResponseToModel(response.data);
+    return safeApiCall(async () => {
+      // Cookie refresh_token dikirim otomatis
+      const response = await this.http.post<ApiResponse<LoginResponse>>(
+        "/auth/refresh",
+      );
+      return mapLoginResponseToModel(response.data);
+    });
   }
 
   async logout(): Promise<void> {
-    await this.http.post("/auth/logout");
+    return safeApiCall(async () => {
+      await this.http.post("/auth/logout");
+    });
   }
 }

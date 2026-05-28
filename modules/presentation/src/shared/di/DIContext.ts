@@ -1,5 +1,10 @@
 import { createContext, useContext } from "react";
-import type { Login, Refresh, Logout } from "@core/auth/applications/usecases/auth.usecase";
+import type {
+  Login,
+  Refresh,
+  Logout,
+} from "@core/auth/applications/usecases/auth.usecase";
+import type { GetResellers } from "@core/reseller/applications/usecases/reseller.usecase";
 
 // ──────────────────────────────────────────────
 // Module Use Case Types
@@ -12,6 +17,10 @@ export interface AuthUseCases {
   logoutUseCase: Logout;
 }
 
+export interface GetResellerUseCases {
+  getResellersUseCase: GetResellers;
+}
+
 // ──────────────────────────────────────────────
 // App Container
 // Gabungan seluruh modul. Satu property per modul.
@@ -19,6 +28,7 @@ export interface AuthUseCases {
 
 export interface AppContainer {
   auth: AuthUseCases;
+  reseller: GetResellerUseCases;
 }
 
 // ──────────────────────────────────────────────

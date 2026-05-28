@@ -1,34 +1,42 @@
-# Architecture Rules — DDD & Clean Architecture
+# 🏗️ Architecture & Integration Guidelines
 
-Aplikasi ini menggunakan struktur 3-layer utama untuk memisahkan tanggung jawab (Separation of Concerns).
+Proyek ERP Digital Printing ini menggunakan pendekatan **Clean Architecture**, **Dependency Injection (DI)**, dan **React Query**. Berikut adalah panduan konsistensi yang wajib diikuti:
 
-## 1. Core Layer (Domain & Application)
-- **Tujuan**: Jantung dari aplikasi. Berisi logika bisnis murni tanpa dependensi ke library eksternal atau framework.
-- **Isi**:
-    - `entities/`: Objek bisnis utama (contoh: `Order`, `Product`).
-    - `value-objects/`: Objek kecil yang immutable (contoh: `Price`, `StockQuantity`).
-    - `repositories/`: **Interface** (kontrak) untuk akses data.
-    - `use-cases/`: Logika alur kerja spesifik (contoh: `CreateOrder`, `CalculateProductionCost`).
-- **Aturan**: DILARANG mengimport apa pun dari layer Infrastructure atau Presentation.
+## 1. Clean Architecture Layers
+Proyek dibagi menjadi tiga modul utama:
+- **Core (`@core`)**: Berisi Use Cases, Models, dan Inputs. Tidak boleh bergantung pada library eksternal spesifik (seperti React atau Axios).
+- **Infrastructure (`@infrastructure`)**: Berisi implementasi Repositories, Schemas, Mappers, Containers, dan Keys. Di sinilah interaksi API atau library eksternal (Axios) berada.
+- **Presentation (`@presentation`)**: Berisi UI/React Components, Pages, Hooks, dan State Management (Zustand).
 
-## 2. Infrastructure Layer
-- **Tujuan**: Implementasi teknis dari kebutuhan Core.
-- **Isi**:
-    - `repositories/`: Implementasi nyata dari interface repo (contoh: `ApiOrderRepository` menggunakan Axios).
-    - `api/`: Konfigurasi API client, interceptors, dan DTO (Data Transfer Objects).
-    - `persistence/`: Local storage atau caching logic.
-- **Aturan**: Mengetahui tentang Core, tapi tidak boleh mengatur UI.
+## 2. Dependency Injection (DI)
+- **AppContainer**: Semua use case digabungkan ke dalam satu `AppContainer` di `modules/presentation/src/shared/di/DIContext.ts`.
+- **Selector Hook Modular**: Setiap modul di Presentation harus memiliki sebuah selector hook.
+  - Contoh: `modules/presentation/src/reseller/hooks/useResellerDI.ts`.
+  - Isinya: `export const useResellerDI = () => useDI().reseller;`
+  - *Dilarang keras* menginisiasi UseCase atau Repository secara langsung di dalam komponen presentasi.
 
-## 3. Presentation Layer
-- **Tujuan**: Tempat interaksi user.
-- **Isi**:
-    - `components/`: UI atom/modular (React).
-    - `hooks/`: "View Model" logic yang menghubungkan UI ke Use Cases.
-    - `store/`: State management (Zustand/Pinia) untuk global state.
-    - `pages/`: Komposisi komponen menjadi halaman utuh.
-- **Aturan**: Hanya boleh mengakses Core (Use Cases/Entities) dan Infrastructure (lewat Dependency Injection jika perlu).
+## 3. TanStack Query Keys (Query Factory)
+- **Letak**: Query Keys di-maintain di layer Infrastructure, contoh: `modules/infrastructure/src/[nama_modul]/keys/[nama_modul].key.ts`.
+- **Pola Factory**: Gunakan standar factory const object (seperti pola TkDodo):
+  ```typescript
+  export const moduleKeys = {
+    all: ["moduleName"] as const,
+    lists: () => [...moduleKeys.all, "list"] as const,
+    list: (params: ParamsType) => [...moduleKeys.lists(), params] as const,
+    details: () => [...moduleKeys.all, "detail"] as const,
+    detail: (id: string) => [...moduleKeys.details(), id] as const,
+  };
+  ```
+- **Akses**: Diekspor melalui `modules/infrastructure/src/[nama_modul]/keys/index.ts`. Komponen React mengimpornya dari `@infrastructure/[nama_modul]/keys`.
 
-## 🧩 Dependency Rule
-- **Arah Dependensi**: `Presentation` -> `Core` <- `Infrastructure`.
-- Layer yang lebih dalam tidak boleh tahu tentang layer yang lebih luar. 
-- Gunakan **Dependency Injection** atau interface untuk memutus ketergantungan langsung antar layer.
+## 4. TanStack React Query & API Fetching
+- **Hooks**: Pemanggilan API dilakukan di dalam custom hook (misalnya `useResellerTable.ts` atau `useLogin.ts`) menggunakan `@tanstack/react-query` (`useQuery` atau `useMutation`).
+- **Integrasi**: 
+  1. Ambil UseCase melalui DI: `const { getUseCase } = useModuleDI();`
+  2. Eksekusi di dalam QueryFn: `queryFn: () => getUseCase.execute(params)`
+  3. Gunakan factory QueryKey: `queryKey: moduleKeys.list(params)`
+- **Loading State**: Selalu gunakan properti `isLoading` dari `useQuery` atau `useMutation` untuk me-render feedback UI (seperti Skeleton loading table atau spinner form) kepada pengguna.
+
+## 5. Mappers & Data Flow
+- **Infra Mappers**: Posisikan di `infrastructure/src/[nama_modul]/mappers`. Gunakan mappers untuk memetakan dari schema `Response` API ke `Model` (Core), dan dari parameter form/UI ke `Request` payload.
+- **Presentation Adapter**: Jika `Model` (Core) dan bentuk state yang dibutuhkan React Component (ViewModel) berbeda (misal, UI memerlukan object relasional parsial yang tidak ada di Model), maka maping akhir dapat dilakukan di dalam custom hook presentasi menggunakan `useMemo` terhadap respons React Query.

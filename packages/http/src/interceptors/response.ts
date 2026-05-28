@@ -1,10 +1,12 @@
-import type {
-  AxiosError,
-  AxiosResponse,
-  AxiosInstance,
-  InternalAxiosRequestConfig,
+import {
+  isAxiosError,
+  type AxiosError,
+  type AxiosResponse,
+  type AxiosInstance,
+  type InternalAxiosRequestConfig,
 } from "axios";
 import type { TokenSetter } from "./request";
+import { HttpError } from "../errors";
 
 interface CustomRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -17,6 +19,12 @@ export const responseInterceptor = (response: AxiosResponse) => {
 /**
  * Factory untuk error interceptor agar bisa mengakses instance axios untuk retry
  */
+interface ApiErrorResponse {
+  message?: string;
+  code?: string;
+  errors?: Record<string, unknown>;
+}
+
 export const createResponseErrorInterceptor = (
   instance: AxiosInstance,
   onTokenRefreshed?: TokenSetter,
@@ -38,7 +46,9 @@ export const createResponseErrorInterceptor = (
       try {
         // Hit endpoint refresh.
         // Karena withCredentials: true, browser otomatis mengirim cookie refresh_token.
-        const refreshResponse = await instance.post<{ data: { access_token: string } }>("/auth/refresh");
+        const refreshResponse = await instance.post<{
+          data: { access_token: string };
+        }>("/auth/refresh");
         const newToken = refreshResponse.data?.data?.access_token;
 
         if (newToken) {
@@ -61,10 +71,33 @@ export const createResponseErrorInterceptor = (
           await onAuthFailure();
         }
 
-        return Promise.reject(refreshError);
+        const data = isAxiosError(refreshError)
+          ? (refreshError.response?.data as ApiErrorResponse)
+          : undefined;
+
+        const finalError = isAxiosError(refreshError)
+          ? new HttpError(
+              data?.message || refreshError.message,
+              refreshError.response?.status,
+              data?.code,
+              data,
+              refreshError,
+            )
+          : refreshError;
+
+        return Promise.reject(finalError);
       }
     }
 
-    return Promise.reject(error);
+    const data = error.response?.data as ApiErrorResponse;
+    const finalError = new HttpError(
+      data?.message || error.message,
+      error.response?.status,
+      data?.code,
+      data,
+      error,
+    );
+
+    return Promise.reject(finalError);
   };
 };

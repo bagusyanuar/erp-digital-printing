@@ -105,6 +105,15 @@ export class HttpClient {
     return response.data;
   }
 
+  /**
+   * Generic request method for more custom configurations.
+   * Use this when you need full control over the AxiosRequestConfig.
+   */
+  public async request<T = unknown>(config: AxiosRequestConfig): Promise<T> {
+    const response = await this.instance.request<T>(config);
+    return response.data;
+  }
+
   // Helper untuk mendapatkan instance aslinya jika dibutuhkan
   public getInstance(): AxiosInstance {
     return this.instance;
