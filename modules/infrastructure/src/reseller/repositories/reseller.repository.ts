@@ -52,4 +52,15 @@ export class ApiResellerRepository implements ResellerRepository {
       return mapResellerResponseToModel(response.data);
     });
   }
+
+  async update(id: string, input: CreateResellerInput): Promise<ResellerModel> {
+    return safeApiCall(async () => {
+      const payload = mapCreateInputToRequest(input);
+      const response = await this.http.put<ApiResponse<ResellerResponse>>(
+        `/resellers/${id}`,
+        payload,
+      );
+      return mapResellerResponseToModel(response.data);
+    });
+  }
 }

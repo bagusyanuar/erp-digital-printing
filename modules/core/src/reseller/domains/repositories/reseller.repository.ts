@@ -8,4 +8,5 @@ export interface ResellerRepository {
   ): Promise<PaginatedResponse<ResellerModel>>;
   getResellerById(id: string): Promise<ResellerModel>;
   create(input: CreateResellerInput): Promise<ResellerModel>;
+  update(id: string, input: CreateResellerInput): Promise<ResellerModel>;
 }

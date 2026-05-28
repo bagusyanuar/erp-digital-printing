@@ -78,6 +78,7 @@ const ResellerPage = () => {
     selectedResellerId,
     setSelectedResellerId,
     isFetchingDetail,
+    isUpdating,
     resellerDetail,
     totalEntries,
   } = useResellerTable({
@@ -114,10 +115,11 @@ const ResellerPage = () => {
 
   const handleUpdateReseller = editForm.handleSubmit((data) => {
     if (!selectedReseller) return;
-    updateReseller(selectedReseller.id, selectedReseller.name, data);
-    setIsEditDialogOpen(false);
-    setSelectedReseller(null);
-    setSelectedResellerId(null);
+    updateReseller(selectedReseller.id, data, () => {
+      setIsEditDialogOpen(false);
+      setSelectedReseller(null);
+      setSelectedResellerId(null);
+    });
   });
 
   return (
@@ -412,7 +414,7 @@ const ResellerPage = () => {
               setIsEditDialogOpen(false);
               setSelectedResellerId(null);
             }}
-            disabled={isFetchingDetail || isAdding}
+            disabled={isFetchingDetail || isUpdating}
           >
             <LuX className="h-4 w-4" />
           </Button>
@@ -438,7 +440,7 @@ const ResellerPage = () => {
                   placeholder="Contoh: CV. Jaya Grafika"
                   className="border-border/50 focus:bg-background transition-all"
                   variant={errorsEdit.name ? "error" : "default"}
-                  disabled={isAdding}
+                  disabled={isUpdating}
                 />
                 {errorsEdit.name && (
                   <HelperText variant="error">{errorsEdit.name.message}</HelperText>
@@ -457,7 +459,7 @@ const ResellerPage = () => {
                     placeholder="Contoh: biro.joni@gmail.com"
                     className="border-border/50 focus:bg-background transition-all"
                     variant={errorsEdit.email ? "error" : "default"}
-                    disabled={isAdding}
+                    disabled={isUpdating}
                   />
                   {errorsEdit.email && (
                     <HelperText variant="error">{errorsEdit.email.message}</HelperText>
@@ -473,7 +475,7 @@ const ResellerPage = () => {
                     placeholder="Contoh: 081234567890"
                     className="border-border/50 focus:bg-background transition-all"
                     variant={errorsEdit.phone ? "error" : "default"}
-                    disabled={isAdding}
+                    disabled={isUpdating}
                   />
                   {errorsEdit.phone && (
                     <HelperText variant="error">{errorsEdit.phone.message}</HelperText>
@@ -495,7 +497,7 @@ const ResellerPage = () => {
                   placeholder="Contoh: 5000000"
                   className="border-border/50 focus:bg-background transition-all"
                   variant={errorsEdit.creditLimit ? "error" : "default"}
-                  disabled={isAdding}
+                  disabled={isUpdating}
                 />
                 {errorsEdit.creditLimit && (
                   <HelperText variant="error">{errorsEdit.creditLimit.message}</HelperText>
@@ -513,7 +515,7 @@ const ResellerPage = () => {
                     errorsEdit.address ? "border-rose-500 focus-visible:ring-rose-500" : "border-border/50"
                   }`}
                   placeholder="Tuliskan alamat lengkap mitra biro/reseller..."
-                  disabled={isAdding}
+                  disabled={isUpdating}
                 />
                 {errorsEdit.address && (
                   <HelperText variant="error">{errorsEdit.address.message}</HelperText>
@@ -531,16 +533,16 @@ const ResellerPage = () => {
               setIsEditDialogOpen(false);
               setSelectedResellerId(null);
             }}
-            disabled={isAdding}
+            disabled={isUpdating}
           >
             Batal
           </Button>
           <Button
             className="h-10 px-4 rounded-md font-medium bg-primary hover:bg-primary/90 active:scale-95 transition-all"
             onClick={handleUpdateReseller}
-            disabled={isFetchingDetail || isAdding}
+            disabled={isFetchingDetail || isUpdating}
           >
-            {isAdding ? "Menyimpan..." : "Simpan Perubahan"}
+            {isUpdating ? "Menyimpan..." : "Simpan Perubahan"}
           </Button>
         </CardFooter>
       </Dialog>

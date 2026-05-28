@@ -28,3 +28,11 @@ export class CreateReseller {
     return await this.resellerRepository.create(input);
   }
 }
+
+export class UpdateReseller {
+  constructor(private readonly resellerRepository: ResellerRepository) {}
+
+  async execute(id: string, input: CreateResellerInput): Promise<ResellerModel> {
+    return await this.resellerRepository.update(id, input);
+  }
+}

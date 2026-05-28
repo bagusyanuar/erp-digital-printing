@@ -12,7 +12,11 @@ import { toast } from "@erp-digital-printing/ui/Toast";
 import { resellerKeys } from "@infrastructure/reseller/keys";
 import { Typography } from "@erp-digital-printing/ui/Typography";
 import { Button } from "@erp-digital-printing/ui/Button";
-import { LuEllipsisVertical, LuPencil, LuTrash2 } from "@erp-digital-printing/ui/icons";
+import {
+  LuEllipsisVertical,
+  LuPencil,
+  LuTrash2,
+} from "@erp-digital-printing/ui/icons";
 import {
   Dropdown,
   DropdownTrigger,
@@ -21,6 +25,7 @@ import {
 } from "@erp-digital-printing/ui/Dropdown";
 import type { CreateResellerInput } from "@core/reseller/applications/inputs";
 import type { AppError } from "@core/shared/errors/domain.error";
+import { useDebounce } from "../../shared/hooks/useDebounce";
 
 export interface CustomerLevel {
   id: string;
@@ -67,15 +72,44 @@ export const useResellerTable = (options?: {
     pageSize: 10,
   });
 
-  const { getResellersUseCase, createResellerUseCase, getResellerByIdUseCase } = useResellerDI();
+  const debouncedSearch = useDebounce(globalFilter, 750);
+
+  // Reset pagination to first page when search changes
+  React.useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [debouncedSearch]);
+
+  const {
+    getResellersUseCase,
+    createResellerUseCase,
+    getResellerByIdUseCase,
+    updateResellerUseCase,
+  } = useResellerDI();
   const queryClient = useQueryClient();
 
-  const [selectedResellerId, setSelectedResellerId] = useState<string | null>(null);
+  const [selectedResellerId, setSelectedResellerId] = useState<string | null>(
+    null,
+  );
 
-  // Fetch real data from the API with dynamic page and limit parameters
-  const { data: response, isLoading, isFetching } = useQuery({
-    queryKey: resellerKeys.list({ limit: pagination.pageSize, page: pagination.pageIndex + 1 }),
-    queryFn: () => getResellersUseCase.execute({ limit: pagination.pageSize, page: pagination.pageIndex + 1 }),
+  // Fetch real data from the API with dynamic page, limit, and search parameters
+  const {
+    data: response,
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: resellerKeys.list({
+      limit: pagination.pageSize,
+      page: pagination.pageIndex + 1,
+      search: debouncedSearch || undefined,
+    }),
+    queryFn: () =>
+      getResellersUseCase.execute({
+        limit: pagination.pageSize,
+        page: pagination.pageIndex + 1,
+        search: debouncedSearch || undefined,
+      }),
+    staleTime: 10_000,
+    gcTime: 30_000,
   });
 
   // Fetch single reseller details dynamically by ID
@@ -155,6 +189,25 @@ export const useResellerTable = (options?: {
     },
   });
 
+  // Update Reseller Mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: CreateResellerInput }) =>
+      updateResellerUseCase.execute(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: resellerKeys.all });
+      toast.success(
+        "Reseller Berhasil Diperbarui",
+        "Data reseller telah berhasil diperbarui di dalam sistem.",
+      );
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Memperbarui Reseller",
+        error.message || "Terjadi kesalahan.",
+      );
+    },
+  });
+
   const addReseller = (newReseller: CreateResellerInput) => {
     createMutation.mutate(newReseller);
   };
@@ -167,18 +220,25 @@ export const useResellerTable = (options?: {
     options?.onDelete?.(reseller);
   };
 
-  const updateReseller = (id: string, name: string, _updatedFields: Omit<CreateResellerInput, 'customer_level_id'>) => {
-    toast.success(
-      "Reseller Berhasil Diubah",
-      `Data reseller "${name}" telah berhasil diperbarui di sistem.`
+  const updateReseller = (
+    id: string,
+    input: CreateResellerInput,
+    onSuccess?: () => void,
+  ) => {
+    updateMutation.mutate(
+      { id, input },
+      {
+        onSuccess: () => {
+          onSuccess?.();
+        },
+      },
     );
-    queryClient.invalidateQueries({ queryKey: resellerKeys.all });
   };
 
   const deleteReseller = (id: string, name: string) => {
     toast.success(
       "Reseller Berhasil Dihapus",
-      `Data reseller "${name}" telah berhasil dihapus dari sistem.`
+      `Data reseller "${name}" telah berhasil dihapus dari sistem.`,
     );
     queryClient.invalidateQueries({ queryKey: resellerKeys.all });
   };
@@ -258,7 +318,10 @@ export const useResellerTable = (options?: {
                   <LuPencil className="h-3.5 w-3.5 text-blue-600" />
                   <span>Ubah</span>
                 </DropdownItem>
-                <DropdownItem variant="danger" onClick={() => openDeleteDialog(info.row.original)}>
+                <DropdownItem
+                  variant="danger"
+                  onClick={() => openDeleteDialog(info.row.original)}
+                >
                   <LuTrash2 className="h-3.5 w-3.5 text-rose-600" />
                   <span>Hapus</span>
                 </DropdownItem>
@@ -284,6 +347,7 @@ export const useResellerTable = (options?: {
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     manualPagination: true,
+    manualFiltering: true,
     pageCount: Math.ceil((response?.total ?? 0) / pagination.pageSize),
   });
 
@@ -293,6 +357,7 @@ export const useResellerTable = (options?: {
     columns,
     isLoading: isLoading || isFetching,
     isAdding: createMutation.isPending,
+    isUpdating: updateMutation.isPending,
     isAddDialogOpen,
     setIsAddDialogOpen,
     globalFilter,
