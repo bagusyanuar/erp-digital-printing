@@ -11,8 +11,8 @@ Proyek dibagi menjadi tiga modul utama:
 ## 2. Dependency Injection (DI)
 - **AppContainer**: Semua use case digabungkan ke dalam satu `AppContainer` di `modules/presentation/src/shared/di/DIContext.ts`.
 - **Selector Hook Modular**: Setiap modul di Presentation harus memiliki sebuah selector hook.
-  - Contoh: `modules/presentation/src/reseller/hooks/useResellerDI.ts`.
-  - Isinya: `export const useResellerDI = () => useDI().reseller;`
+  - Contoh: `modules/presentation/src/reseller/hooks/useResellerDI.ts` atau `modules/presentation/src/category/hooks/useCategoryDI.ts`.
+  - Isinya: `export const useCategoryDI = () => useDI().category;`
   - *Dilarang keras* menginisiasi UseCase atau Repository secara langsung di dalam komponen presentasi.
 
 ## 3. TanStack Query Keys (Query Factory)
@@ -56,6 +56,7 @@ Proyek dibagi menjadi tiga modul utama:
 - **Strict Casting DTO/Input**: Skema Zod wajib di-cast secara kuat (*strongly typed*) ke interface DTO/Input yang didefinisikan di layer Core:
   ```typescript
   export const resellerInputSchema = z.object({ ... }) as z.ZodType<CreateResellerInput>;
+  export const categoryInputSchema = z.object({ name: z.string().min(1, "Nama kategori wajib diisi") }) as z.ZodType<CreateCategoryInput>;
   ```
 - **Form Binding (Presentation)**:
   - Gunakan `react-hook-form` dikombinasikan dengan `@hookform/resolvers/zod` di komponen/halaman formulir.

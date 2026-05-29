@@ -1,113 +1,264 @@
-import React, { useState } from 'react';
-import { 
-  useReactTable, 
-  getCoreRowModel, 
-  getPaginationRowModel, 
-  createColumnHelper
+import React, { useState, useMemo } from "react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getFilteredRowModel,
+  createColumnHelper,
 } from "@tanstack/react-table";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCategoryDI } from "./useCategoryDI";
+import { toast } from "@erp-digital-printing/ui/Toast";
+import { categoryKeys } from "@infrastructure/category/keys";
 import { Typography } from "@erp-digital-printing/ui/Typography";
 import { Button } from "@erp-digital-printing/ui/Button";
-import { LuEllipsisVertical } from "@erp-digital-printing/ui/icons";
+import {
+  LuEllipsisVertical,
+  LuPencil,
+  LuTrash2,
+} from "@erp-digital-printing/ui/icons";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownContent,
+  DropdownItem,
+} from "@erp-digital-printing/ui/Dropdown";
+import type { CreateCategoryInput } from "@core/category/applications/inputs";
+import type { AppError } from "@core/shared/errors/domain.error";
+import { useDebounce } from "../../shared/hooks/useDebounce";
 
 export interface Category {
-  id: number;
+  id: string;
   name: string;
-  code: string;
-  totalProducts: number;
-  status: string;
 }
 
 const columnHelper = createColumnHelper<Category>();
 
-export const useCategoryTable = () => {
+export const useCategoryTable = (options?: {
+  onEdit?: (category: Category) => void;
+  onDelete?: (category: Category) => void;
+}) => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
-  // Dummy Data yang relevan dengan Digital Printing
-  const [data] = useState<Category[]>([
-    { id: 1, name: "Large Format", code: "CAT-LF", totalProducts: 45, status: "Active" },
-    { id: 2, name: "Sticker & Label", code: "CAT-SL", totalProducts: 128, status: "Active" },
-    { id: 3, name: "Indoor/Outdoor", code: "CAT-IO", totalProducts: 32, status: "Active" },
-    { id: 4, name: "Merchandise", code: "CAT-MC", totalProducts: 12, status: "Inactive" },
-    { id: 5, name: "Finishing Service", code: "CAT-FS", totalProducts: 8, status: "Active" },
-    { id: 6, name: "Digital Press", code: "CAT-DP", totalProducts: 72, status: "Active" },
-    { id: 7, name: "Offset Printing", code: "CAT-OP", totalProducts: 15, status: "Active" },
-    { id: 8, name: "Textile Printing", code: "CAT-TP", totalProducts: 24, status: "Inactive" },
-    { id: 9, name: "Binding & Craft", code: "CAT-BC", totalProducts: 5, status: "Active" },
-    { id: 10, name: "Laser Cutting", code: "CAT-LC", totalProducts: 18, status: "Active" },
-    { id: 11, name: "UV Printing", code: "CAT-UV", totalProducts: 9, status: "Active" },
-  ]);
+  const debouncedSearch = useDebounce(globalFilter, 750);
 
-  const columns = [
-    columnHelper.accessor("name", {
-      header: "Info Kategori",
-      cell: info => (
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm">
-            {info.getValue().charAt(0)}
-          </div>
-          <Typography weight="bold" className="group-hover:text-primary transition-colors">{info.getValue()}</Typography>
-        </div>
-      ),
+  // Reset pagination to first page when search changes
+  React.useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [debouncedSearch]);
+
+  const {
+    getCategoriesUseCase,
+    createCategoryUseCase,
+    updateCategoryUseCase,
+    deleteCategoryUseCase,
+  } = useCategoryDI();
+  const queryClient = useQueryClient();
+
+  // Fetch real data from the API with dynamic page, limit, and search parameters
+  const {
+    data: response,
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: categoryKeys.list({
+      limit: pagination.pageSize,
+      page: pagination.pageIndex + 1,
+      search: debouncedSearch || undefined,
     }),
-    columnHelper.accessor("code", {
-      header: "ID / Kode",
-      cell: info => (
-        <code className="bg-muted px-2 py-1 rounded text-[11px] font-bold text-muted-foreground border border-border/50">
-          {info.getValue()}
-        </code>
-      ),
-    }),
-    columnHelper.accessor("totalProducts", {
-      header: "Total Produk",
-      cell: info => (
-        <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-sidebar-accent text-[10px] font-black text-muted-foreground uppercase">
-          {info.getValue()} Item
-        </span>
-      ),
-    }),
-    columnHelper.accessor("status", {
-      header: "Status",
-      cell: info => {
-        const isActive = info.getValue() === "Active";
-        return (
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-            isActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
-          }`}>
-            <div className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-            {info.getValue()}
-          </div>
-        );
+    queryFn: () =>
+      getCategoriesUseCase.execute({
+        limit: pagination.pageSize,
+        page: pagination.pageIndex + 1,
+        search: debouncedSearch || undefined,
+      }),
+    staleTime: 10_000,
+    gcTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Map API/core model to representation/view model
+  const data = useMemo(() => {
+    return (response?.data ?? []).map(
+      (model): Category => ({
+        id: model.id,
+        name: model.name,
+      }),
+    );
+  }, [response]);
+
+  // Create Category Mutation
+  const createMutation = useMutation({
+    mutationFn: (input: CreateCategoryInput) =>
+      createCategoryUseCase.execute(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+      toast.success(
+        "Kategori Berhasil Ditambahkan",
+        "Kategori produk baru telah berhasil disimpan ke sistem."
+      );
+      setIsAddDialogOpen(false);
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Menambahkan Kategori",
+        error.message || "Terjadi kesalahan."
+      );
+    },
+  });
+
+  // Update Category Mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: CreateCategoryInput }) =>
+      updateCategoryUseCase.execute(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+      toast.success(
+        "Kategori Berhasil Diperbarui",
+        "Data kategori telah berhasil diperbarui di dalam sistem."
+      );
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Memperbarui Kategori",
+        error.message || "Terjadi kesalahan."
+      );
+    },
+  });
+
+  // Delete Category Mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteCategoryUseCase.execute(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+      toast.success(
+        "Kategori Berhasil Dihapus",
+        "Data kategori telah berhasil dihapus dari sistem."
+      );
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Menghapus Kategori",
+        error.message || "Terjadi kesalahan."
+      );
+    },
+  });
+
+  const addCategory = (name: string) => {
+    createMutation.mutate({ name });
+  };
+
+  const updateCategory = (
+    id: string,
+    name: string,
+    onSuccess?: () => void
+  ) => {
+    updateMutation.mutate(
+      { id, input: { name } },
+      {
+        onSuccess: () => {
+          onSuccess?.();
+        },
+      }
+    );
+  };
+
+  const deleteCategory = (id: string, onSuccess?: () => void) => {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        onSuccess?.();
       },
-    }),
-    columnHelper.display({
-      id: "actions",
-      header: "Aksi",
-      cell: () => (
-        <div className="text-right">
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-sidebar-accent">
-            <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
-          </Button>
-        </div>
-      ),
-    }),
-  ];
+    });
+  };
+
+  const columns = useMemo(
+    () => [
+      columnHelper.accessor("name", {
+        header: "Nama Kategori",
+        cell: (info) => (
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm flex-shrink-0">
+              {info.getValue().charAt(0)}
+            </div>
+            <span className="font-bold text-foreground text-sm leading-none">
+              {info.getValue()}
+            </span>
+          </div>
+        ),
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: "Aksi",
+        cell: (info) => (
+          <div className="text-right">
+            <Dropdown>
+              <DropdownTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg hover:bg-muted/70 active:scale-95 transition-all"
+                >
+                  <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownTrigger>
+              <DropdownContent align="end" className="w-36">
+                <DropdownItem onClick={() => options?.onEdit?.(info.row.original)}>
+                  <LuPencil className="h-3.5 w-3.5 text-blue-600" />
+                  <span>Ubah</span>
+                </DropdownItem>
+                <DropdownItem
+                  variant="danger"
+                  onClick={() => options?.onDelete?.(info.row.original)}
+                >
+                  <LuTrash2 className="h-3.5 w-3.5 text-rose-600" />
+                  <span>Hapus</span>
+                </DropdownItem>
+              </DropdownContent>
+            </Dropdown>
+          </div>
+        ),
+      }),
+    ],
+    [options]
+  );
 
   const table = useReactTable({
     data,
     columns,
+    state: {
+      globalFilter,
+      pagination,
+    },
+    onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 5,
-      },
-    },
+    getFilteredRowModel: getFilteredRowModel(),
+    manualPagination: true,
+    manualFiltering: true,
+    pageCount: Math.ceil((response?.total ?? 0) / pagination.pageSize),
   });
 
   return {
     table,
     data,
+    columns,
+    isLoading: isLoading || isFetching,
+    isAdding: createMutation.isPending,
+    isUpdating: updateMutation.isPending,
+    isDeleting: deleteMutation.isPending,
     isAddDialogOpen,
-    setIsAddDialogOpen
+    setIsAddDialogOpen,
+    globalFilter,
+    setGlobalFilter,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    totalEntries: response?.total ?? 0,
   };
 };
