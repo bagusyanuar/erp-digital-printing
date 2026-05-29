@@ -1,8 +1,8 @@
-import { lazy, Suspense } from "react";
+import React, { lazy, Suspense } from "react";
 import { type RouteObject } from "react-router-dom";
 
-const FormAttribute = lazy(
-  () => import("@presentation/attribute/pages/FormAttribute"),
+const lazyAttributePage = lazy(
+  () => import("@presentation/attribute/pages/AttributePage"),
 );
 
 export const attributeRoutes: RouteObject[] = [
@@ -11,8 +11,7 @@ export const attributeRoutes: RouteObject[] = [
     handle: { title: "Master Atribut" },
     children: [
       {
-        path: "create",
-        handle: { title: "Create Attribute" },
+        index: true,
         element: (
           <Suspense
             fallback={
@@ -21,11 +20,13 @@ export const attributeRoutes: RouteObject[] = [
               </div>
             }
           >
-            <FormAttribute />
+            {React.createElement(lazyAttributePage)}
           </Suspense>
         ),
       },
-      // List route goes here later
     ],
   },
 ];
+
+
+

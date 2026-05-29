@@ -6,6 +6,7 @@ import type {
 } from "@core/auth/applications/usecases/auth.usecase";
 import type { GetResellers, CreateReseller, GetResellerById, UpdateReseller, DeleteReseller } from "@core/reseller/applications/usecases/reseller.usecase";
 import type { GetCategories, CreateCategory, GetCategoryById, UpdateCategory, DeleteCategory } from "@core/category/applications/usecases/category.usecase";
+import type { GetAttributes, CreateAttribute, GetAttributeById, UpdateAttribute, DeleteAttribute } from "@core/attribute/applications/usecases/attribute.usecase";
 
 // ──────────────────────────────────────────────
 // Module Use Case Types
@@ -34,6 +35,14 @@ export interface GetCategoryUseCases {
   deleteCategoryUseCase: DeleteCategory;
 }
 
+export interface GetAttributeUseCases {
+  getAttributesUseCase: GetAttributes;
+  createAttributeUseCase: CreateAttribute;
+  getAttributeByIdUseCase: GetAttributeById;
+  updateAttributeUseCase: UpdateAttribute;
+  deleteAttributeUseCase: DeleteAttribute;
+}
+
 // ──────────────────────────────────────────────
 // App Container
 // Gabungan seluruh modul. Satu property per modul.
@@ -43,6 +52,7 @@ export interface AppContainer {
   auth: AuthUseCases;
   reseller: GetResellerUseCases;
   category: GetCategoryUseCases;
+  attribute: GetAttributeUseCases;
 }
 
 // ──────────────────────────────────────────────
