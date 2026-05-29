@@ -42,14 +42,21 @@ const AttributePage = () => {
     null,
   );
 
+  // States for dynamic options list
+  const [addOptions, setAddOptions] = useState<string[]>([]);
+  const [newAddOption, setNewAddOption] = useState("");
+
+  const [editOptions, setEditOptions] = useState<string[]>([]);
+  const [newEditOption, setNewEditOption] = useState("");
+
   const addForm = useForm<CreateAttributeInput>({
     resolver: zodResolver(attributeInputSchema),
-    defaultValues: { name: "", value_type: "text" },
+    defaultValues: { name: "", value_type: "text", options: [] },
   });
 
   const editForm = useForm<CreateAttributeInput>({
     resolver: zodResolver(attributeInputSchema),
-    defaultValues: { name: "", value_type: "text" },
+    defaultValues: { name: "", value_type: "text", options: [] },
   });
 
   const {
@@ -70,7 +77,12 @@ const AttributePage = () => {
   } = useAttributeTable({
     onEdit: (attribute) => {
       setSelectedAttribute(attribute);
-      editForm.reset({ name: attribute.name, value_type: "text" });
+      editForm.reset({
+        name: attribute.name,
+        value_type: attribute.value_type || "text",
+        options: attribute.options || [],
+      });
+      setEditOptions(attribute.options || []);
       setIsEditDialogOpen(true);
     },
     onDelete: (attribute) => {
@@ -81,25 +93,73 @@ const AttributePage = () => {
 
   const {
     register: registerAdd,
+    watch: watchAdd,
+    setValue: setValueAdd,
     formState: { errors: errorsAdd },
   } = addForm;
 
   const {
     register: registerEdit,
+    watch: watchEdit,
+    setValue: setValueEdit,
     formState: { errors: errorsEdit },
   } = editForm;
 
+
+
+  const handleAddOption = () => {
+    if (newAddOption.trim() && !addOptions.includes(newAddOption.trim())) {
+      const updated = [...addOptions, newAddOption.trim()];
+      setAddOptions(updated);
+      setValueAdd("options", updated);
+      setNewAddOption("");
+    }
+  };
+
+  const handleRemoveAddOption = (opt: string) => {
+    const updated = addOptions.filter((o) => o !== opt);
+    setAddOptions(updated);
+    setValueAdd("options", updated);
+  };
+
+  const handleEditOption = () => {
+    if (newEditOption.trim() && !editOptions.includes(newEditOption.trim())) {
+      const updated = [...editOptions, newEditOption.trim()];
+      setEditOptions(updated);
+      setValueEdit("options", updated);
+      setNewEditOption("");
+    }
+  };
+
+  const handleRemoveEditOption = (opt: string) => {
+    const updated = editOptions.filter((o) => o !== opt);
+    setEditOptions(updated);
+    setValueEdit("options", updated);
+  };
+
   const handleSaveAttribute = addForm.handleSubmit((data) => {
-    addAttribute(data.name);
+    addAttribute(
+      data.name,
+      addOptions.length > 0 ? "options" : "text",
+      addOptions
+    );
     addForm.reset();
+    setAddOptions([]);
   });
 
   const handleUpdateAttribute = editForm.handleSubmit((data) => {
     if (!selectedAttribute) return;
-    updateAttribute(selectedAttribute.id, data.name, () => {
-      setIsEditDialogOpen(false);
-      setSelectedAttribute(null);
-    });
+    updateAttribute(
+      selectedAttribute.id,
+      data.name,
+      editOptions.length > 0 ? "options" : "text",
+      editOptions,
+      () => {
+        setIsEditDialogOpen(false);
+        setSelectedAttribute(null);
+        setEditOptions([]);
+      }
+    );
   });
 
   const handleDeleteConfirm = () => {
@@ -120,7 +180,7 @@ const AttributePage = () => {
             Master Atribut
           </h1>
           <p className="text-muted-foreground font-medium">
-            Kelola spesifikasi atribut dinamis (EAV) untuk produk digital printing Anda.
+            Kelola spesifikasi atribut dinamis (EAV) beserta opsi nilainya untuk produk Anda.
           </p>
         </div>
       </div>
@@ -143,7 +203,11 @@ const AttributePage = () => {
           <div className="flex items-center gap-3">
             <Button
               className="h-10 px-4 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-              onClick={() => setIsAddDialogOpen(true)}
+              onClick={() => {
+                addForm.reset();
+                setAddOptions([]);
+                setIsAddDialogOpen(true);
+              }}
             >
               <LuPlus size={18} />
               Tambah Atribut
@@ -237,7 +301,7 @@ const AttributePage = () => {
                 Tambah Atribut Baru
               </CardTitle>
               <CardDescription className="text-sm">
-                Definisikan nama atribut spesifikasi baru.
+                Definisikan nama atribut spesifikasi baru beserta opsi nilainya.
               </CardDescription>
             </div>
             <Button
@@ -253,12 +317,14 @@ const AttributePage = () => {
           </CardHeader>
 
           <CardContent className="px-6 py-4 space-y-4">
+            
+            {/* Nama Atribut */}
             <div className="space-y-2">
               <Typography variant="small" weight="medium" className="text-sm">
-                Nama Atribut
+                Nama Atribut <span className="text-rose-500">*</span>
               </Typography>
               <TextField
-                placeholder="Contoh: Gramasi, Warna Dasar, Ukuran Custom"
+                placeholder="Contoh: Sisi, Gramasi, Ukuran, dll"
                 className="border-border/50 focus:bg-background transition-all"
                 disabled={isAdding}
                 {...registerAdd("name")}
@@ -267,6 +333,69 @@ const AttributePage = () => {
                 <HelperText variant="error">{errorsAdd.name.message}</HelperText>
               )}
             </div>
+
+            {/* Options List Builder */}
+            <div className="space-y-3 pt-2 border-t border-border/30">
+              <div className="space-y-1">
+                <Typography variant="small" weight="bold" className="text-sm">
+                  Daftar Pilihan Nilai (Opsional)
+                </Typography>
+                <Typography className="text-[13px] text-muted-foreground">
+                  Biarkan kosong jika atribut ini berupa input teks bebas.
+                </Typography>
+              </div>
+              
+              <div className="flex gap-2">
+                <TextField
+                  placeholder="Contoh: 1 Sisi, 2 Sisi, 150g"
+                  value={newAddOption}
+                  onChange={(e) => setNewAddOption(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddOption();
+                    }
+                  }}
+                  disabled={isAdding}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={handleAddOption}
+                  disabled={isAdding || !newAddOption.trim()}
+                  className="h-10 px-4 rounded-xl font-bold bg-primary text-white"
+                >
+                  Tambah
+                </Button>
+              </div>
+
+              {/* Options Pills */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {addOptions.length > 0 ? (
+                  addOptions.map((opt) => (
+                    <span
+                      key={opt}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20"
+                    >
+                      {opt}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAddOption(opt)}
+                        className="hover:text-rose-500 transition-colors"
+                        disabled={isAdding}
+                      >
+                        <LuX size={12} />
+                      </button>
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground italic font-semibold">
+                    Belum ada opsi ditambahkan. Masukkan opsi nilai di atas.
+                  </span>
+                )}
+              </div>
+            </div>
+
           </CardContent>
 
           <CardFooter className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">
@@ -279,7 +408,7 @@ const AttributePage = () => {
             >
               Batal
             </Button>
-            <Button
+              <Button
               className="h-10 px-4 rounded-md font-medium bg-primary hover:bg-primary/90 active:scale-95 transition-all text-white"
               type="submit"
               disabled={isAdding}
@@ -304,7 +433,7 @@ const AttributePage = () => {
                 Ubah Atribut
               </CardTitle>
               <CardDescription className="text-sm">
-                Perbarui nama atribut spesifikasi produk.
+                Perbarui data nama atribut spesifikasi produk beserta opsinya.
               </CardDescription>
             </div>
             <Button
@@ -320,12 +449,14 @@ const AttributePage = () => {
           </CardHeader>
 
           <CardContent className="px-6 py-4 space-y-4">
+            
+            {/* Nama Atribut */}
             <div className="space-y-2">
               <Typography variant="small" weight="medium" className="text-sm">
-                Nama Atribut
+                Nama Atribut <span className="text-rose-500">*</span>
               </Typography>
               <TextField
-                placeholder="Contoh: Gramasi, Warna Dasar, Ukuran Custom"
+                placeholder="Contoh: Sisi, Gramasi, Ukuran, dll"
                 className="border-border/50 focus:bg-background transition-all"
                 disabled={isUpdating}
                 {...registerEdit("name")}
@@ -334,6 +465,69 @@ const AttributePage = () => {
                 <HelperText variant="error">{errorsEdit.name.message}</HelperText>
               )}
             </div>
+
+            {/* Options List Builder */}
+            <div className="space-y-3 pt-2 border-t border-border/30">
+              <div className="space-y-1">
+                <Typography variant="small" weight="bold" className="text-sm">
+                  Daftar Pilihan Nilai (Opsional)
+                </Typography>
+                <Typography className="text-[13px] text-muted-foreground">
+                  Biarkan kosong jika atribut ini berupa input teks bebas.
+                </Typography>
+              </div>
+              
+              <div className="flex gap-2">
+                <TextField
+                  placeholder="Contoh: 1 Sisi, 2 Sisi, 150g"
+                  value={newEditOption}
+                  onChange={(e) => setNewEditOption(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleEditOption();
+                    }
+                  }}
+                  disabled={isUpdating}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={handleEditOption}
+                  disabled={isUpdating || !newEditOption.trim()}
+                  className="h-10 px-4 rounded-xl font-bold bg-primary text-white"
+                >
+                  Tambah
+                </Button>
+              </div>
+
+              {/* Options Pills */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {editOptions.length > 0 ? (
+                  editOptions.map((opt) => (
+                    <span
+                      key={opt}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20"
+                    >
+                      {opt}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveEditOption(opt)}
+                        className="hover:text-rose-500 transition-colors"
+                        disabled={isUpdating}
+                      >
+                        <LuX size={12} />
+                      </button>
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground italic font-semibold">
+                    Belum ada opsi ditambahkan. Masukkan opsi nilai di atas.
+                  </span>
+                )}
+              </div>
+            </div>
+
           </CardContent>
 
           <CardFooter className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">

@@ -9,4 +9,5 @@ export interface AttributeQuery extends PaginationQuery {
 export interface CreateAttributeRequest {
   name: string;
   value_type: string;
+  options?: string[];
 }

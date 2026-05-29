@@ -9,4 +9,5 @@ export interface AttributeParams extends PaginationParams {
 export interface CreateAttributeInput {
   name: string;
   value_type: string;
+  options?: string[];
 }

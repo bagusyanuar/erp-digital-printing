@@ -39,13 +39,20 @@ Opsi tambahan yang mempengaruhi harga total.
 
 Sebelum membuat Produk, sistem harus memiliki data dasar berikut sebagai referensi utama:
 
-### 1. Master Satuan Dasar (UoM)
-- **Tujuan**: Standarisasi cara hitung produk.
-- **Data**: Lembar (Sheet), Meter Persegi (m2), Meter Lari (m), Box, Pcs, Pack.
+### 1. Master Satuan Dasar (UoM) - Kontrak API Backend (BE)
+Sistem membatasi pilihan satuan dasar produk berdasarkan kontrak enum BE berikut:
+
+| Label UI | Value API (Database) | Keterangan / Penggunaan |
+| :--- | :--- | :--- |
+| **Meter Persegi** | `m2` | Banner MMT, Kain, Stiker meteran. |
+| **PCS** | `pcs` | Brosur eceran, Merchandise, gantungan kunci, dll. |
+| **Meter Lari** | `m_lari` | Cetak roll banner tanpa perhitungan lebar custom. |
+| **Box** | `box` | Kartu nama, id card pack, dll. |
 
 ### 2. Master Kategori Produk
 - **Tujuan**: Folder utama untuk grouping produk dan laporan.
 - **Data**: A3+, Banner (MMT & Kain), Indoor Media.
+
 
 ### 3. Master Varian / Material Base
 - **Tujuan**: List bahan mentah/kertas yang tersedia di gudang.
@@ -79,26 +86,59 @@ Khusus untuk kategori **A3+**, struktur data diatur dalam hirarki berikut untuk 
 - **Options**: 1 Sisi, 2 Sisi.
 - **Unit**: Box.
 
-## 📊 Database Schema Mapping & EAV Structure (Phase 2)
+## 📈 Dynamic Pricing & Multi-Tier Reseller System (Brainstorming Results)
 
-Sistem menggunakan pendekatan **Entity-Attribute-Value (EAV)** yang dinamis di sisi Backend. Berikut adalah pemetaan antara konsep Frontend dan tabel Backend:
+Sistem akan mendukung harga varian produk yang dinamis berbasis volume (Tier Pricing) dan segmentasi pelanggan (End-User vs Reseller).
 
-### 1. Mapping Terminologi FE vs BE
-| Konsep UI / Frontend | Tabel Backend (`be-table-schema.md`) | Penjelasan & Contoh |
-| :--- | :--- | :--- |
-| **Kategori** | `categories` | Payung besar pengelompokan (A3+, MMT, Indoor Media). |
-| **Bahan / Material Dasar** | `products` | Di BE, bahan fisik adalah "Produk" utama. Menentukan UoM (e.g., Art Paper 150 -> Lembar, Flexi 280g -> m2). |
-| **Opsi Sisi / Finishing** | `product_variants` | Variasi dari produk tersebut (e.g., 1 Sisi, 2 Sisi, Kiss Cut, Die Cut). Bisa memiliki `additional_cost`. |
-| **Spesifikasi Detail** | `attributes` & `values` | EAV system. Menyimpan atribut dinamis (e.g., Gramasi: 280g, Resolusi: High Res) tanpa menambah kolom tabel. |
-| **Grup Harga (Tab)** | `customer_levels` | Segmentasi harga (Regular, Reseller, Biro). |
-| **Matriks Harga (Grid)** | `price_tiers` | Tabel pusat harga. Menyimpan harga berdasarkan rentang `min_qty` & `max_qty` untuk spesifik `variant_id` dan `customer_level_id`. |
+### 1. Model Data Variant Pricing
+Setiap **Product Variant** menyimpan properti harga dasar serta sub-tabel harga bertingkat:
+*   `base_price`: Harga eceran / ritel standar untuk End-User.
+*   `base_reseller_price`: Harga dasar khusus untuk pelanggan berstatus Reseller/Biro.
+*   `price_tiers` (Tabel Anak): Menyimpan daftar aturan harga grosir berdasarkan kuantitas minimal (`min_qty`).
+    *   `min_qty`: Jumlah minimum pembelian untuk mengaktifkan harga ini.
+    *   `price`: Harga per unit untuk End-User di tier ini.
+    *   `reseller_price`: Harga per unit khusus Reseller di tier ini.
 
-### 2. Alur Pengisian Form berdasarkan Skema EAV
-1.  **Level 1**: Buat Kategori, Customer Level, dan Atribut EAV (Warna, Sisi, dll).
-2.  **Level 2**: Buat `Product` (Nama Bahan, UoM, Kategori).
-3.  **Level 3**: Tambahkan `product_variants` (Opsi 1 sisi / 2 sisi) ke dalam Product tersebut.
-4.  **Level 4**: Isi tabel `price_tiers` untuk setiap variant, berdasarkan customer level dan range qty.
+#### Ilustrasi JSON Schema Model:
+```json
+{
+  "variant_id": "var_ap150_1sisi",
+  "sku": "PRD-AP150-1S",
+  "name": "Art Paper 150g - 1 Sisi",
+  "base_price": 5000,
+  "base_reseller_price": 4500,
+  "price_tiers": [
+    {
+      "min_qty": 100,
+      "price": 4500,
+      "reseller_price": 4000
+    },
+    {
+      "min_qty": 500,
+      "price": 4000,
+      "reseller_price": 3500
+    }
+  ]
+}
+```
+
+### 2. Konsep UI/UX Form Produk & Penentuan Harga
+Untuk mengakomodir input data yang kaya ini tanpa membingungkan user, form produk dirancang menggunakan **Multi-Tab Layout** yang elegan:
+
+#### 📂 Tab 1: Informasi Dasar
+*   Nama Produk, Deskripsi, Kategori (Dropdown), dan UoM Utama (e.g. Lembar, m2).
+
+#### 📂 Tab 2: Varian & Atribut (EAV)
+*   **Pilih Atribut**: Dropdown dinamis dari Master Atribut (contoh: *Bahan*, *Sisi*, *Finishing*).
+*   **Input Nilai / Options**: Memasukkan opsi nilai per atribut.
+*   **Generator Grid**: Tombol otomatis untuk me-render daftar kombinasi varian berdasarkan atribut yang dipilih.
+
+#### 📂 Tab 3: Matrix Harga & Grosir (Tier Pricing Grid)
+*   Menampilkan daftar varian yang ter-generate dalam bentuk grid/tabel.
+*   Setiap baris varian memiliki input langsung untuk `Harga Retail` & `Harga Reseller`.
+*   Tombol akselerator **"Atur Tiering"** di setiap baris varian untuk memunculkan modal mini guna mengelola baris kuantitas minimum (`Min Qty`) dan diskon harga grosir per segmen.
 
 ---
 **Next Move**: 
-Menyesuaikan UI Form Master Data (`FormProduct.tsx`) agar selaras dengan hirarki EAV Backend ini (Bahan = Product, Sisi = Variant).
+Mempersiapkan pembuatan antarmuka visual terpadu ini di dalam modul produk untuk demo interaktif yang solid.
+

@@ -19,6 +19,7 @@ export function mapAttributeResponseToModel(
     id: response.id,
     name: response.name,
     value_type: response.value_type,
+    options: response.options?.map((opt) => opt.value) ?? [],
   };
 }
 
@@ -28,5 +29,6 @@ export function mapCreateAttributeInputToRequest(
   return {
     name: input.name,
     value_type: input.value_type || "text",
+    options: input.options,
   };
 }

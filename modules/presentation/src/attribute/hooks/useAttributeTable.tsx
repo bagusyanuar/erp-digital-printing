@@ -29,6 +29,8 @@ import { useDebounce } from "../../shared/hooks/useDebounce";
 export interface Attribute {
   id: string;
   name: string;
+  value_type: string;
+  options?: string[];
 }
 
 const columnHelper = createColumnHelper<Attribute>();
@@ -87,6 +89,8 @@ export const useAttributeTable = (options?: {
       (model): Attribute => ({
         id: model.id,
         name: model.name,
+        value_type: model.value_type,
+        options: model.options,
       }),
     );
   }, [response]);
@@ -148,17 +152,19 @@ export const useAttributeTable = (options?: {
     },
   });
 
-  const addAttribute = (name: string) => {
-    createMutation.mutate({ name, value_type: "text" });
+  const addAttribute = (name: string, valueType: string, optionsList?: string[]) => {
+    createMutation.mutate({ name, value_type: valueType, options: optionsList });
   };
 
   const updateAttribute = (
     id: string,
     name: string,
+    valueType: string,
+    optionsList?: string[],
     onSuccess?: () => void
   ) => {
     updateMutation.mutate(
-      { id, input: { name, value_type: "text" } },
+      { id, input: { name, value_type: valueType, options: optionsList } },
       {
         onSuccess: () => {
           onSuccess?.();
@@ -189,6 +195,36 @@ export const useAttributeTable = (options?: {
             </span>
           </div>
         ),
+      }),
+      columnHelper.accessor("options", {
+        header: "Pilihan Nilai",
+        cell: (info) => {
+          const options = info.getValue() || [];
+          if (options.length === 0) {
+            return (
+              <span className="text-xs text-muted-foreground italic font-medium">
+                Teks Bebas (Tidak ada opsi)
+              </span>
+            );
+          }
+          return (
+            <div className="flex flex-wrap gap-1.5 max-w-sm">
+              {options.slice(0, 3).map((opt, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-muted text-muted-foreground border border-border/50"
+                >
+                  {opt}
+                </span>
+              ))}
+              {options.length > 3 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">
+                  +{options.length - 3} lagi
+                </span>
+              )}
+            </div>
+          );
+        },
       }),
       columnHelper.display({
         id: "actions",
