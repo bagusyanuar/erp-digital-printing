@@ -13,6 +13,7 @@ import {
   LuEllipsisVertical,
   LuPencil,
   LuTrash2,
+  LuInfo,
 } from "@erp-digital-printing/ui/icons";
 import {
   Dropdown,
@@ -39,6 +40,13 @@ import {
 } from "@erp-digital-printing/ui/Table";
 import { Dialog } from "@erp-digital-printing/ui/Dialog";
 import FormProduct from "../components/FormProduct";
+import DetailProduct from "../components/DetailProduct";
+import { useQuery } from "@tanstack/react-query";
+import { useProductDI } from "../hooks/useProductDI";
+import { productKeys } from "@infrastructure/product/keys";
+import { useCategoryDI } from "@presentation/category/hooks/useCategoryDI";
+import { categoryKeys } from "@infrastructure/category/keys";
+import { useDebounce } from "../../shared/hooks/useDebounce";
 
 interface Product {
   id: string;
@@ -49,19 +57,9 @@ interface Product {
 
 const columnHelper = createColumnHelper<Product>();
 
-const INITIAL_PRODUCTS: Product[] = [
-  { id: "1", name: "Flexi 280g (MMT)", category: "Banner (MMT & Kain)", uom: "Meter Persegi (m²)" },
-  { id: "2", name: "Art Paper 120g", category: "A3+", uom: "Lembar (Sheet)" },
-  { id: "3", name: "Art Carton 260g", category: "A3+", uom: "Lembar (Sheet)" },
-  { id: "4", name: "Stiker Vinyl Ritrama", category: "Indoor Media", uom: "Meter Persegi (m²)" },
-  { id: "5", name: "Albatros 180g", category: "Indoor Media", uom: "Meter Persegi (m²)" },
-  { id: "6", name: "Kartu Nama Matte", category: "A3+", uom: "Box" },
-  { id: "7", name: "Korchin Banner", category: "Banner (MMT & Kain)", uom: "Meter Persegi (m²)" },
-];
-
 const ProductPage = () => {
   const [isAdding, setIsAdding] = useState(false);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [selectedDetailProductId, setSelectedDetailProductId] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("Semua");
   const [pagination, setPagination] = useState({
@@ -69,24 +67,81 @@ const ProductPage = () => {
     pageSize: 10,
   });
 
-  // Unique categories for filtering
-  const categoriesList = useMemo(() => {
-    const cats = new Set(products.map((p) => p.category));
-    return ["Semua", ...Array.from(cats)];
-  }, [products]);
+  const debouncedSearch = useDebounce(globalFilter, 750);
 
-  // Filter products based on search query & selected category
-  const filteredData = useMemo(() => {
-    return products.filter((prod) => {
-      const matchesSearch = prod.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        prod.category.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        prod.uom.toLowerCase().includes(globalFilter.toLowerCase());
-      
-      const matchesCategory = selectedCategoryFilter === "Semua" || prod.category === selectedCategoryFilter;
-      
-      return matchesSearch && matchesCategory;
+  // Sync pagination index back to first page when search or category changes
+  React.useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [debouncedSearch, selectedCategoryFilter]);
+
+  const { getCategoriesUseCase } = useCategoryDI();
+  const { getProductsUseCase } = useProductDI();
+
+  // Fetch categories dynamically for filter tabs
+  const { data: categoryResponse } = useQuery({
+    queryKey: categoryKeys.list({ limit: 100, page: 1 }),
+    queryFn: () => getCategoriesUseCase.execute({ limit: 100, page: 1 }),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const categories = categoryResponse?.data ?? [];
+  
+  const categoriesList = useMemo(() => {
+    return ["Semua", ...categories.map((c) => c.name)];
+  }, [categories]);
+
+  // Map selected category name to its ID
+  const selectedCategoryId = useMemo(() => {
+    if (selectedCategoryFilter === "Semua") return undefined;
+    return categories.find((c) => c.name === selectedCategoryFilter)?.id;
+  }, [selectedCategoryFilter, categories]);
+
+  // Fetch products dynamically from backend DI
+  const {
+    data: productResponse,
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: productKeys.list({
+      limit: pagination.pageSize,
+      page: pagination.pageIndex + 1,
+      search: debouncedSearch || undefined,
+      category_id: selectedCategoryId,
+    }),
+    queryFn: () =>
+      getProductsUseCase.execute({
+        limit: pagination.pageSize,
+        page: pagination.pageIndex + 1,
+        search: debouncedSearch || undefined,
+        category_id: selectedCategoryId,
+      }),
+    staleTime: 10_000,
+    gcTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Map API response to Component Product model
+  const products = useMemo(() => {
+    const rawList = productResponse?.data ?? [];
+    return rawList.map((model): Product => {
+      const catObj = categories.find((c) => c.id === model.category_id);
+      return {
+        id: model.id || "",
+        name: model.name,
+        category: catObj?.name || "Kategori Lain",
+        uom: model.uom === "pcs"
+          ? "PCS (pcs)"
+          : model.uom === "m2"
+          ? "Meter Persegi (m²)"
+          : model.uom === "m_lari"
+          ? "Meter Lari (m_lari)"
+          : model.uom === "box"
+          ? "Box (box)"
+          : model.uom,
+      };
     });
-  }, [products, globalFilter, selectedCategoryFilter]);
+  }, [productResponse, categories]);
 
   const columns = useMemo(
     () => [
@@ -135,6 +190,10 @@ const ProductPage = () => {
                 </Button>
               </DropdownTrigger>
               <DropdownContent align="end" className="w-36">
+                <DropdownItem onClick={() => setSelectedDetailProductId(info.row.original.id)}>
+                  <LuInfo className="h-3.5 w-3.5 text-primary" />
+                  <span>Detail</span>
+                </DropdownItem>
                 <DropdownItem>
                   <LuPencil className="h-3.5 w-3.5 text-blue-600" />
                   <span>Ubah</span>
@@ -153,7 +212,7 @@ const ProductPage = () => {
   );
 
   const table = useReactTable({
-    data: filteredData,
+    data: products,
     columns,
     state: {
       globalFilter,
@@ -164,6 +223,9 @@ const ProductPage = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    manualPagination: true,
+    manualFiltering: true,
+    pageCount: Math.ceil((productResponse?.total ?? 0) / pagination.pageSize),
   });
 
   return (
@@ -256,7 +318,16 @@ const ProductPage = () => {
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows.length > 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    <div className="flex items-center justify-center gap-2 text-primary font-bold text-sm">
+                      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                      Memuat Data Produk...
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : table.getRowModel().rows.length > 0 ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
@@ -273,7 +344,7 @@ const ProductPage = () => {
                 <TableRow>
                   <TableCell
                     colSpan={columns.length}
-                    className="h-24 text-center text-muted-foreground"
+                    className="h-24 text-center text-muted-foreground font-semibold"
                   >
                     Tidak ada produk ditemukan.
                   </TableCell>
@@ -282,13 +353,13 @@ const ProductPage = () => {
             </TableBody>
           </Table>
         </CardContent>
-
+ 
         {/* Table Footer / Pagination */}
         <TablePagination
           currentPage={table.getState().pagination.pageIndex + 1}
           totalPages={table.getPageCount()}
           pageSize={table.getState().pagination.pageSize}
-          totalEntries={filteredData.length}
+          totalEntries={productResponse?.total ?? 0}
           onPageChange={(page) => table.setPageIndex(page - 1)}
           onPageSizeChange={(size) => table.setPageSize(size)}
         />
@@ -303,6 +374,22 @@ const ProductPage = () => {
         showCloseButton={false}
       >
         <FormProduct onBack={() => setIsAdding(false)} />
+      </Dialog>
+
+      {/* Detail Product Modal */}
+      <Dialog
+        isOpen={!!selectedDetailProductId}
+        onClose={() => setSelectedDetailProductId(null)}
+        size="xl"
+        className="h-[90vh] max-h-[90vh] overflow-hidden flex flex-col"
+        showCloseButton={false}
+      >
+        {selectedDetailProductId && (
+          <DetailProduct
+            productId={selectedDetailProductId}
+            onClose={() => setSelectedDetailProductId(null)}
+          />
+        )}
       </Dialog>
     </div>
   );

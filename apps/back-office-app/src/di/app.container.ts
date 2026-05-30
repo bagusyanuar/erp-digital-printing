@@ -9,6 +9,7 @@ import type { AppContainer } from "@presentation/shared/di/DIContext";
 import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase, updateResellerUseCase, deleteResellerUseCase } from "@infrastructure/reseller/containers/reseller.container";
 import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, deleteCategoryUseCase } from "@infrastructure/category/containers/category.container";
 import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, updateAttributeUseCase, deleteAttributeUseCase } from "@infrastructure/attribute/containers/attribute.container";
+import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase } from "@infrastructure/product/containers/product.container";
 
 /**
  * createAppContainer
@@ -49,6 +50,13 @@ export function createAppContainer(): AppContainer {
       getAttributeByIdUseCase: getAttributeByIdUseCase(httpClient),
       updateAttributeUseCase: updateAttributeUseCase(httpClient),
       deleteAttributeUseCase: deleteAttributeUseCase(httpClient),
+    },
+    product: {
+      getProductsUseCase: getProductUseCase(httpClient),
+      createProductUseCase: createProductUseCase(httpClient),
+      getProductByIdUseCase: getProductByIdUseCase(httpClient),
+      updateProductUseCase: updateProductUseCase(httpClient),
+      deleteProductUseCase: deleteProductUseCase(httpClient),
     },
   };
 }
