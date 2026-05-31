@@ -70,10 +70,10 @@ export const NavSidebar = () => {
               </SidebarItem>
             )}
           </NavLink>
-          <SidebarItem icon={<LuGauge />} label="Status Antrean" badge="12" />
+          {/* <SidebarItem icon={<LuGauge />} label="Status Antrean" badge="12" /> */}
         </SidebarGroup>
 
-        <SidebarGroup label="Penjualan">
+        <SidebarGroup label="Transaksi">
           <NavLink to="/job-entry" className="contents">
             {({ isActive }) => (
               <SidebarItem
@@ -91,7 +91,7 @@ export const NavSidebar = () => {
           <SidebarItem icon={<LuUsers />} label="Database Pelanggan" />
         </SidebarGroup>
 
-        <SidebarGroup label="Produksi">
+        {/* <SidebarGroup label="Produksi">
           <SidebarItemTree icon={<LuPrinter />} label="Work Order">
             <SidebarItem label="Desain & Pre-press" />
             <SidebarItem label="Proses Cetak" />
@@ -108,7 +108,7 @@ export const NavSidebar = () => {
           </SidebarItemTree>
           <SidebarItem icon={<LuTruck />} label="Penerimaan Barang" />
           <SidebarItem icon={<LuHistory />} label="Stok Opname" />
-        </SidebarGroup>
+        </SidebarGroup> */}
 
         <SidebarGroup label="Master Data">
           <NavLink to="/category" className="contents">

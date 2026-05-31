@@ -1,0 +1,20 @@
+import type { OrderRepository, OrderParams } from "../../domains/repositories/order.repository";
+import type { SaveDraftOrderInput } from "../inputs/order.input";
+import type { OrderModel } from "../../domains/models/order.model";
+import type { PaginatedResponse } from "@core/shared/api/pagination";
+
+export class SaveDraftOrder {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(input: SaveDraftOrderInput): Promise<void> {
+    await this.orderRepository.saveDraft(input);
+  }
+}
+
+export class GetOrders {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(params: OrderParams): Promise<PaginatedResponse<OrderModel>> {
+    return await this.orderRepository.getOrders(params);
+  }
+}

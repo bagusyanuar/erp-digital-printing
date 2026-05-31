@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import {
@@ -28,6 +29,7 @@ import {
   DropdownItem,
 } from "@erp-digital-printing/ui/Dropdown";
 import { Dialog } from "@erp-digital-printing/ui/Dialog";
+import { toast } from "@erp-digital-printing/ui/Toast";
 import {
   flexRender,
   useReactTable,
@@ -45,6 +47,12 @@ import {
   TableCell,
   TablePagination,
 } from "@erp-digital-printing/ui/Table";
+import { useQuery } from "@tanstack/react-query";
+import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
+import { orderKeys } from "@infrastructure/order/keys";
+import type { AppError } from "@core/shared/errors/domain.error";
+import type { OrderModel, OrderItemModel } from "@core/order/domains/models/order.model";
+import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 interface JobItem {
   id: string;
@@ -59,7 +67,7 @@ interface JobTransaction {
   ticketNo: string;
   customerName: string;
   customerLevel: string;
-  status: "Pending" | "Dikirim ke Kasir"; // Mengganti Draft dengan Pending sesuai arahan user
+  status: "Pending" | "Dikirim ke Kasir";
   createdAt: string;
   items: JobItem[];
 }
@@ -67,6 +75,7 @@ interface JobTransaction {
 const columnHelper = createColumnHelper<JobTransaction>();
 
 const JobEntryPage = () => {
+  const navigate = useNavigate();
   const [globalFilter, setGlobalFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"Semua" | "Pending" | "Dikirim ke Kasir">("Semua");
   const [selectedTransaction, setSelectedTransaction] = useState<JobTransaction | null>(null);
@@ -75,113 +84,70 @@ const JobEntryPage = () => {
     pageSize: 10,
   });
 
-  // Mock data dengan status 'Pending' hasil penyesuaian alur
-  const mockTransactions = useMemo((): JobTransaction[] => [
-    {
-      id: "1",
-      ticketNo: "JOB-20260530-001",
-      customerName: "Budi Raharjo",
-      customerLevel: "Regular",
-      status: "Pending", // Sesi keranjang yang belum selesai / menunggu file fix
-      createdAt: "30 Mei 2026, 21:10",
-      items: [
-        {
-          id: "1-1",
-          productName: "Spanduk MMT 280g (Banner)",
-          dimension: "300 x 100 cm (m²)",
-          qty: 2,
-          finishing: "Mata Ayam (4 pojok)",
-        },
-        {
-          id: "1-2",
-          productName: "Kartu Nama AP260 (A3+)",
-          dimension: "Box",
-          qty: 2,
-          finishing: "Laminasi Doff, Potong Kotak",
-        }
-      ]
-    },
-    {
-      id: "2",
-      ticketNo: "JOB-20260530-002",
-      customerName: "CV Maju Jaya",
-      customerLevel: "Reseller",
-      status: "Pending",
-      createdAt: "30 Mei 2026, 21:15",
-      items: [
-        {
-          id: "2-1",
-          productName: "Stiker Vinyl Glossy (Indoor)",
-          dimension: "150 x 150 cm (m²)",
-          qty: 1,
-          finishing: "Laminasi Doff, Potong Pas",
-        }
-      ]
-    },
-    {
-      id: "3",
-      ticketNo: "JOB-20260530-003",
-      customerName: "Toko Sumber Rejeki",
-      customerLevel: "Reseller",
-      status: "Dikirim ke Kasir",
-      createdAt: "30 Mei 2026, 20:45",
-      items: [
-        {
-          id: "3-1",
-          productName: "Kartu Nama AP260 (A3+)",
-          dimension: "Box",
-          qty: 10,
-          finishing: "Tanpa Laminasi, Potong Kotak",
-        },
-        {
-          id: "3-2",
-          productName: "X-Banner Albatros (Indoor)",
-          dimension: "60 x 160 cm (pcs)",
-          qty: 3,
-          finishing: "Laminasi Glossy + Stand Banner",
-        },
-        {
-          id: "3-3",
-          productName: "Brosur AP120 (A3+)",
-          dimension: "Lembar A3+",
-          qty: 50,
-          finishing: "Lipat 3",
-        }
-      ]
-    },
-    {
-      id: "4",
-      ticketNo: "JOB-20260530-004",
-      customerName: "Rudi Hermawan",
-      customerLevel: "Regular",
-      status: "Pending",
-      createdAt: "30 Mei 2026, 19:30",
-      items: [
-        {
-          id: "4-1",
-          productName: "X-Banner Albatros (Indoor)",
-          dimension: "60 x 160 cm (pcs)",
-          qty: 3,
-          finishing: "Laminasi Glossy + Stand Banner",
-        }
-      ]
-    },
-  ], []);
+  const { getOrdersUseCase } = useOrderDI();
 
-  // Filter data berdasarkan search dan filter tab status
-  const filteredTransactions = useMemo(() => {
-    return mockTransactions.filter((tr) => {
-      const matchesSearch =
-        tr.customerName.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        tr.ticketNo.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        tr.items.some(item => item.productName.toLowerCase().includes(globalFilter.toLowerCase()));
+  // Map local status state filter to API query parameters
+  const mappedStatus = useMemo(() => {
+    if (statusFilter === "Pending") return "DRAFT";
+    if (statusFilter === "Dikirim ke Kasir") return "PENDING_PAYMENT";
+    return undefined;
+  }, [statusFilter]);
 
-      const matchesStatus =
-        statusFilter === "Semua" ? true : tr.status === statusFilter;
+  // Fetch real order data from backend API
+  const { data: response, isLoading, isFetching } = useQuery<PaginatedResponse<OrderModel>, AppError>({
+    queryKey: orderKeys.list({
+      page: pagination.pageIndex + 1,
+      limit: pagination.pageSize,
+      status: mappedStatus,
+    }),
+    queryFn: () =>
+      getOrdersUseCase.execute({
+        page: pagination.pageIndex + 1,
+        limit: pagination.pageSize,
+        status: mappedStatus,
+      }),
+    staleTime: 10_000,
+    gcTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
 
-      return matchesSearch && matchesStatus;
-    });
-  }, [mockTransactions, globalFilter, statusFilter]);
+  // Map API Order models to JobTransaction presentation interface
+  const transactions = useMemo((): JobTransaction[] => {
+    return (response?.data ?? []).map((order: OrderModel): JobTransaction => ({
+      id: order.id,
+      ticketNo: order.job_number,
+      customerName: order.notes || "Tanpa Memo",
+      customerLevel: "DITENTUKAN KASIR",
+      status: order.status === "DRAFT" ? "Pending" : "Dikirim ke Kasir",
+      createdAt: order.created_at,
+      items: (order.order_items ?? []).map((item: OrderItemModel): JobItem => {
+        let dimensionText = "Pcs";
+        if (item.uom === "m2" || item.uom === "m_lari") {
+          dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
+        } else if (item.uom === "box") {
+          dimensionText = "Box";
+        } else if (item.uom === "lembar") {
+          dimensionText = "Lembar A3+";
+        }
+        return {
+          id: item.id,
+          productName: item.variant_name ? `${item.product_name} (${item.variant_name})` : item.product_name,
+          dimension: dimensionText,
+          qty: item.quantity,
+          finishing: "-",
+        };
+      }),
+    }));
+  }, [response]);
+
+  // Action Helpers (Mock local actions disabled now that DB is real source of truth)
+  const handleSendToKasir = (id: string) => {
+    toast.info("Gunakan Kasir POS", "Proses pembayaran dan rilis cetak dilakukan terpusat di dashboard Kasir.");
+  };
+
+  const handleDeleteTransaction = (id: string) => {
+    toast.warning("Hapus Pesanan", "Fasilitas hapus pesanan permanen memerlukan hak otoritas administrator backend.");
+  };
 
   const columns = useMemo(
     () => [
@@ -273,15 +239,15 @@ const JobEntryPage = () => {
                   </DropdownItem>
                   {isPending && (
                     <>
-                      <DropdownItem onClick={() => alert(`Mengirim ${info.row.original.ticketNo} ke Kasir`)}>
+                      <DropdownItem onClick={() => handleSendToKasir(info.row.original.id)}>
                         <LuSend className="h-3.5 w-3.5 text-emerald-600" />
                         <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Kirim ke Kasir</span>
                       </DropdownItem>
-                      <DropdownItem onClick={() => alert(`Ubah transaksi: ${info.row.original.ticketNo}`)}>
+                      <DropdownItem onClick={() => navigate(`/job-entry/create?edit=${info.row.original.id}`)}>
                         <LuPencil className="h-3.5 w-3.5 text-blue-600" />
                         <span>Edit Tiket</span>
                       </DropdownItem>
-                      <DropdownItem variant="danger" onClick={() => alert(`Hapus transaksi: ${info.row.original.ticketNo}`)}>
+                      <DropdownItem variant="danger" onClick={() => handleDeleteTransaction(info.row.original.id)}>
                         <LuTrash2 className="h-3.5 w-3.5 text-rose-600" />
                         <span>Hapus</span>
                       </DropdownItem>
@@ -294,11 +260,11 @@ const JobEntryPage = () => {
         },
       }),
     ],
-    []
+    [transactions]
   );
 
   const table = useReactTable({
-    data: filteredTransactions,
+    data: transactions,
     columns,
     state: {
       globalFilter,
@@ -309,6 +275,8 @@ const JobEntryPage = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    manualPagination: true,
+    pageCount: Math.ceil((response?.total ?? 0) / pagination.pageSize),
   });
 
   return (
@@ -345,13 +313,14 @@ const JobEntryPage = () => {
             <div className="flex items-center gap-3 w-full md:w-auto justify-end">
               <Button
                 className="h-10 px-4 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-                onClick={() => alert("Tombol Tambah Job Entry diklik! (Sesuai request, form belum dibuat)")}
+                onClick={() => navigate("/job-entry/create")}
               >
                 <LuPlus size={18} />
                 Tambah Job Entry
               </Button>
             </div>
           </div>
+
 
           {/* Quick Filter Tabs (Pending vs Sent) */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -404,7 +373,22 @@ const JobEntryPage = () => {
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows.length > 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-32 text-center text-muted-foreground font-semibold"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="relative w-8 h-8">
+                        <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                        <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                      </div>
+                      <span>Memuat Daftar Tiket Kerja...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : table.getRowModel().rows.length > 0 ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
@@ -436,7 +420,7 @@ const JobEntryPage = () => {
           currentPage={table.getState().pagination.pageIndex + 1}
           totalPages={table.getPageCount()}
           pageSize={table.getState().pagination.pageSize}
-          totalEntries={filteredTransactions.length}
+          totalEntries={response?.total ?? 0}
           onPageChange={(page) => table.setPageIndex(page - 1)}
           onPageSizeChange={(size) => table.setPageSize(size)}
         />
