@@ -10,7 +10,7 @@ import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase, upda
 import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, deleteCategoryUseCase } from "@infrastructure/category/containers/category.container";
 import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, updateAttributeUseCase, deleteAttributeUseCase } from "@infrastructure/attribute/containers/attribute.container";
 import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase } from "@infrastructure/product/containers/product.container";
-import { saveDraftUseCase, getOrdersUseCase } from "@infrastructure/order/containers/order.container";
+import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase } from "@infrastructure/order/containers/order.container";
 
 /**
  * createAppContainer
@@ -62,6 +62,7 @@ export function createAppContainer(): AppContainer {
     order: {
       saveDraftOrderUseCase: saveDraftUseCase(httpClient),
       getOrdersUseCase: getOrdersUseCase(httpClient),
+      submitOrderUseCase: submitOrderUseCase(httpClient),
     },
   };
 }

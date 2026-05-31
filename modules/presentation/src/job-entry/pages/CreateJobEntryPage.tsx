@@ -4,11 +4,7 @@ import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Typography } from "@erp-digital-printing/ui/Typography";
 import { HelperText } from "@erp-digital-printing/ui/HelperText";
-import {
-  Card,
-  CardHeader,
-  CardContent,
-} from "@erp-digital-printing/ui/Card";
+import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
 import {
   Table,
   TableHeader,
@@ -88,8 +84,14 @@ const CreateJobEntryPage = () => {
     staleTime: 30_000,
   });
 
-  const categories = useMemo(() => categoryResponse?.data ?? [], [categoryResponse]);
-  const products = useMemo(() => productResponse?.data ?? [], [productResponse]);
+  const categories = useMemo(
+    () => categoryResponse?.data ?? [],
+    [categoryResponse],
+  );
+  const products = useMemo(
+    () => productResponse?.data ?? [],
+    [productResponse],
+  );
 
   // Load existing ticket details if we are in Edit Mode
   const foundEditTransaction = useMemo((): JobTransaction | null => {
@@ -124,7 +126,10 @@ const CreateJobEntryPage = () => {
   // Tampilkan toast mode edit satu kali saat terdeteksi
   useEffect(() => {
     if (foundEditTransaction) {
-      toast.success("Mode Ubah Tiket", `Memuat data transaksi ${foundEditTransaction.ticketNo}`);
+      toast.success(
+        "Mode Ubah Tiket",
+        `Memuat data transaksi ${foundEditTransaction.ticketNo}`,
+      );
     }
   }, [foundEditTransaction]);
 
@@ -142,19 +147,25 @@ const CreateJobEntryPage = () => {
   // Edit Cart Item Helper
   const handleEditCartItem = (item: JobItem) => {
     setEditingItemId(item.id);
-    
+
     // Find matching product
-    const foundProduct = products.find(p => item.productName.startsWith(p.name));
+    const foundProduct = products.find((p) =>
+      item.productName.startsWith(p.name),
+    );
     if (foundProduct) {
-      const foundCategory = categories.find(c => c.id === foundProduct.category_id);
+      const foundCategory = categories.find(
+        (c) => c.id === foundProduct.category_id,
+      );
       if (foundCategory) {
         setSelectedCategory(foundCategory.name);
       }
       setSelectedProduct(foundProduct.name);
-      
+
       // Extract variant
       if (foundProduct.variants && foundProduct.variants.length > 0) {
-        const matchingVar = foundProduct.variants.find(v => v.id === item.product_variant_id);
+        const matchingVar = foundProduct.variants.find(
+          (v) => v.id === item.product_variant_id,
+        );
         if (matchingVar) {
           setSelectedVariant(matchingVar.variant_name);
         } else {
@@ -249,7 +260,10 @@ const CreateJobEntryPage = () => {
       return;
     }
     if (showSizeFields && (!lengthCm || !widthCm)) {
-      toast.error("Validasi Gagal", "Panjang & Lebar wajib diisi untuk produk meteran");
+      toast.error(
+        "Validasi Gagal",
+        "Panjang & Lebar wajib diisi untuk produk meteran",
+      );
       return;
     }
 
@@ -270,7 +284,9 @@ const CreateJobEntryPage = () => {
     let variantId = "00000000-0000-0000-0000-000000000000";
     if (foundProduct) {
       if (selectedVariant && foundProduct.variants) {
-        const matchVar = foundProduct.variants.find(v => v.variant_name === selectedVariant);
+        const matchVar = foundProduct.variants.find(
+          (v) => v.variant_name === selectedVariant,
+        );
         if (matchVar?.id) {
           variantId = matchVar.id;
         }
@@ -279,8 +295,10 @@ const CreateJobEntryPage = () => {
       }
     }
 
-    const lengthNum = showSizeFields && lengthCm ? parseFloat(lengthCm) : undefined;
-    const widthNum = showSizeFields && widthCm ? parseFloat(widthCm) : undefined;
+    const lengthNum =
+      showSizeFields && lengthCm ? parseFloat(lengthCm) : undefined;
+    const widthNum =
+      showSizeFields && widthCm ? parseFloat(widthCm) : undefined;
 
     if (editingItemId) {
       // Edit Mode: update the existing item in the cart
@@ -298,11 +316,14 @@ const CreateJobEntryPage = () => {
                 length_cm: lengthNum,
                 width_cm: widthNum,
               }
-            : item
-        )
+            : item,
+        ),
       );
       setEditingItemId(null);
-      toast.success("Item Diperbarui", "Item cetakan berhasil diperbarui di keranjang.");
+      toast.success(
+        "Item Diperbarui",
+        "Item cetakan berhasil diperbarui di keranjang.",
+      );
     } else {
       // Create Mode: add a new item
       const newItem: JobItem = {
@@ -318,7 +339,10 @@ const CreateJobEntryPage = () => {
         width_cm: widthNum,
       };
       setCartItems((prev) => [...prev, newItem]);
-      toast.success("Item Ditambahkan", "Item cetakan berhasil masuk ke draf keranjang desainer.");
+      toast.success(
+        "Item Ditambahkan",
+        "Item cetakan berhasil masuk ke draf keranjang desainer.",
+      );
     }
 
     // Reset Form Kiri
@@ -342,29 +366,41 @@ const CreateJobEntryPage = () => {
     mutationFn: (payload: SaveDraftOrderInput) =>
       saveDraftOrderUseCase.execute(payload),
     onSuccess: () => {
-      toast.success("Terkirim ke Kasir", "Tiket pesanan berhasil disimpan sebagai draft di kasir.");
-      
+      toast.success(
+        "Terkirim ke Kasir",
+        "Tiket pesanan berhasil disimpan sebagai draft di kasir.",
+      );
+
       // Clear active states
       setNotes("");
       setCartItems([]);
       localStorage.removeItem("job_entry_active_notes");
       localStorage.removeItem("job_entry_active_cart");
-      
+
       navigate("/job-entry");
     },
     onError: (error: AppError) => {
-      toast.error("Gagal Mengirim ke Kasir", error.message || "Terjadi kesalahan saat menyimpan draft.");
+      toast.error(
+        "Gagal Mengirim ke Kasir",
+        error.message || "Terjadi kesalahan saat menyimpan draft.",
+      );
     },
   });
 
   // Submit job entry ticket to backend "Kasir" queue
   const handleSubmitTicket = () => {
     if (!notes.trim()) {
-      toast.error("Input Wajib", "Memo Transaksi wajib diisi untuk identifikasi nota!");
+      toast.error(
+        "Input Wajib",
+        "Memo Transaksi wajib diisi untuk identifikasi nota!",
+      );
       return;
     }
     if (cartItems.length === 0) {
-      toast.error("Keranjang Kosong", "Draf keranjang belanja Anda masih kosong!");
+      toast.error(
+        "Keranjang Kosong",
+        "Draf keranjang belanja Anda masih kosong!",
+      );
       return;
     }
 
@@ -388,7 +424,11 @@ const CreateJobEntryPage = () => {
 
   const handleCancel = () => {
     if (cartItems.length > 0 && !editId) {
-      if (confirm("Draf keranjang Anda tidak akan hilang (tersimpan otomatis). Apakah Anda yakin ingin kembali?")) {
+      if (
+        confirm(
+          "Draf keranjang Anda tidak akan hilang (tersimpan otomatis). Apakah Anda yakin ingin kembali?",
+        )
+      ) {
         navigate("/job-entry");
       }
     } else {
@@ -414,7 +454,7 @@ const CreateJobEntryPage = () => {
             {editId ? "Ubah Tiket Job Entry" : "Buat Tiket Job Entry Baru"}
           </h1>
           <p className="text-muted-foreground font-semibold text-xs mt-0.5">
-            {editId 
+            {editId
               ? "Ubah detail informasi pelanggan atau item cetakan aktif."
               : "Desainer: Input parameter teknis & file cetak pelanggan (harga diproses kasir)."}
           </p>
@@ -423,10 +463,8 @@ const CreateJobEntryPage = () => {
 
       {/* Main Two-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
         {/* KOLOM KIRI: Form Input Spesifikasi Item (width: 6/12) */}
         <div className="lg:col-span-6 space-y-6">
-
           <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden bg-card">
             <CardHeader className="border-b border-border/30 p-5 bg-card">
               <h2 className="text-base font-bold text-foreground flex items-center gap-2">
@@ -434,14 +472,18 @@ const CreateJobEntryPage = () => {
                 Spesifikasi Item Cetakan
               </h2>
               <p className="text-[11px] text-muted-foreground font-medium">
-                Pilih kategori dan jenis bahan secara berjenjang, lalu tentukan dimensi dan finishing teknis.
+                Pilih kategori dan jenis bahan secara berjenjang, lalu tentukan
+                dimensi dan finishing teknis.
               </p>
             </CardHeader>
             <CardContent className="p-6 space-y-5">
-              
               {/* Cascade 1: Kategori */}
               <div className="space-y-1.5">
-                <Typography variant="small" weight="bold" className="text-xs text-foreground/80">
+                <Typography
+                  variant="small"
+                  weight="bold"
+                  className="text-xs text-foreground/80"
+                >
                   Kategori Produk <span className="text-rose-500">*</span>
                 </Typography>
                 <select
@@ -460,7 +502,11 @@ const CreateJobEntryPage = () => {
 
               {/* Cascade 2: Produk (hanya aktif jika kategori terpilih) */}
               <div className="space-y-1.5">
-                <Typography variant="small" weight="bold" className="text-xs text-foreground/80">
+                <Typography
+                  variant="small"
+                  weight="bold"
+                  className="text-xs text-foreground/80"
+                >
                   Produk / Bahan <span className="text-rose-500">*</span>
                 </Typography>
                 <select
@@ -480,8 +526,15 @@ const CreateJobEntryPage = () => {
 
               {/* Cascade 3: Varian (jika ada varian bawaan) */}
               <div className="space-y-1.5">
-                <Typography variant="small" weight="bold" className="text-xs text-foreground/80">
-                  Variasi Produk <span className="text-xs text-muted-foreground font-normal">(Opsional)</span>
+                <Typography
+                  variant="small"
+                  weight="bold"
+                  className="text-xs text-foreground/80"
+                >
+                  Variasi Produk{" "}
+                  <span className="text-xs text-muted-foreground font-normal">
+                    (Opsional)
+                  </span>
                 </Typography>
                 <select
                   value={selectedVariant}
@@ -493,8 +546,8 @@ const CreateJobEntryPage = () => {
                     {!selectedProduct
                       ? "-- Pilih Varian --"
                       : productVariants.length > 0
-                      ? "-- Pilih Varian --"
-                      : "-- Tidak Ada Variasi --"}
+                        ? "-- Pilih Varian --"
+                        : "-- Tidak Ada Variasi --"}
                   </option>
                   {productVariants.map((v) => (
                     <option key={v} value={v}>
@@ -508,7 +561,11 @@ const CreateJobEntryPage = () => {
               {showSizeFields && (
                 <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-primary/5 border border-primary/10 animate-in slide-in-from-top-3 duration-300">
                   <div className="space-y-1.5">
-                    <Typography variant="small" weight="bold" className="text-xs text-primary">
+                    <Typography
+                      variant="small"
+                      weight="bold"
+                      className="text-xs text-primary"
+                    >
                       Panjang (cm) <span className="text-rose-500">*</span>
                     </Typography>
                     <TextField
@@ -520,7 +577,11 @@ const CreateJobEntryPage = () => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Typography variant="small" weight="bold" className="text-xs text-primary">
+                    <Typography
+                      variant="small"
+                      weight="bold"
+                      className="text-xs text-primary"
+                    >
                       Lebar (cm) <span className="text-rose-500">*</span>
                     </Typography>
                     <TextField
@@ -533,29 +594,43 @@ const CreateJobEntryPage = () => {
                   </div>
                   <HelperText className="col-span-2 text-[10px] text-primary/70 font-semibold flex items-center gap-1">
                     <LuInfo size={12} />
-                    UoM Produk ini adalah <strong>{activeProductUoM}</strong>. Silakan masukkan spesifikasi ukuran riil untuk operator.
+                    UoM Produk ini adalah <strong>{activeProductUoM}</strong>.
+                    Silakan masukkan spesifikasi ukuran riil untuk operator.
                   </HelperText>
                 </div>
               )}
 
               {/* Qty Input */}
               <div className="space-y-1.5 max-w-[200px]">
-                <Typography variant="small" weight="bold" className="text-xs text-foreground/80">
+                <Typography
+                  variant="small"
+                  weight="bold"
+                  className="text-xs text-foreground/80"
+                >
                   Quantity <span className="text-rose-500">*</span>
                 </Typography>
                 <TextField
                   type="number"
                   min={1}
                   value={qty}
-                  onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) =>
+                    setQty(Math.max(1, parseInt(e.target.value) || 1))
+                  }
                   className="h-10"
                 />
               </div>
 
               {/* Catatan Produksi Item Input */}
               <div className="space-y-1.5">
-                <Typography variant="small" weight="bold" className="text-xs text-foreground/80">
-                  Catatan Produksi <span className="text-xs text-muted-foreground font-normal">(Instruksi Khusus Operator)</span>
+                <Typography
+                  variant="small"
+                  weight="bold"
+                  className="text-xs text-foreground/80"
+                >
+                  Catatan Produksi{" "}
+                  <span className="text-xs text-muted-foreground font-normal">
+                    (Instruksi Khusus Operator)
+                  </span>
                 </Typography>
                 <TextField
                   placeholder="Contoh: Laminating glossy saja, potong pas"
@@ -564,7 +639,6 @@ const CreateJobEntryPage = () => {
                   className="h-10 font-semibold"
                 />
               </div>
-
 
               {/* Button Tambah/Perbarui ke Keranjang */}
               {editingItemId ? (
@@ -587,7 +661,10 @@ const CreateJobEntryPage = () => {
                       setQty(1);
                       setLengthCm("");
                       setWidthCm("");
-                      toast.info("Ubah Dibatalkan", "Perubahan item dibatalkan.");
+                      toast.info(
+                        "Ubah Dibatalkan",
+                        "Perubahan item dibatalkan.",
+                      );
                     }}
                     className="h-11 px-4 rounded-xl border-border/50 hover:bg-muted/50 font-bold active:scale-95 transition-all"
                   >
@@ -604,15 +681,12 @@ const CreateJobEntryPage = () => {
                   Masukkan ke Keranjang Draf
                 </Button>
               )}
-
-
             </CardContent>
           </Card>
         </div>
 
         {/* KOLOM KANAN: Draf Keranjang & Metadata Transaksi (width: 6/12) */}
         <div className="lg:col-span-6 space-y-6">
-
           <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden bg-card">
             <CardHeader className="border-b border-border/30 p-5 bg-card">
               <h2 className="text-base font-bold text-foreground flex items-center gap-2">
@@ -620,16 +694,23 @@ const CreateJobEntryPage = () => {
                 Detail Transaksi & Keranjang
               </h2>
               <p className="text-[11px] text-muted-foreground font-medium">
-                Masukkan memo transaksi untuk identifikasi kasir dan tinjau seluruh item cetakan aktif.
+                Masukkan memo transaksi untuk identifikasi kasir dan tinjau
+                seluruh item cetakan aktif.
               </p>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
-              
               {/* Memo/Catatan Umum */}
               <div className="space-y-1.5">
-                <Typography variant="small" weight="bold" className="text-xs text-foreground/80 flex items-center gap-1.5">
+                <Typography
+                  variant="small"
+                  weight="bold"
+                  className="text-xs text-foreground/80 flex items-center gap-1.5"
+                >
                   <LuUser size={14} className="text-primary/70" />
-                  Memo Transaksi <span className="text-rose-500">*</span> <span className="text-[10px] text-muted-foreground font-normal">(Identifikasi Nota)</span>
+                  Memo Transaksi <span className="text-rose-500">*</span>{" "}
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    (Identifikasi Nota)
+                  </span>
                 </Typography>
                 <TextField
                   placeholder="Contoh: Spanduk Warung Padang Pak Anto"
@@ -639,10 +720,13 @@ const CreateJobEntryPage = () => {
                 />
               </div>
 
-
               {/* Cart List Review (Table) */}
               <div className="space-y-3 pt-3 border-t border-border/30">
-                <Typography variant="small" weight="bold" className="text-xs text-muted-foreground uppercase tracking-wider block">
+                <Typography
+                  variant="small"
+                  weight="bold"
+                  className="text-xs text-muted-foreground uppercase tracking-wider block"
+                >
                   Daftar Cetakan Ritel ({cartItems.length} Item)
                 </Typography>
 
@@ -651,17 +735,30 @@ const CreateJobEntryPage = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-10 text-center font-bold text-xs py-2 bg-muted/30">No</TableHead>
-                          <TableHead className="font-bold text-xs py-2 bg-muted/30">Detail Cetakan & Finishing</TableHead>
-                          <TableHead className="font-bold text-xs py-2 bg-muted/30">Ukuran</TableHead>
-                          <TableHead className="w-12 font-bold text-xs py-2 bg-muted/30 text-center">Qty</TableHead>
-                          <TableHead className="w-10 text-center font-bold text-xs py-2 bg-muted/30">Aksi</TableHead>
+                          <TableHead className="w-10 text-center font-bold text-xs py-2 bg-muted/30">
+                            No
+                          </TableHead>
+                          <TableHead className="font-bold text-xs py-2 bg-muted/30">
+                            Detail Cetakan & Finishing
+                          </TableHead>
+                          <TableHead className="font-bold text-xs py-2 bg-muted/30">
+                            Ukuran
+                          </TableHead>
+                          <TableHead className="w-12 font-bold text-xs py-2 bg-muted/30 text-center">
+                            Qty
+                          </TableHead>
+                          <TableHead className="w-10 text-center font-bold text-xs py-2 bg-muted/30">
+                            Aksi
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {cartItems.length > 0 ? (
                           cartItems.map((item, idx) => (
-                            <TableRow key={item.id} className="hover:bg-muted/10 transition-colors">
+                            <TableRow
+                              key={item.id}
+                              className="hover:bg-muted/10 transition-colors"
+                            >
                               {/* 1. Sequential Index */}
                               <TableCell className="text-center font-bold text-xs text-muted-foreground py-2.5">
                                 {idx + 1}
@@ -701,7 +798,9 @@ const CreateJobEntryPage = () => {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => handleRemoveCartItem(item.id)}
+                                    onClick={() =>
+                                      handleRemoveCartItem(item.id)
+                                    }
                                     className="h-7 w-7 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 active:scale-90 transition-all flex items-center justify-center"
                                     title="Hapus Item"
                                   >
@@ -717,7 +816,10 @@ const CreateJobEntryPage = () => {
                               colSpan={5}
                               className="h-24 text-center text-muted-foreground font-semibold italic text-xs py-6"
                             >
-                              <LuFileText className="mx-auto text-muted-foreground/60 mb-1.5" size={22} />
+                              <LuFileText
+                                className="mx-auto text-muted-foreground/60 mb-1.5"
+                                size={22}
+                              />
                               Belum ada item ditambahkan ke draf.
                             </TableCell>
                           </TableRow>
@@ -726,15 +828,15 @@ const CreateJobEntryPage = () => {
                     </Table>
                   </div>
                 </div>
-
               </div>
-
 
               {/* STRICT ALERT: NO PRICE INCLUDED */}
               <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-400 font-semibold leading-relaxed flex items-start gap-2">
                 <LuInfo size={16} className="mt-0.5 flex-shrink-0" />
                 <span>
-                  <strong>PEMBERITAHUAN</strong>: Halaman ini mematuhi regulasi <em>Strict separation of duties</em>. Informasi harga tidak ditampilkan di monitor desainer.
+                  <strong>PEMBERITAHUAN</strong>: Halaman ini mematuhi regulasi{" "}
+                  <em>Strict separation of duties</em>. Informasi harga tidak
+                  ditampilkan di monitor desainer.
                 </span>
               </div>
 
@@ -751,7 +853,11 @@ const CreateJobEntryPage = () => {
                 </Button>
                 <Button
                   onClick={handleSubmitTicket}
-                  disabled={!notes.trim() || cartItems.length === 0 || saveDraftMutation.isPending}
+                  disabled={
+                    !notes.trim() ||
+                    cartItems.length === 0 ||
+                    saveDraftMutation.isPending
+                  }
                   className="flex-1 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
                 >
                   {saveDraftMutation.isPending ? (
@@ -762,17 +868,14 @@ const CreateJobEntryPage = () => {
                   ) : (
                     <>
                       <LuSend size={16} />
-                      <span>{editId ? "Simpan Tiket" : "Kirim ke Kasir"}</span>
+                      <span>Simpan Tiket</span>
                     </>
                   )}
                 </Button>
-
               </div>
-
             </CardContent>
           </Card>
         </div>
-
       </div>
     </div>
   );

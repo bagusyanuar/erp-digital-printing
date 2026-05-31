@@ -2,11 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
-import {
-  Card,
-  CardHeader,
-  CardContent,
-} from "@erp-digital-printing/ui/Card";
+import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
 import {
   LuPlus,
   LuSearch,
@@ -47,11 +43,14 @@ import {
   TableCell,
   TablePagination,
 } from "@erp-digital-printing/ui/Table";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
 import { orderKeys } from "@infrastructure/order/keys";
 import type { AppError } from "@core/shared/errors/domain.error";
-import type { OrderModel, OrderItemModel } from "@core/order/domains/models/order.model";
+import type {
+  OrderModel,
+  OrderItemModel,
+} from "@core/order/domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 interface JobItem {
@@ -77,14 +76,17 @@ const columnHelper = createColumnHelper<JobTransaction>();
 const JobEntryPage = () => {
   const navigate = useNavigate();
   const [globalFilter, setGlobalFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"Semua" | "Pending" | "Dikirim ke Kasir">("Semua");
-  const [selectedTransaction, setSelectedTransaction] = useState<JobTransaction | null>(null);
+  const [statusFilter, setStatusFilter] = useState<
+    "Semua" | "Pending" | "Dikirim ke Kasir"
+  >("Semua");
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<JobTransaction | null>(null);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
   });
 
-  const { getOrdersUseCase } = useOrderDI();
+  const { getOrdersUseCase, submitOrderUseCase } = useOrderDI();
 
   // Map local status state filter to API query parameters
   const mappedStatus = useMemo(() => {
@@ -94,7 +96,12 @@ const JobEntryPage = () => {
   }, [statusFilter]);
 
   // Fetch real order data from backend API
-  const { data: response, isLoading, isFetching } = useQuery<PaginatedResponse<OrderModel>, AppError>({
+  const {
+    data: response,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery<PaginatedResponse<OrderModel>, AppError>({
     queryKey: orderKeys.list({
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
@@ -113,40 +120,68 @@ const JobEntryPage = () => {
 
   // Map API Order models to JobTransaction presentation interface
   const transactions = useMemo((): JobTransaction[] => {
-    return (response?.data ?? []).map((order: OrderModel): JobTransaction => ({
-      id: order.id,
-      ticketNo: order.job_number,
-      customerName: order.notes || "Tanpa Memo",
-      customerLevel: "DITENTUKAN KASIR",
-      status: order.status === "DRAFT" ? "Pending" : "Dikirim ke Kasir",
-      createdAt: order.created_at,
-      items: (order.order_items ?? []).map((item: OrderItemModel): JobItem => {
-        let dimensionText = "Pcs";
-        if (item.uom === "m2" || item.uom === "m_lari") {
-          dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
-        } else if (item.uom === "box") {
-          dimensionText = "Box";
-        } else if (item.uom === "lembar") {
-          dimensionText = "Lembar A3+";
-        }
-        return {
-          id: item.id,
-          productName: item.variant_name ? `${item.product_name} (${item.variant_name})` : item.product_name,
-          dimension: dimensionText,
-          qty: item.quantity,
-          finishing: "-",
-        };
+    return (response?.data ?? []).map(
+      (order: OrderModel): JobTransaction => ({
+        id: order.id,
+        ticketNo: order.job_number,
+        customerName: order.notes || "Tanpa Memo",
+        customerLevel: "DITENTUKAN KASIR",
+        status: order.status === "DRAFT" ? "Pending" : "Dikirim ke Kasir",
+        createdAt: order.created_at,
+        items: (order.order_items ?? []).map(
+          (item: OrderItemModel): JobItem => {
+            let dimensionText = "Pcs";
+            if (item.uom === "m2" || item.uom === "m_lari") {
+              dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
+            } else if (item.uom === "box") {
+              dimensionText = "Box";
+            } else if (item.uom === "lembar") {
+              dimensionText = "Lembar A3+";
+            }
+            return {
+              id: item.id,
+              productName: item.variant_name
+                ? `${item.product_name} (${item.variant_name})`
+                : item.product_name,
+              dimension: dimensionText,
+              qty: item.quantity,
+              finishing: "-",
+            };
+          },
+        ),
       }),
-    }));
+    );
   }, [response]);
 
-  // Action Helpers (Mock local actions disabled now that DB is real source of truth)
+  // Mutation to submit draft order to cashier
+  const submitOrderMutation = useMutation<void, AppError, string>({
+    mutationFn: (id: string) => submitOrderUseCase.execute(id),
+    onSuccess: () => {
+      toast.success(
+        "Terkirim ke Kasir",
+        "Tiket pesanan berhasil dikirim ke Kasir.",
+      );
+      refetch();
+      setSelectedTransaction(null);
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Mengirim ke Kasir",
+        error.message || "Terjadi kesalahan saat mengirim ke Kasir.",
+      );
+    },
+  });
+
+  // Action Helpers
   const handleSendToKasir = (id: string) => {
-    toast.info("Gunakan Kasir POS", "Proses pembayaran dan rilis cetak dilakukan terpusat di dashboard Kasir.");
+    submitOrderMutation.mutate(id);
   };
 
   const handleDeleteTransaction = (id: string) => {
-    toast.warning("Hapus Pesanan", "Fasilitas hapus pesanan permanen memerlukan hak otoritas administrator backend.");
+    toast.warning(
+      "Hapus Pesanan",
+      "Fasilitas hapus pesanan permanen memerlukan hak otoritas administrator backend.",
+    );
   };
 
   const columns = useMemo(
@@ -233,21 +268,38 @@ const JobEntryPage = () => {
                   </Button>
                 </DropdownTrigger>
                 <DropdownContent align="end" className="w-44">
-                  <DropdownItem onClick={() => setSelectedTransaction(info.row.original)}>
+                  <DropdownItem
+                    onClick={() => setSelectedTransaction(info.row.original)}
+                  >
                     <LuInfo className="h-3.5 w-3.5 text-primary" />
                     <span>Detail Pesanan</span>
                   </DropdownItem>
                   {isPending && (
                     <>
-                      <DropdownItem onClick={() => handleSendToKasir(info.row.original.id)}>
+                      <DropdownItem
+                        onClick={() => handleSendToKasir(info.row.original.id)}
+                      >
                         <LuSend className="h-3.5 w-3.5 text-emerald-600" />
-                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Kirim ke Kasir</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                          Kirim ke Kasir
+                        </span>
                       </DropdownItem>
-                      <DropdownItem onClick={() => navigate(`/job-entry/create?edit=${info.row.original.id}`)}>
+                      <DropdownItem
+                        onClick={() =>
+                          navigate(
+                            `/job-entry/create?edit=${info.row.original.id}`,
+                          )
+                        }
+                      >
                         <LuPencil className="h-3.5 w-3.5 text-blue-600" />
                         <span>Edit Tiket</span>
                       </DropdownItem>
-                      <DropdownItem variant="danger" onClick={() => handleDeleteTransaction(info.row.original.id)}>
+                      <DropdownItem
+                        variant="danger"
+                        onClick={() =>
+                          handleDeleteTransaction(info.row.original.id)
+                        }
+                      >
                         <LuTrash2 className="h-3.5 w-3.5 text-rose-600" />
                         <span>Hapus</span>
                       </DropdownItem>
@@ -260,7 +312,7 @@ const JobEntryPage = () => {
         },
       }),
     ],
-    [transactions]
+    [transactions],
   );
 
   const table = useReactTable({
@@ -289,7 +341,8 @@ const JobEntryPage = () => {
             Job Entry (Desainer)
           </h1>
           <p className="text-muted-foreground font-medium">
-            Kelola draf keranjang belanja aktif dan input spesifikasi teknis cetakan sebelum dikirim ke Kasir.
+            Kelola draf keranjang belanja aktif dan input spesifikasi teknis
+            cetakan sebelum dikirim ke Kasir.
           </p>
         </div>
       </div>
@@ -321,30 +374,31 @@ const JobEntryPage = () => {
             </div>
           </div>
 
-
           {/* Quick Filter Tabs (Pending vs Sent) */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {(["Semua", "Pending", "Dikirim ke Kasir"] as const).map((status) => (
-              <Button
-                key={status}
-                variant={statusFilter === status ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setStatusFilter(status);
-                  table.setPageIndex(0);
-                }}
-                className={`h-8 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                  statusFilter === status
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted text-muted-foreground"
-                }`}
-              >
-                <span className="flex items-center gap-1.5">
-                  <LuFilter size={12} />
-                  {status}
-                </span>
-              </Button>
-            ))}
+            {(["Semua", "Pending", "Dikirim ke Kasir"] as const).map(
+              (status) => (
+                <Button
+                  key={status}
+                  variant={statusFilter === status ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setStatusFilter(status);
+                    table.setPageIndex(0);
+                  }}
+                  className={`h-8 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                    statusFilter === status
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted text-muted-foreground"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <LuFilter size={12} />
+                    {status}
+                  </span>
+                </Button>
+              ),
+            )}
           </div>
         </CardHeader>
 
@@ -365,7 +419,7 @@ const JobEntryPage = () => {
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
-                            header.getContext()
+                            header.getContext(),
                           )}
                     </TableHead>
                   ))}
@@ -395,7 +449,7 @@ const JobEntryPage = () => {
                       <TableCell key={cell.id}>
                         {flexRender(
                           cell.column.columnDef.cell,
-                          cell.getContext()
+                          cell.getContext(),
                         )}
                       </TableCell>
                     ))}
@@ -435,88 +489,94 @@ const JobEntryPage = () => {
         showCloseButton={true}
       >
         {selectedTransaction && (
-          <div className="space-y-6 flex-1 flex flex-col overflow-hidden">
+          <div className="space-y-5 flex flex-col overflow-hidden">
             {/* Modal Header */}
-            <div className="flex flex-col gap-1 border-b border-border/30 pb-4">
+            <div className="flex flex-col gap-1.5 border-b border-border/30 pb-4 pr-10">
               <div className="flex items-center justify-between">
-                <span className="font-mono font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-1 rounded">
+                <span className="font-mono font-bold text-xs bg-muted px-2.5 py-1 rounded-lg border border-border/50 text-foreground/80">
                   {selectedTransaction.ticketNo}
                 </span>
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wide ${
                     selectedTransaction.status === "Pending"
-                      ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50"
-                      : "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50"
+                      ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50"
+                      : "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50"
                   }`}
                 >
                   {selectedTransaction.status}
                 </span>
               </div>
-              <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2 mt-2">
-                <LuFileText className="text-primary" size={20} />
+              <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2 mt-1">
+                <LuFileText className="text-primary" size={22} />
                 Detail Keranjang Cetak
               </h2>
             </div>
 
             {/* Customer Details info block */}
-            <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-2xl border border-border/30 text-xs">
-              <div className="space-y-1">
-                <span className="text-muted-foreground font-semibold block uppercase tracking-wider text-[10px]">Pelanggan</span>
+            <div className="grid grid-cols-2 gap-4 bg-primary/5 p-4 rounded-2xl border border-primary/10 text-xs">
+              <div className="space-y-1.5">
+                <span className="text-primary/70 font-bold block uppercase tracking-wider text-[10px]">
+                  Pelanggan
+                </span>
                 <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
-                  <LuUser size={14} className="text-primary/70" />
+                  <LuUser size={15} className="text-primary" />
                   {selectedTransaction.customerName}
                 </span>
               </div>
-              <div className="space-y-1">
-                <span className="text-muted-foreground font-semibold block uppercase tracking-wider text-[10px]">Waktu Input</span>
+              <div className="space-y-1.5">
+                <span className="text-primary/70 font-bold block uppercase tracking-wider text-[10px]">
+                  Waktu Input
+                </span>
                 <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
-                  <LuCalendar size={14} className="text-primary/70" />
+                  <LuCalendar size={15} className="text-primary" />
                   {selectedTransaction.createdAt}
                 </span>
               </div>
             </div>
 
             {/* Order Items List (Scrollable) */}
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1 min-h-[200px]">
-              <span className="text-xs font-black uppercase tracking-wider text-muted-foreground block">
+            <div className="overflow-y-auto space-y-3 pr-2 max-h-[40vh] scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+              <span className="text-xs font-black uppercase tracking-widest text-muted-foreground block mb-1">
                 Daftar Item Cetakan ({selectedTransaction.items.length})
               </span>
-              
+
               {selectedTransaction.items.map((item, idx) => (
-                <div 
+                <div
                   key={item.id}
-                  className="p-4 rounded-2xl border border-border/50 bg-card hover:bg-muted/10 transition-all flex flex-col gap-3"
+                  className="py-4 border-b border-border/20 last:border-0"
                 >
                   {/* Item title with sequential index */}
-                  <div className="flex items-center justify-between border-b border-border/20 pb-2">
-                    <span className="text-sm font-bold text-foreground flex items-center gap-2">
-                      <span className="h-5 w-5 rounded bg-primary/10 text-primary text-[10px] font-black flex items-center justify-center">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex gap-3 items-center">
+                      <span className="h-6 w-6 rounded-full bg-muted text-muted-foreground text-[11px] font-black flex items-center justify-center shrink-0">
                         {idx + 1}
                       </span>
-                      {item.productName}
-                    </span>
-                    <span className="text-xs font-black bg-primary/10 text-primary px-2 py-0.5 rounded">
+                      <span className="text-sm font-bold text-foreground leading-snug">
+                        {item.productName}
+                      </span>
+                    </div>
+                    <span className="text-xs font-bold text-foreground/70 bg-muted/50 px-2.5 py-1 rounded-md">
                       Qty: {item.qty}
                     </span>
                   </div>
 
-                  {/* Technical Specs grid (NO PRICES) */}
-                  <div className="grid grid-cols-2 gap-3 text-xs">
+                  {/* Technical Specs grid */}
+                  <div className="grid grid-cols-2 gap-4 text-xs pl-9">
                     <div className="space-y-1">
-                      <span className="text-muted-foreground font-medium flex items-center gap-1">
-                        <LuBox size={12} />
+                      <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+                        <LuBox size={13} />
                         Ukuran / Satuan
                       </span>
-                      <span className="font-bold text-foreground block pl-4">
+                      <span className="font-bold text-foreground block">
                         {item.dimension}
                       </span>
                     </div>
                     <div className="space-y-1">
-                      <span className="text-muted-foreground font-medium flex items-center gap-1">
-                        <LuScissors size={12} />
+                      <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+                        <LuScissors size={13} />
                         Finishing Add-ons
                       </span>
-                      <span className="font-bold text-blue-600 dark:text-blue-400 block pl-4">
+                      <span className="font-bold text-foreground block">
                         {item.finishing || "-"}
                       </span>
                     </div>
@@ -526,24 +586,24 @@ const JobEntryPage = () => {
             </div>
 
             {/* Dialog Footer Actions */}
-            <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-auto">
-              <Button 
-                variant="outline" 
+            <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
+              <Button
+                variant="outline"
                 onClick={() => setSelectedTransaction(null)}
-                className="h-10 px-5 rounded-xl font-bold"
+                className="h-10 px-5 rounded-xl font-bold border-border/60 hover:bg-muted/50"
               >
                 Tutup
               </Button>
               {selectedTransaction.status === "Pending" && (
-                <Button 
-                  onClick={() => {
-                    alert(`Mengirim ${selectedTransaction.ticketNo} ke Kasir`);
-                    setSelectedTransaction(null);
-                  }}
-                  className="h-10 px-5 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 flex items-center gap-2"
+                <Button
+                  onClick={() => handleSendToKasir(selectedTransaction.id)}
+                  disabled={submitOrderMutation.isPending}
+                  className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95"
                 >
                   <LuSend size={16} />
-                  Kirim ke Kasir
+                  {submitOrderMutation.isPending
+                    ? "Mengirim..."
+                    : "Kirim ke Kasir"}
                 </Button>
               )}
             </div>

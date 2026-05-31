@@ -85,4 +85,10 @@ export class ApiOrderRepository implements OrderRepository {
       };
     });
   }
+
+  async submitOrder(id: string): Promise<void> {
+    return safeApiCall(async () => {
+      await this.http.put(`/orders/${id}/submit`, {});
+    });
+  }
 }

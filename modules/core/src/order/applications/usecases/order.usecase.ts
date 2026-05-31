@@ -18,3 +18,11 @@ export class GetOrders {
     return await this.orderRepository.getOrders(params);
   }
 }
+
+export class SubmitOrder {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(id: string): Promise<void> {
+    await this.orderRepository.submitOrder(id);
+  }
+}

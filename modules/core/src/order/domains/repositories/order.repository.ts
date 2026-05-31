@@ -11,4 +11,5 @@ export interface OrderParams {
 export interface OrderRepository {
   saveDraft(input: DraftOrderModel): Promise<void>;
   getOrders(params: OrderParams): Promise<PaginatedResponse<OrderModel>>;
+  submitOrder(id: string): Promise<void>;
 }

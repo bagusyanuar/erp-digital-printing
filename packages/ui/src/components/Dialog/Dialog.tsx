@@ -69,7 +69,10 @@ export const Dialog = ({
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6" key="dialog-overlay-container">
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6"
+          key="dialog-overlay-container"
+        >
           {/* Overlay */}
           <motion.div
             key="dialog-backdrop"
@@ -85,10 +88,10 @@ export const Dialog = ({
             className={cn(
               "relative w-full z-10",
               dialogVariants({ size }),
-              className
+              className,
             )}
           >
-            <Card className="rounded-lg border-border shadow-2xl w-full overflow-hidden">
+            <Card className="rounded-lg border-none shadow-none w-full overflow-hidden">
               {showCloseButton && (
                 <button
                   onClick={onClose}
@@ -103,6 +106,6 @@ export const Dialog = ({
         </div>
       )}
     </AnimatePresence>,
-    document.body
+    document.body,
   );
 };

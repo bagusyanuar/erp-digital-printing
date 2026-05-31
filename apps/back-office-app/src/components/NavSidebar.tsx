@@ -140,7 +140,7 @@ export const NavSidebar = () => {
               <SidebarItem
                 asChild
                 icon={<LuBox />}
-                label="Master Atribut"
+                label="Atribut Varian"
                 active={isActive}
               >
                 <button />
