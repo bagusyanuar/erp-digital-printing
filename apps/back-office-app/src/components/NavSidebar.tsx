@@ -86,7 +86,18 @@ export const NavSidebar = () => {
               </SidebarItem>
             )}
           </NavLink>
-          <SidebarItem icon={<LuSignature />} label="Pesanan Baru (SPK)" />
+          <NavLink to="/order" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuSignature />}
+                label="Pesanan Baru"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
           <SidebarItem icon={<LuBanknote />} label="Invoice & Piutang" />
           <SidebarItem icon={<LuUsers />} label="Database Pelanggan" />
         </SidebarGroup>

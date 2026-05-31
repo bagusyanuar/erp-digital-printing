@@ -8,6 +8,7 @@ import { attributeRoutes } from "./modules/attribute.routes";
 import { customerRoutes } from "./modules/customer.routes";
 import { resellerRoutes } from "./modules/reseller.routes";
 import { jobEntryRoutes } from "./modules/job-entry.routes";
+import { orderRoutes } from "./modules/order.routes";
 import { PageLoader } from "../components/PageLoader";
 import MainLayout from "../layouts/MainLayout";
 
@@ -47,6 +48,7 @@ const router = createBrowserRouter([
               ...customerRoutes,
               ...resellerRoutes,
               ...jobEntryRoutes,
+              ...orderRoutes,
             ],
           },
         ],
