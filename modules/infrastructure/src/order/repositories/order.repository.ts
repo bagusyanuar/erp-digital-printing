@@ -45,6 +45,9 @@ export class ApiOrderRepository implements OrderRepository {
       if (params.designer_id) {
         query.designer_id = params.designer_id;
       }
+      if (params.payment_status) {
+        query.payment_status = params.payment_status;
+      }
 
       const response = await this.http.get<ApiResponse<OrderResponse[]>>(
         "/orders",
@@ -55,6 +58,7 @@ export class ApiOrderRepository implements OrderRepository {
         data: (response.data ?? []).map((order): OrderModel => ({
           id: order.id,
           job_number: order.job_number,
+          invoice_number: order.invoice_number,
           designer_id: order.designer_id,
           designer_name: order.designer_name,
           status: order.status,

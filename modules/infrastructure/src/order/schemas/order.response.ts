@@ -17,6 +17,7 @@ export interface OrderItemResponse {
 export interface OrderResponse {
   id: string;
   job_number: string;
+  invoice_number: string | null;
   designer_id: string;
   designer_name: string;
   status: string;

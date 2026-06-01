@@ -454,9 +454,18 @@ const OrderPage = () => {
                         </div>
 
                         <div className="flex items-center gap-4 text-xs">
-                          <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                          <div className="flex items-center gap-1.5 font-semibold text-foreground flex-wrap">
                             <LuUser size={14} className="text-primary/70" />
-                            {order.customerName}
+                            <span>{order.customerName}</span>
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${
+                                order.resellerId
+                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
+                                  : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
+                              }`}
+                            >
+                              {order.resellerId ? "Biro / Reseller" : "Retail"}
+                            </span>
                           </div>
                           <div className="flex items-center gap-1.5 text-muted-foreground font-semibold">
                             <LuCalendar size={14} />
@@ -760,7 +769,7 @@ const OrderPage = () => {
                             type="number"
                             min="0"
                             max={grandTotal}
-                            value={dpAmount || ""}
+                            value={dpAmount}
                             onChange={(e) => {
                               const val = parseFloat(e.target.value) || 0;
                               setDpAmount(Math.min(val, grandTotal));

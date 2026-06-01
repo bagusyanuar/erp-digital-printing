@@ -6,6 +6,7 @@ export interface OrderParams {
   limit: number;
   status?: string;
   designer_id?: string;
+  payment_status?: string;
 }
 
 export interface ProcessPaymentInput {

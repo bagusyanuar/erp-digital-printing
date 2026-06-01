@@ -98,8 +98,18 @@ export const NavSidebar = () => {
               </SidebarItem>
             )}
           </NavLink>
-          <SidebarItem icon={<LuBanknote />} label="Invoice & Piutang" />
-          <SidebarItem icon={<LuUsers />} label="Database Pelanggan" />
+          <NavLink to="/invoice" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuBanknote />}
+                label="Invoice & Piutang"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
         </SidebarGroup>
 
         {/* <SidebarGroup label="Produksi">
