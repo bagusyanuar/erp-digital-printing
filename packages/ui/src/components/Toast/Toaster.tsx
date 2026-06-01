@@ -77,7 +77,7 @@ export const Toaster = () => {
   }, [])
 
   return (
-    <div className="fixed bottom-4 right-4 z-[10000] flex max-h-screen w-full flex-col gap-3 md:max-w-[380px]">
+    <div className="fixed top-4 right-4 z-[10000] flex max-h-screen w-full flex-col gap-3 md:max-w-[380px]">
       <AnimatePresence mode="popLayout">
         {toasts.map((t) => (
           <ToastItem key={t.id} {...t} />

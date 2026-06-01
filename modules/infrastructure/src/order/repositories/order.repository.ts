@@ -14,6 +14,9 @@ export class ApiOrderRepository implements OrderRepository {
     return safeApiCall(async () => {
       const payload: DraftOrderRequest = {
         designer_id: input.designer_id,
+        reseller_id: input.reseller_id,
+        customer_name: input.customer_name,
+        customer_phone: input.customer_phone,
         notes: input.notes,
         items: input.items.map((item) => ({
           product_variant_id: item.product_variant_id,

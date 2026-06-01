@@ -11,6 +11,9 @@ export interface DraftOrderItemModel {
 
 export interface DraftOrderModel {
   designer_id: string;
+  reseller_id: string | null;
+  customer_name: string;
+  customer_phone: string;
   notes: string;
   items: DraftOrderItemModel[];
 }

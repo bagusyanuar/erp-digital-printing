@@ -15,7 +15,6 @@ import {
   LuFilter,
   LuCalendar,
   LuBox,
-  LuScissors,
   LuUser,
 } from "@erp-digital-printing/ui/icons";
 import {
@@ -560,8 +559,8 @@ const JobEntryPage = () => {
                     </span>
                   </div>
 
-                  {/* Technical Specs grid */}
-                  <div className="grid grid-cols-2 gap-4 text-xs pl-9">
+                  {/* Technical Specs */}
+                  <div className="text-xs pl-9">
                     <div className="space-y-1">
                       <span className="text-muted-foreground font-medium flex items-center gap-1.5">
                         <LuBox size={13} />
@@ -569,15 +568,6 @@ const JobEntryPage = () => {
                       </span>
                       <span className="font-bold text-foreground block">
                         {item.dimension}
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-muted-foreground font-medium flex items-center gap-1.5">
-                        <LuScissors size={13} />
-                        Finishing Add-ons
-                      </span>
-                      <span className="font-bold text-foreground block">
-                        {item.finishing || "-"}
                       </span>
                     </div>
                   </div>

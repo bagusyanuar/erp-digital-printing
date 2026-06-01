@@ -35,6 +35,8 @@ import { categoryKeys } from "@infrastructure/category/keys";
 import { useProductDI } from "@presentation/product/hooks/useProductDI";
 import { productKeys } from "@infrastructure/product/keys";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
+import { useResellerDI } from "@presentation/reseller/hooks/useResellerDI";
+import { resellerKeys } from "@infrastructure/reseller/keys";
 import type { SaveDraftOrderInput } from "@core/order/applications/inputs/order.input";
 import type { AppError } from "@core/shared/errors/domain.error";
 
@@ -71,6 +73,7 @@ const CreateJobEntryPage = () => {
   const { getCategoriesUseCase } = useCategoryDI();
   const { getProductsUseCase } = useProductDI();
   const { saveDraftOrderUseCase } = useOrderDI();
+  const { getResellersUseCase } = useResellerDI();
 
   const { data: categoryResponse } = useQuery({
     queryKey: categoryKeys.list({ limit: 100, page: 1 }),
@@ -84,6 +87,12 @@ const CreateJobEntryPage = () => {
     staleTime: 30_000,
   });
 
+  const { data: resellerResponse } = useQuery({
+    queryKey: resellerKeys.list({ limit: 100, page: 1 }),
+    queryFn: () => getResellersUseCase.execute({ limit: 100, page: 1 }),
+    staleTime: 30_000,
+  });
+
   const categories = useMemo(
     () => categoryResponse?.data ?? [],
     [categoryResponse],
@@ -91,6 +100,10 @@ const CreateJobEntryPage = () => {
   const products = useMemo(
     () => productResponse?.data ?? [],
     [productResponse],
+  );
+  const resellers = useMemo(
+    () => resellerResponse?.data ?? [],
+    [resellerResponse],
   );
 
   // Load existing ticket details if we are in Edit Mode
@@ -109,6 +122,11 @@ const CreateJobEntryPage = () => {
   }, [editId]);
 
   // States untuk Right Column (Order Metadata & Cart)
+  const [customerType, setCustomerType] = useState<"end_user" | "reseller">("end_user");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [selectedResellerId, setSelectedResellerId] = useState("");
+
   const [notes, setNotes] = useState(() => {
     if (foundEditTransaction) {
       return foundEditTransaction.notes || "";
@@ -367,8 +385,8 @@ const CreateJobEntryPage = () => {
       saveDraftOrderUseCase.execute(payload),
     onSuccess: () => {
       toast.success(
-        "Terkirim ke Kasir",
-        "Tiket pesanan berhasil disimpan sebagai draft di kasir.",
+        "Tiket Berhasil Disimpan",
+        "Tiket pesanan berhasil disimpan sebagai draft.",
       );
 
       // Clear active states
@@ -381,7 +399,7 @@ const CreateJobEntryPage = () => {
     },
     onError: (error: AppError) => {
       toast.error(
-        "Gagal Mengirim ke Kasir",
+        "Gagal Menyimpan Tiket",
         error.message || "Terjadi kesalahan saat menyimpan draft.",
       );
     },
@@ -389,10 +407,10 @@ const CreateJobEntryPage = () => {
 
   // Submit job entry ticket to backend "Kasir" queue
   const handleSubmitTicket = () => {
-    if (!notes.trim()) {
+    if (!customerName.trim()) {
       toast.error(
         "Input Wajib",
-        "Memo Transaksi wajib diisi untuk identifikasi nota!",
+        "Nama pelanggan wajib diisi atau dipilih!",
       );
       return;
     }
@@ -406,6 +424,9 @@ const CreateJobEntryPage = () => {
 
     const payload = {
       designer_id: "4f2411ec-ef69-476f-9549-85de0fa097ab", // Hardcoded Administrator UUID
+      reseller_id: customerType === "reseller" && selectedResellerId ? selectedResellerId : null,
+      customer_name: customerName.trim(),
+      customer_phone: customerPhone.trim(),
       notes: notes.trim(),
       items: cartItems.map((item) => ({
         product_variant_id: item.product_variant_id,
@@ -699,6 +720,122 @@ const CreateJobEntryPage = () => {
               </p>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
+              {/* Tipe Pelanggan (Chips) */}
+              <div className="space-y-2">
+                <Typography
+                  variant="small"
+                  weight="bold"
+                  className="text-xs text-foreground/80 flex items-center gap-1.5"
+                >
+                  <LuUser size={14} className="text-primary/70" />
+                  Tipe Pelanggan <span className="text-rose-500">*</span>
+                </Typography>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomerType("end_user");
+                      setCustomerName("");
+                      setCustomerPhone("");
+                      setSelectedResellerId("");
+                    }}
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all border active:scale-95 ${
+                      customerType === "end_user"
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-background text-muted-foreground border-border hover:bg-muted/30"
+                    }`}
+                  >
+                    R: Retail
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomerType("reseller");
+                      setCustomerName("");
+                      setCustomerPhone("");
+                      setSelectedResellerId("");
+                    }}
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all border active:scale-95 ${
+                      customerType === "reseller"
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-background text-muted-foreground border-border hover:bg-muted/30"
+                    }`}
+                  >
+                    B: Biro / Reseller
+                  </button>
+                </div>
+              </div>
+
+              {/* Input Dinamis berdasarkan Tipe Pelanggan */}
+              {customerType === "end_user" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-muted/20 border border-border/40 animate-in fade-in duration-300">
+                  <div className="space-y-1.5">
+                    <Typography variant="small" weight="bold" className="text-xs text-foreground/80">
+                      Nama Customer <span className="text-rose-500">*</span>
+                    </Typography>
+                    <TextField
+                      placeholder="Contoh: Budi Santoso"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="h-10 font-semibold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Typography variant="small" weight="bold" className="text-xs text-foreground/80">
+                      No. Telepon
+                    </Typography>
+                    <TextField
+                      placeholder="Contoh: 0812xxxx"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      className="h-10 font-semibold"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-primary/5 border border-primary/10 animate-in fade-in duration-300">
+                  <div className="space-y-1.5">
+                    <Typography variant="small" weight="bold" className="text-xs text-primary">
+                      Pilih Reseller <span className="text-rose-500">*</span>
+                    </Typography>
+                    <select
+                      value={selectedResellerId}
+                      onChange={(e) => {
+                        const resellerId = e.target.value;
+                        setSelectedResellerId(resellerId);
+                        const selected = resellers.find((r) => r.id === resellerId);
+                        if (selected) {
+                          setCustomerName(selected.name);
+                          setCustomerPhone(selected.phone);
+                        } else {
+                          setCustomerName("");
+                          setCustomerPhone("");
+                        }
+                      }}
+                      className="w-full border border-primary/20 rounded-xl px-3 py-2 text-sm bg-card hover:bg-muted/30 focus:bg-background h-10 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
+                    >
+                      <option value="">-- Pilih Reseller --</option>
+                      {resellers.map((reseller) => (
+                        <option key={reseller.id} value={reseller.id}>
+                          {reseller.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Typography variant="small" weight="bold" className="text-xs text-primary">
+                      No. Telepon Reseller
+                    </Typography>
+                    <TextField
+                      value={customerPhone}
+                      disabled
+                      placeholder="Pilih reseller terlebih dahulu"
+                      className="h-10 bg-muted/50 border-primary/10 font-semibold text-muted-foreground cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Memo/Catatan Umum */}
               <div className="space-y-1.5">
                 <Typography
@@ -706,7 +843,7 @@ const CreateJobEntryPage = () => {
                   weight="bold"
                   className="text-xs text-foreground/80 flex items-center gap-1.5"
                 >
-                  <LuUser size={14} className="text-primary/70" />
+                  <LuFileText size={14} className="text-primary/70" />
                   Memo Transaksi <span className="text-rose-500">*</span>{" "}
                   <span className="text-[10px] text-muted-foreground font-normal">
                     (Identifikasi Nota)
@@ -854,7 +991,7 @@ const CreateJobEntryPage = () => {
                 <Button
                   onClick={handleSubmitTicket}
                   disabled={
-                    !notes.trim() ||
+                    !customerName.trim() ||
                     cartItems.length === 0 ||
                     saveDraftMutation.isPending
                   }
