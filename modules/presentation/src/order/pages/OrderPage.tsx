@@ -22,12 +22,13 @@ import {
   LuCoins,
   LuArrowRight,
 } from "@erp-digital-printing/ui/icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
 import { orderKeys } from "@infrastructure/order/keys";
 import type { AppError } from "@core/shared/errors/domain.error";
 import type { OrderModel } from "@core/order/domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
+import type { ProcessPaymentInput } from "@core/order/domains/repositories/order.repository";
 
 // Interface Definitions
 interface OrderItem {
@@ -49,7 +50,7 @@ interface OrderTransaction {
   customerName: string;
   customerPhone?: string;
   resellerId?: string | null;
-  status: "NEED_PAYMENT" | "LUNAS" | "BATAL";
+  status: "NEED_PAYMENT" | "LUNAS" | "BATAL" | "PARTIAL_PAID";
   createdAt: string;
   items: OrderItem[];
   paymentMethod?: string;
@@ -58,6 +59,7 @@ interface OrderTransaction {
   totalPaid?: number;
   changeAmount?: number;
   grandTotal?: number;
+  remainingAmount?: number;
 }
 
 const OrderPage = () => {
@@ -67,7 +69,7 @@ const OrderPage = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { getOrdersUseCase } = useOrderDI();
+  const { getOrdersUseCase, payOrderUseCase } = useOrderDI();
 
   // Cashier POS only handles PENDING_PAYMENT status orders.
   const mappedStatus = "PENDING_PAYMENT";
@@ -182,6 +184,8 @@ const OrderPage = () => {
 
   // Payment UI states
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
+  const [paymentType, setPaymentType] = useState<"FULL" | "DP">("FULL");
+  const [dpAmount, setDpAmount] = useState<number>(0);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [lastCompletedOrder, setLastCompletedOrder] =
     useState<OrderTransaction | null>(null);
@@ -201,11 +205,23 @@ const OrderPage = () => {
     return subtotal;
   }, [subtotal]);
 
+  const totalPaid = useMemo(() => {
+    return paymentType === "FULL" ? grandTotal : dpAmount;
+  }, [paymentType, grandTotal, dpAmount]);
+
+  const remainingAmount = useMemo(() => {
+    return Math.max(0, grandTotal - totalPaid);
+  }, [grandTotal, totalPaid]);
+
   const changeAmount = 0;
 
   const isPaymentValid = useMemo(() => {
-    return grandTotal > 0;
-  }, [grandTotal]);
+    if (grandTotal <= 0) return false;
+    if (paymentType === "DP") {
+      return dpAmount >= 0 && dpAmount <= grandTotal;
+    }
+    return true;
+  }, [grandTotal, paymentType, dpAmount]);
 
   // Filtered queue items
   const filteredQueue = useMemo(() => {
@@ -230,8 +246,22 @@ const OrderPage = () => {
 
   // Handlers
   const handleSelectOrder = (orderId: string) => {
+    // Clear override of previous order if not yet paid/DP-ed
+    if (selectedOrderId && selectedOrderId !== orderId) {
+      const prevOrder = transactions.find((t) => t.id === selectedOrderId);
+      if (prevOrder && prevOrder.status !== "LUNAS" && prevOrder.status !== "PARTIAL_PAID") {
+        setLocalOverrides((prev) => {
+          const updated = { ...prev };
+          delete updated[selectedOrderId];
+          return updated;
+        });
+      }
+    }
+
     setSelectedOrderId(orderId);
     setPaymentMethod("CASH");
+    setPaymentType("FULL");
+    setDpAmount(0);
   };
 
   const handleUpdateItemPrice = (
@@ -256,37 +286,67 @@ const OrderPage = () => {
     });
   };
 
+  // Mutation to process active payment in backend
+  const processPaymentMutation = useMutation<void, AppError, { id: string; payload: ProcessPaymentInput }>({
+    mutationFn: ({ id, payload }) => payOrderUseCase.execute(id, payload),
+    onSuccess: (_, variables) => {
+      // Refresh real orders queue from API
+      refetch();
+
+      const isFullyPaid = remainingAmount === 0;
+      const completedOverride: Partial<OrderTransaction> = {
+        status: isFullyPaid ? "LUNAS" : "PARTIAL_PAID",
+        paymentMethod,
+        grandTotal,
+        totalPaid: totalPaid,
+        remainingAmount: remainingAmount,
+        changeAmount: 0,
+      };
+
+      setLocalOverrides((prev) => ({
+        ...prev,
+        [variables.id]: {
+          ...prev[variables.id],
+          ...completedOverride,
+        },
+      }));
+
+      const completedOrder: OrderTransaction = {
+        ...activeOrder!,
+        ...completedOverride,
+      };
+
+      setLastCompletedOrder(completedOrder);
+      setIsReceiptOpen(true);
+      toast.success(
+        "Transaksi Berhasil",
+        `Pembayaran tiket ${activeOrder?.ticketNo} berhasil diproses & disimpan ke server.`,
+      );
+    },
+    onError: (error) => {
+      toast.error(
+        "Transaksi Gagal",
+        error.message || "Terjadi kesalahan saat memproses pembayaran di server.",
+      );
+    },
+  });
+
   const handleProcessPayment = () => {
     if (!activeOrder) return;
 
-    // Create completed order snapshot
-    const completedOverride: Partial<OrderTransaction> = {
-      status: "LUNAS",
-      paymentMethod,
-      grandTotal,
-      totalPaid: grandTotal,
-      changeAmount: 0,
+    const payload = {
+      reseller_id: activeOrder.resellerId || null,
+      customer_name: activeOrder.customerName,
+      customer_phone: activeOrder.customerPhone || "",
+      payment_method: paymentMethod.toLowerCase(),
+      payment_type: paymentType === "FULL" ? "full" : "tempo",
+      amount_paid: totalPaid,
     };
 
-    setLocalOverrides((prev) => ({
-      ...prev,
-      [activeOrder.id]: {
-        ...prev[activeOrder.id],
-        ...completedOverride,
-      },
-    }));
-
-    const completedOrder: OrderTransaction = {
-      ...activeOrder,
-      ...completedOverride,
-    };
-
-    setLastCompletedOrder(completedOrder);
-    setIsReceiptOpen(true);
-    toast.success(
-      "Transaksi Berhasil",
-      `Pembayaran tiket ${activeOrder.ticketNo} berhasil diproses.`,
-    );
+    processPaymentMutation.mutate({
+      id: activeOrder.id,
+      payload,
+    });
   };
 
   const formatCurrency = (val: number) => {
@@ -380,14 +440,16 @@ const OrderPage = () => {
                           <span className="font-mono font-bold text-xs bg-muted px-2.5 py-1 rounded-lg border border-border/50 text-foreground">
                             {order.ticketNo}
                           </span>
-                          <span
+                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                               isPaid
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50"
-                                : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50"
+                                : order.status === "PARTIAL_PAID"
+                                  ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50"
+                                  : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-800/50"
                             }`}
                           >
-                            {isPaid ? "Lunas" : "Baru (Need Payment)"}
+                            {isPaid ? "Lunas" : order.status === "PARTIAL_PAID" ? "Panjar / DP" : "Baru (Need Payment)"}
                           </span>
                         </div>
 
@@ -418,13 +480,13 @@ const OrderPage = () => {
 
                       {/* Right-aligned Order Action / Amount */}
                       <div className="text-right flex flex-col items-end gap-1 shrink-0">
-                        {isPaid ? (
+                        {isPaid || order.status === "PARTIAL_PAID" ? (
                           <>
                             <span className="text-xs font-semibold text-muted-foreground">
-                              Total Bayar
+                              {isPaid ? "Total Bayar" : "Telah Dibayar (DP)"}
                             </span>
                             <span className="text-base font-black text-foreground">
-                              {formatCurrency(order.grandTotal || 0)}
+                              {formatCurrency(order.totalPaid || 0)}
                             </span>
                           </>
                         ) : null}
@@ -594,19 +656,34 @@ const OrderPage = () => {
 
               {/* Payment Processing (If not paid) */}
               <div className="p-5 bg-muted/30 space-y-4">
-                {activeOrder.status === "LUNAS" ? (
-                  <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 p-4 rounded-2xl flex flex-col items-center text-center gap-2">
-                    <div className="h-9 w-9 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-black">
-                      <LuCheck size={18} />
+                {activeOrder.status === "LUNAS" || activeOrder.status === "PARTIAL_PAID" ? (
+                  <div className={`border p-4 rounded-2xl flex flex-col items-center text-center gap-2 ${
+                    activeOrder.status === "LUNAS" 
+                      ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200/50 text-emerald-700"
+                      : "bg-amber-50 dark:bg-amber-950/20 border-amber-200/50 text-amber-700"
+                  }`}>
+                    <div className={`h-9 w-9 rounded-full flex items-center justify-center font-black ${
+                      activeOrder.status === "LUNAS"
+                        ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
+                        : "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300"
+                    }`}>
+                      {activeOrder.status === "LUNAS" ? <LuCheck size={18} /> : <LuCoins size={18} />}
                     </div>
                     <div className="space-y-1">
-                      <span className="text-xs font-black text-emerald-800 dark:text-emerald-400 block uppercase">
-                        Transaksi Lunas
+                      <span className={`text-xs font-black block uppercase ${
+                        activeOrder.status === "LUNAS" ? "text-emerald-800 dark:text-emerald-400" : "text-amber-800 dark:text-amber-400"
+                      }`}>
+                        {activeOrder.status === "LUNAS" ? "Transaksi Lunas" : "Transaksi Panjar / DP"}
                       </span>
                       <span className="text-[10px] text-muted-foreground font-semibold block">
                         Terbayar via {activeOrder.paymentMethod} sebesar{" "}
-                        {formatCurrency(activeOrder.grandTotal || 0)}
+                        {formatCurrency(activeOrder.totalPaid || 0)}
                       </span>
+                      {activeOrder.status === "PARTIAL_PAID" && (
+                        <span className="text-[10px] text-rose-600 dark:text-rose-400 font-black block">
+                          Sisa Tagihan: {formatCurrency(activeOrder.remainingAmount || 0)}
+                        </span>
+                      )}
                     </div>
                     <Button
                       variant="outline"
@@ -615,7 +692,11 @@ const OrderPage = () => {
                         setLastCompletedOrder(activeOrder);
                         setIsReceiptOpen(true);
                       }}
-                      className="mt-2 h-8 px-4 rounded-lg text-xs font-bold border-emerald-300 hover:bg-emerald-100/30 flex items-center gap-2"
+                      className={`mt-2 h-8 px-4 rounded-lg text-xs font-bold flex items-center gap-2 ${
+                        activeOrder.status === "LUNAS"
+                          ? "border-emerald-300 hover:bg-emerald-100/30 text-emerald-700"
+                          : "border-amber-300 hover:bg-amber-100/30 text-amber-700"
+                      }`}
                     >
                       <LuPrinter size={13} />
                       Cetak Ulang Struk
@@ -623,6 +704,80 @@ const OrderPage = () => {
                   </div>
                 ) : (
                   <>
+                    {/* Tipe Pembayaran (Premium Chips Selection) */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                        Tipe Pembayaran
+                      </span>
+                      <div className="flex gap-2.5">
+                        {/* Chip Lunas */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPaymentType("FULL");
+                            setDpAmount(0);
+                          }}
+                          className={`flex-1 py-2.5 px-3 rounded-xl border text-[11px] font-black flex items-center justify-center gap-1.5 transition-all active:scale-95 duration-200 ${
+                            paymentType === "FULL"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50 shadow-sm"
+                              : "bg-card text-muted-foreground border-border/50 hover:bg-muted/50"
+                          }`}
+                        >
+                          <LuCheck size={13} />
+                          Lunas (Full)
+                        </button>
+
+                        {/* Chip DP */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPaymentType("DP");
+                            setDpAmount(0);
+                          }}
+                          className={`flex-1 py-2.5 px-3 rounded-xl border text-[11px] font-black flex items-center justify-center gap-1.5 transition-all active:scale-95 duration-200 ${
+                            paymentType === "DP"
+                              ? "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50 shadow-sm"
+                              : "bg-card text-muted-foreground border-border/50 hover:bg-muted/50"
+                          }`}
+                        >
+                          <LuCoins size={13} />
+                          Tempo / DP (Credit)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* DP Amount Input (Only when DP Selected) */}
+                    {paymentType === "DP" && (
+                      <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                          Masukkan Nominal DP (Uang Muka)
+                        </span>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
+                            Rp
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            max={grandTotal}
+                            value={dpAmount || ""}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              setDpAmount(Math.min(val, grandTotal));
+                            }}
+                            placeholder="Isi 0 jika tanpa DP (Full Hutang)..."
+                            className="w-full h-10 pl-9 pr-3 text-xs font-mono font-bold bg-card border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                          />
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground px-1">
+                          <span>Sisa Tagihan:</span>
+                          <span className={remainingAmount > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600"}>
+                            {formatCurrency(remainingAmount)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Payment Method Selector */}
                     <div className="space-y-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
@@ -656,22 +811,31 @@ const OrderPage = () => {
                     <div className="pt-2 flex gap-3">
                       <Button
                         variant="outline"
-                        onClick={() => setSelectedOrderId(null)}
+                        onClick={() => {
+                          if (selectedOrderId) {
+                            setLocalOverrides((prev) => {
+                              const updated = { ...prev };
+                              delete updated[selectedOrderId];
+                              return updated;
+                            });
+                          }
+                          setSelectedOrderId(null);
+                        }}
                         className="h-11 flex-1 rounded-xl font-bold border-border/60 hover:bg-muted/50"
                       >
                         Batal
                       </Button>
-                      <Button
+                       <Button
                         onClick={handleProcessPayment}
-                        disabled={!isPaymentValid}
+                        disabled={!isPaymentValid || processPaymentMutation.isPending}
                         className={`h-11 flex-[2] rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${
-                          isPaymentValid
+                          isPaymentValid && !processPaymentMutation.isPending
                             ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25"
                             : "bg-muted text-muted-foreground cursor-not-allowed shadow-none"
                         }`}
                       >
                         <LuPrinter size={16} />
-                        Bayar & Cetak Struk
+                        {processPaymentMutation.isPending ? "Memproses..." : "Bayar & Cetak Struk"}
                       </Button>
                     </div>
                   </>
@@ -777,7 +941,7 @@ const OrderPage = () => {
               </div>
 
               {/* Grand summary */}
-              <div className="py-3 space-y-1.5 text-xs">
+              <div className="py-3 space-y-1.5 text-[10px]">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
                   <span>
@@ -790,33 +954,44 @@ const OrderPage = () => {
                   </span>
                 </div>
 
-                <div className="flex justify-between font-bold text-sm border-t border-dotted border-slate-300 dark:border-slate-700 pt-2 text-foreground">
+                <div className="flex justify-between font-bold text-xs border-t border-dotted border-slate-300 dark:border-slate-700 pt-2 text-foreground">
                   <span>TOTAL BELANJA:</span>
                   <span>
                     {formatCurrency(lastCompletedOrder.grandTotal || 0)}
                   </span>
                 </div>
 
-                <div className="flex justify-between text-[10px] pt-1.5">
+                <div className="flex justify-between pt-1.5">
                   <span>Metode Bayar:</span>
                   <span className="font-bold">
                     {lastCompletedOrder.paymentMethod}
                   </span>
                 </div>
 
-                <div className="flex justify-between text-[10px]">
+                <div className="flex justify-between">
                   <span>Jumlah Bayar:</span>
                   <span>
                     {formatCurrency(lastCompletedOrder.totalPaid || 0)}
                   </span>
                 </div>
 
-                <div className="flex justify-between text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                  <span>Kembalian:</span>
-                  <span>
-                    {formatCurrency(lastCompletedOrder.changeAmount || 0)}
-                  </span>
-                </div>
+                {lastCompletedOrder.status === "PARTIAL_PAID" && (
+                  <div className="flex justify-between font-bold text-rose-600 dark:text-rose-400">
+                    <span>SISA TAGIHAN (UTANG):</span>
+                    <span>
+                      {formatCurrency(lastCompletedOrder.remainingAmount || 0)}
+                    </span>
+                  </div>
+                )}
+
+                {lastCompletedOrder.status === "LUNAS" && (
+                  <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
+                    <span>Kembalian:</span>
+                    <span>
+                      {formatCurrency(lastCompletedOrder.changeAmount || 0)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="text-center pt-5 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-muted-foreground space-y-0.5">

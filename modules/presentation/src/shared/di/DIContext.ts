@@ -8,7 +8,7 @@ import type { GetResellers, CreateReseller, GetResellerById, UpdateReseller, Del
 import type { GetCategories, CreateCategory, GetCategoryById, UpdateCategory, DeleteCategory } from "@core/category/applications/usecases/category.usecase";
 import type { GetAttributes, CreateAttribute, GetAttributeById, UpdateAttribute, DeleteAttribute } from "@core/attribute/applications/usecases/attribute.usecase";
 import type { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteProduct } from "@core/product/applications/usecases/product.usecase";
-import type { SaveDraftOrder, GetOrders, SubmitOrder } from "@core/order/applications/usecases/order.usecase";
+import type { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder } from "@core/order/applications/usecases/order.usecase";
 
 
 // ──────────────────────────────────────────────
@@ -58,6 +58,7 @@ export interface OrderUseCases {
   saveDraftOrderUseCase: SaveDraftOrder;
   getOrdersUseCase: GetOrders;
   submitOrderUseCase: SubmitOrder;
+  payOrderUseCase: PayOrder;
 }
 
 
