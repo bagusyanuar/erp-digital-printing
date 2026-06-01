@@ -80,7 +80,7 @@ const JobEntryPage = () => {
   const [globalFilter, setGlobalFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "Semua" | "Pending" | "Dikirim ke Kasir"
-  >("Semua");
+  >("Pending");
   const [selectedTransaction, setSelectedTransaction] =
     useState<JobTransaction | null>(null);
   const [pagination, setPagination] = useState({
@@ -93,7 +93,9 @@ const JobEntryPage = () => {
   // Map local status state filter to API query parameters
   const mappedStatus = useMemo(() => {
     if (statusFilter === "Pending") return "DRAFT";
-    if (statusFilter === "Dikirim ke Kasir") return "PENDING_PAYMENT";
+    if (statusFilter === "Dikirim ke Kasir") {
+      return "PENDING_PAYMENT,IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED,CANCELLED";
+    }
     return undefined;
   }, [statusFilter]);
 

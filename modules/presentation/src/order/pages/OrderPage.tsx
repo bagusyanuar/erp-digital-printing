@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
@@ -22,6 +22,12 @@ import {
   LuCoins,
   LuArrowRight,
 } from "@erp-digital-printing/ui/icons";
+import { useQuery } from "@tanstack/react-query";
+import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
+import { orderKeys } from "@infrastructure/order/keys";
+import type { AppError } from "@core/shared/errors/domain.error";
+import type { OrderModel } from "@core/order/domains/models/order.model";
+import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 // Interface Definitions
 interface OrderItem {
@@ -31,12 +37,18 @@ interface OrderItem {
   qty: number;
   finishing: string;
   pricePerUnit: number;
+  lengthCm?: number;
+  widthCm?: number;
+  uom?: string;
+  subtotal: number;
 }
 
 interface OrderTransaction {
   id: string;
   ticketNo: string;
   customerName: string;
+  customerPhone?: string;
+  resellerId?: string | null;
   status: "NEED_PAYMENT" | "LUNAS" | "BATAL";
   createdAt: string;
   items: OrderItem[];
@@ -48,125 +60,125 @@ interface OrderTransaction {
   grandTotal?: number;
 }
 
-// Mock Data for Cashier Queue
-const MOCK_ORDER_QUEUE: OrderTransaction[] = [
-  {
-    id: "ord-1",
-    ticketNo: "TKT-20260531-001",
-    customerName: "Budi Santoso",
-    status: "NEED_PAYMENT",
-    createdAt: "2026-05-31 18:30",
-    items: [
-      {
-        id: "item-1",
-        productName: "Spanduk Flexi 280gr (MMT)",
-        dimension: "300 x 100 cm (m2)",
-        qty: 2,
-        finishing: "Mata ayam pojok-pojok",
-        pricePerUnit: 0,
-      },
-      {
-        id: "item-2",
-        productName: "X-Banner Alumunium",
-        dimension: "60 x 160 cm",
-        qty: 1,
-        finishing: "Stand & Banner",
-        pricePerUnit: 0,
-      },
-    ],
-  },
-  {
-    id: "ord-2",
-    ticketNo: "TKT-20260531-002",
-    customerName: "CV Maju Bersama (Roni)",
-    status: "NEED_PAYMENT",
-    createdAt: "2026-05-31 19:15",
-    items: [
-      {
-        id: "item-3",
-        productName: "Brosur A4 Art Paper 150gr",
-        dimension: "Pcs",
-        qty: 500,
-        finishing: "Lipat 3",
-        pricePerUnit: 0,
-      },
-      {
-        id: "item-4",
-        productName: "Stiker Kromo Cutting A3+",
-        dimension: "Lembar A3+",
-        qty: 20,
-        finishing: "Kiss Cut Pola",
-        pricePerUnit: 0,
-      },
-    ],
-  },
-  {
-    id: "ord-3",
-    ticketNo: "TKT-20260531-003",
-    customerName: "Putri Amelia",
-    status: "NEED_PAYMENT",
-    createdAt: "2026-05-31 19:45",
-    items: [
-      {
-        id: "item-5",
-        productName: "Kartu Nama Matte Premium",
-        dimension: "Box",
-        qty: 3,
-        finishing: "Laminasi Doff 2 sisi",
-        pricePerUnit: 0,
-      },
-    ],
-  },
-  {
-    id: "ord-4",
-    ticketNo: "TKT-20260531-004",
-    customerName: "Toko Berkah Plastik",
-    status: "LUNAS",
-    createdAt: "2026-05-31 17:10",
-    paymentMethod: "QRIS",
-    discountAmount: 5000,
-    taxAmount: 15400,
-    totalPaid: 150000,
-    changeAmount: 0,
-    grandTotal: 150000,
-    items: [
-      {
-        id: "item-6",
-        productName: "Stiker Vinyl Outdoor (Glossy)",
-        dimension: "100 x 100 cm (m2)",
-        qty: 2,
-        finishing: "Roll cut",
-        pricePerUnit: 70000,
-      },
-    ],
-  },
-];
 
-// Mock Resellers database
-const MOCK_RESELLERS = [
-  { id: "r1", name: "CV Printing Perkasa", phone: "08123456789" },
-  { id: "r2", name: "Toko Sinar Grafika", phone: "08567890123" },
-  { id: "r3", name: "Indo Advertising", phone: "08999988877" },
-  { id: "r4", name: "Percetakan Berkah", phone: "08777766655" }
-];
 
 const OrderPage = () => {
-  const [transactions, setTransactions] =
-    useState<OrderTransaction[]>(MOCK_ORDER_QUEUE);
+  const [localOverrides, setLocalOverrides] = useState<Record<string, Partial<OrderTransaction>>>({});
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "SEMUA" | "MENUNGGU" | "LUNAS"
-  >("SEMUA");
+
+  const { getOrdersUseCase } = useOrderDI();
+
+  // Cashier POS only handles PENDING_PAYMENT status orders.
+  const mappedStatus = "PENDING_PAYMENT";
+
+  // Fetch real order data from backend API
+  const {
+    data: response,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery<PaginatedResponse<OrderModel>, AppError>({
+    queryKey: orderKeys.list({
+      page: 1,
+      limit: 100, // Fetch a larger batch for the cashier queue
+      status: mappedStatus,
+    }),
+    queryFn: () =>
+      getOrdersUseCase.execute({
+        page: 1,
+        limit: 100,
+        status: mappedStatus,
+      }),
+    staleTime: 5000,
+    gcTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Purely computed transactions state combining remote data & local overrides (No useEffect!)
+  const transactions = useMemo((): OrderTransaction[] => {
+    return (response?.data ?? []).map((order): OrderTransaction => {
+      const override = localOverrides[order.id];
+
+      // Base mapped order from server
+      const baseOrder: OrderTransaction = {
+        id: order.id,
+        ticketNo: order.job_number,
+        customerName: order.customer_name || "Customer Walk In",
+        customerPhone: order.customer_phone || "-",
+        resellerId: order.reseller_id,
+        status:
+          order.status === "PENDING_PAYMENT"
+            ? "NEED_PAYMENT"
+            : order.status === "CANCELLED"
+              ? "BATAL"
+              : "LUNAS",
+        createdAt: order.created_at,
+        items: (order.order_items ?? []).map((item) => {
+          let dimensionText = "Pcs";
+          if (item.uom === "m2" || item.uom === "m_lari") {
+            dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
+          } else if (item.uom === "box") {
+            dimensionText = "Box";
+          } else if (item.uom === "lembar") {
+            dimensionText = "Lembar A3+";
+          }
+
+          // Check if there is an item price override
+          const itemOverride = override?.items?.find((it) => it.id === item.id);
+          const pricePerUnit = itemOverride ? itemOverride.pricePerUnit : (item.price_per_unit || 0);
+
+          // Calculate subtotal: use BE value if no override, otherwise compute based on UOM
+          let itemSubtotal = item.subtotal || 0;
+          if (itemOverride) {
+            if (item.uom === "m2") {
+              const area = ((item.length_cm || 0) * (item.width_cm || 0)) / 10000;
+              itemSubtotal = pricePerUnit * item.quantity * area;
+            } else if (item.uom === "m_lari") {
+              const length = (item.length_cm || 0) / 100;
+              itemSubtotal = pricePerUnit * item.quantity * length;
+            } else {
+              itemSubtotal = pricePerUnit * item.quantity;
+            }
+          }
+
+          return {
+            id: item.id,
+            productName: item.variant_name
+              ? `${item.product_name} (${item.variant_name})`
+              : item.product_name,
+            dimension: dimensionText,
+            qty: item.quantity,
+            finishing: item.production_notes || "-",
+            pricePerUnit,
+            lengthCm: item.length_cm,
+            widthCm: item.width_cm,
+            uom: item.uom,
+            subtotal: itemSubtotal,
+          };
+        }),
+        grandTotal: order.grand_total,
+        discountAmount: 0,
+        taxAmount: 0,
+        totalPaid: order.amount_paid,
+        changeAmount: 0,
+      };
+
+      // Apply top-level status or transaction overrides if they exist locally
+      if (override) {
+        return {
+          ...baseOrder,
+          ...override,
+          items: baseOrder.items, // already applied individual item overrides above
+        };
+      }
+
+      return baseOrder;
+    });
+  }, [response, localOverrides]);
 
   // Payment UI states
-  const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
-  const [cashInput, setCashInput] = useState<string>("");
-  const [customerLevel, setCustomerLevel] = useState<"END_USER" | "RESELLER">("END_USER");
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [selectedResellerId, setSelectedResellerId] = useState("");
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [lastCompletedOrder, setLastCompletedOrder] =
     useState<OrderTransaction | null>(null);
@@ -180,38 +192,20 @@ const OrderPage = () => {
   const subtotal = useMemo(() => {
     if (!activeOrder) return 0;
     return activeOrder.items.reduce(
-      (sum, item) => sum + item.pricePerUnit * item.qty,
+      (sum, item) => sum + item.subtotal,
       0,
     );
   }, [activeOrder]);
 
-  const discountAmount = useMemo(() => {
-    return Math.round((subtotal * discountPercent) / 100);
-  }, [subtotal, discountPercent]);
-
-  const taxAmount = useMemo(() => {
-    // 11% PPN on subtotal after discount
-    return Math.round((subtotal - discountAmount) * 0.11);
-  }, [subtotal, discountAmount]);
-
   const grandTotal = useMemo(() => {
-    return subtotal - discountAmount + taxAmount;
-  }, [subtotal, discountAmount, taxAmount]);
+    return subtotal;
+  }, [subtotal]);
 
-  const changeAmount = useMemo(() => {
-    const cashVal = parseFloat(cashInput) || 0;
-    if (paymentMethod !== "CASH") return 0;
-    return Math.max(0, cashVal - grandTotal);
-  }, [cashInput, paymentMethod, grandTotal]);
+  const changeAmount = 0;
 
   const isPaymentValid = useMemo(() => {
-    if (grandTotal <= 0) return false;
-    if (paymentMethod === "CASH") {
-      const cashVal = parseFloat(cashInput) || 0;
-      return cashVal >= grandTotal;
-    }
-    return true; // E-wallet/Bank Transfer are exact payments
-  }, [cashInput, paymentMethod, grandTotal]);
+    return grandTotal > 0;
+  }, [grandTotal]);
 
   // Filtered queue items
   const filteredQueue = useMemo(() => {
@@ -220,15 +214,9 @@ const OrderPage = () => {
         order.ticketNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.customerName.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesStatus =
-        statusFilter === "SEMUA" ||
-        (statusFilter === "MENUNGGU" &&
-          order.status === "NEED_PAYMENT") ||
-        (statusFilter === "LUNAS" && order.status === "LUNAS");
-
-      return matchesSearch && matchesStatus;
+      return matchesSearch;
     });
-  }, [transactions, searchQuery, statusFilter]);
+  }, [transactions, searchQuery]);
 
   // Stats
   const stats = useMemo(() => {
@@ -243,60 +231,50 @@ const OrderPage = () => {
   // Handlers
   const handleSelectOrder = (orderId: string) => {
     setSelectedOrderId(orderId);
-    setDiscountPercent(0);
     setPaymentMethod("CASH");
-    setCashInput("");
-    setCustomerLevel("END_USER");
-    setCustomerName("");
-    setCustomerPhone("");
-    setSelectedResellerId("");
   };
 
   const handleUpdateItemPrice = (orderId: string, itemId: string, price: number) => {
-    setTransactions((prev) =>
-      prev.map((order) => {
-        if (order.id !== orderId) return order;
-        return {
-          ...order,
-          items: order.items.map((item) => {
-            if (item.id !== itemId) return item;
-            return { ...item, pricePerUnit: price };
-          }),
-        };
-      })
-    );
+    setLocalOverrides((prev) => {
+      const orderOverride = prev[orderId] || {};
+      const currentItems = transactions.find((t) => t.id === orderId)?.items || [];
+      const updatedItems = currentItems.map((item) =>
+        item.id === itemId ? { ...item, pricePerUnit: price } : item
+      );
+      return {
+        ...prev,
+        [orderId]: {
+          ...orderOverride,
+          items: updatedItems,
+        },
+      };
+    });
   };
 
   const handleProcessPayment = () => {
     if (!activeOrder) return;
 
-    if (paymentMethod === "CASH" && !isPaymentValid) {
-      toast.error(
-        "Pembayaran Kurang",
-        "Nominal uang tunai yang diinput kurang dari total tagihan.",
-      );
-      return;
-    }
-
-    const currentCash = parseFloat(cashInput) || grandTotal;
-
     // Create completed order snapshot
-    const completedOrder: OrderTransaction = {
-      ...activeOrder,
+    const completedOverride: Partial<OrderTransaction> = {
       status: "LUNAS",
       paymentMethod,
-      discountAmount,
-      taxAmount,
       grandTotal,
-      totalPaid: paymentMethod === "CASH" ? currentCash : grandTotal,
-      changeAmount:
-        paymentMethod === "CASH" ? Math.max(0, currentCash - grandTotal) : 0,
+      totalPaid: grandTotal,
+      changeAmount: 0,
     };
 
-    // Update original state list
-    setTransactions((prev) =>
-      prev.map((t) => (t.id === activeOrder.id ? completedOrder : t)),
-    );
+    setLocalOverrides((prev) => ({
+      ...prev,
+      [activeOrder.id]: {
+        ...prev[activeOrder.id],
+        ...completedOverride,
+      },
+    }));
+
+    const completedOrder: OrderTransaction = {
+      ...activeOrder,
+      ...completedOverride,
+    };
 
     setLastCompletedOrder(completedOrder);
     setIsReceiptOpen(true);
@@ -379,52 +357,33 @@ const OrderPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT COMPONENT (7 Columns): Order Queue & Filters */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-card border border-border/50 p-3.5 rounded-2xl">
+          <div className="bg-card border border-border/50 p-3.5 rounded-2xl">
             {/* Search Input */}
-            <div className="flex-1 w-full">
-              <TextField
-                placeholder="Cari No. Tiket atau Nama Pelanggan..."
-                prefixIcon={LuSearch}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-1.5 shrink-0 w-full sm:w-auto overflow-x-auto">
-              {(["SEMUA", "MENUNGGU", "LUNAS"] as const).map((tab) => (
-                <Button
-                  key={tab}
-                  variant={statusFilter === tab ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter(tab)}
-                  className={`h-9 px-4 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                    statusFilter === tab
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "hover:bg-muted text-muted-foreground"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <LuFilter size={12} />
-                    {tab === "SEMUA"
-                      ? "Semua"
-                      : tab === "MENUNGGU"
-                        ? "Antrean Baru (NEED_PAYMENT)"
-                        : "Lunas"}
-                  </span>
-                </Button>
-              ))}
-            </div>
+            <TextField
+              placeholder="Cari No. Tiket atau Nama Pelanggan..."
+              prefixIcon={LuSearch}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full"
+            />
           </div>
 
           {/* Queue Cards */}
           <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-270px)] pr-2 scrollbar-thin">
-            {filteredQueue.length > 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center p-12 bg-card border border-dashed border-border rounded-3xl text-center space-y-3">
+                <div className="relative w-8 h-8 mx-auto">
+                  <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                  <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                </div>
+                <h3 className="font-bold text-foreground">Memuat Antrean...</h3>
+              </div>
+            ) : filteredQueue.length > 0 ? (
               filteredQueue.map((order) => {
                 const isSelected = order.id === selectedOrderId;
                 const isPaid = order.status === "LUNAS";
                 const totalItemPrice = order.items.reduce(
-                  (sum, item) => sum + item.pricePerUnit * item.qty,
+                  (sum, item) => sum + item.subtotal,
                   0,
                 );
 
@@ -532,95 +491,36 @@ const OrderPage = () => {
                 </p>
               </div>
 
-              {/* Customer Level Selector Chips */}
-              <div className="px-5 py-3 border-b border-border/20 bg-muted/10 flex items-center justify-between gap-4">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Level Pelanggan:
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    variant={customerLevel === "END_USER" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setCustomerLevel("END_USER")}
-                    className={`h-7 px-3 rounded-lg text-xs font-black transition-all ${
-                      customerLevel === "END_USER"
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "hover:bg-muted text-muted-foreground border-border/50"
+              {/* Customer Info Display (Read-Only) */}
+              <div className="p-5 border-b border-border/20 bg-muted/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    Pelanggan (Input Desainer)
+                  </span>
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${
+                      activeOrder.resellerId
+                        ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
+                        : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
                     }`}
                   >
-                    End User
-                  </Button>
-                  <Button
-                    variant={customerLevel === "RESELLER" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setCustomerLevel("RESELLER");
-                      setCustomerName("");
-                      setCustomerPhone("");
-                      setSelectedResellerId("");
-                    }}
-                    className={`h-7 px-3 rounded-lg text-xs font-black transition-all ${
-                      customerLevel === "RESELLER"
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "hover:bg-muted text-muted-foreground border-border/50"
-                    }`}
-                  >
-                    Reseller
-                  </Button>
-                </div>
-              </div>
-
-              {/* Customer Info Form */}
-              <div className="p-5 border-b border-border/20 bg-muted/5 space-y-4">
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
-                    Nama Pelanggan
+                    {activeOrder.resellerId ? "Biro / Reseller" : "Retail"}
                   </span>
-                  {customerLevel === "END_USER" ? (
-                    <TextField
-                      placeholder="Masukkan nama pelanggan..."
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full text-xs font-semibold"
-                    />
-                  ) : (
-                    <select
-                      value={selectedResellerId}
-                      onChange={(e) => {
-                        const resellerId = e.target.value;
-                        setSelectedResellerId(resellerId);
-                        const selected = MOCK_RESELLERS.find((r) => r.id === resellerId);
-                        if (selected) {
-                          setCustomerName(selected.name);
-                          setCustomerPhone(selected.phone);
-                        } else {
-                          setCustomerName("");
-                          setCustomerPhone("");
-                        }
-                      }}
-                      className="w-full h-10 px-3 text-xs rounded-xl border border-border/80 bg-background text-foreground font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    >
-                      <option value="">-- Pilih Reseller --</option>
-                      {MOCK_RESELLERS.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
                 </div>
-
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
-                    No. Handphone Pelanggan
-                  </span>
-                  <TextField
-                    placeholder={customerLevel === "RESELLER" ? "Pilih reseller untuk mengisi nomor HP" : "Masukkan nomor handphone..."}
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    disabled={customerLevel === "RESELLER"}
-                    className="w-full text-xs font-semibold font-mono"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase">Nama</span>
+                    <span className="font-bold text-foreground text-sm flex items-center gap-1.5 leading-none">
+                      <LuUser size={14} className="text-primary/70 shrink-0" />
+                      {activeOrder.customerName}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase">No. Handphone</span>
+                    <span className="font-mono font-bold text-foreground text-xs block leading-none">
+                      {activeOrder.customerPhone || "-"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -644,11 +544,14 @@ const OrderPage = () => {
                       </span>
                       {activeOrder.status === "LUNAS" ? (
                         <span className="text-[10px] font-bold text-primary block">
-                          {formatCurrency(item.pricePerUnit)} x {item.qty}
+                          {formatCurrency(item.pricePerUnit)}
+                          {item.uom === "m2" && ` x ${(((item.lengthCm || 0) * (item.widthCm || 0)) / 10000).toFixed(2)} m²`}
+                          {item.uom === "m_lari" && ` x ${((item.lengthCm || 0) / 100).toFixed(2)} m`}
+                          {` x ${item.qty}`}
                         </span>
                       ) : (
                         <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-[10px] text-muted-foreground font-bold">Harga Satuan (Rp):</span>
+                          <span className="text-[10px] text-muted-foreground font-bold">Harga (Rp):</span>
                           <input
                             type="number"
                             min="0"
@@ -660,12 +563,16 @@ const OrderPage = () => {
                             placeholder="Input Harga..."
                             className="w-24 h-7 px-1.5 py-0.5 text-xs font-mono font-bold bg-muted border border-border/80 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground"
                           />
-                          <span className="text-[10px] text-muted-foreground font-black">x {item.qty}</span>
+                          <span className="text-[10px] text-muted-foreground font-black">
+                            {item.uom === "m2" && ` x ${(((item.lengthCm || 0) * (item.widthCm || 0)) / 10000).toFixed(2)} m²`}
+                            {item.uom === "m_lari" && ` x ${((item.lengthCm || 0) / 100).toFixed(2)} m`}
+                            {` x ${item.qty}`}
+                          </span>
                         </div>
                       )}
                     </div>
                     <span className="font-black text-foreground shrink-0 self-center">
-                      {item.pricePerUnit > 0 ? formatCurrency(item.pricePerUnit * item.qty) : "-"}
+                      {item.pricePerUnit > 0 ? formatCurrency(item.subtotal) : "-"}
                     </span>
                   </div>
                 ))}
@@ -681,50 +588,7 @@ const OrderPage = () => {
                   </span>
                 </div>
 
-                {/* Discount Percentage Slider/Buttons */}
-                {activeOrder.status !== "LUNAS" && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-semibold text-muted-foreground flex items-center gap-1">
-                        <LuPercent size={13} className="text-primary" />
-                        Diskon Pelanggan
-                      </span>
-                      <span className="font-black text-rose-600">
-                        {discountAmount > 0 ? `-${formatCurrency(discountAmount)} (${discountPercent}%)` : "-"}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {([0, 5, 10, 15, 20] as const).map((pct) => (
-                        <Button
-                          key={pct}
-                          variant={
-                            discountPercent === pct ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() => setDiscountPercent(pct)}
-                          className={`h-8 rounded-lg text-xs font-black p-0 transition-all ${
-                            discountPercent === pct
-                              ? "bg-primary text-primary-foreground"
-                              : "hover:bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {pct}%
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
-                {/* Tax / PPN info */}
-                <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <LuReceipt size={13} className="text-primary" />
-                    PPN (11%)
-                  </span>
-                  <span className="font-bold text-foreground">
-                    {taxAmount > 0 ? formatCurrency(taxAmount) : "-"}
-                  </span>
-                </div>
 
                 {/* Grand Total Display */}
                 <div className="bg-primary/5 dark:bg-primary/10 p-3.5 rounded-2xl border border-primary/15 flex items-center justify-between">
@@ -773,8 +637,8 @@ const OrderPage = () => {
                       <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
                         Metode Pembayaran
                       </span>
-                      <div className="grid grid-cols-3 gap-2">
-                        {["CASH", "QRIS", "TRANSFER"].map((method) => {
+                      <div className="grid grid-cols-2 gap-2">
+                        {["CASH", "TRANSFER"].map((method) => {
                           const isSelected = paymentMethod === method;
                           return (
                             <Button
@@ -782,7 +646,6 @@ const OrderPage = () => {
                               variant={isSelected ? "default" : "outline"}
                               onClick={() => {
                                 setPaymentMethod(method);
-                                setCashInput("");
                               }}
                               className={`h-10 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
                                 isSelected
@@ -798,58 +661,7 @@ const OrderPage = () => {
                       </div>
                     </div>
 
-                    {/* Cash Tendered Input (Only show if CASH) */}
-                    {paymentMethod === "CASH" && (
-                      <div className="space-y-2 animate-in slide-in-from-top-3 duration-300">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="font-semibold text-muted-foreground flex items-center gap-1">
-                            <LuDollarSign size={13} className="text-primary" />
-                            Nominal Uang Tunai (Tunai)
-                          </span>
-                          {parseFloat(cashInput) > 0 && (
-                            <span className="font-black text-emerald-600">
-                              Kembalian: {formatCurrency(changeAmount)}
-                            </span>
-                          )}
-                        </div>
 
-                        <TextField
-                          type="number"
-                          placeholder="Masukkan jumlah uang tunai..."
-                          value={cashInput}
-                          onChange={(e) => setCashInput(e.target.value)}
-                          className="w-full text-base font-mono font-bold"
-                        />
-
-                        {/* Quick Cash Suggestions */}
-                        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                          {[grandTotal, 50000, 100000, 150000, 200000].map(
-                            (cashVal) => {
-                              if (
-                                cashVal < grandTotal &&
-                                cashVal !== grandTotal
-                              )
-                                return null;
-                              return (
-                                <Button
-                                  key={cashVal}
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    setCashInput(Math.ceil(cashVal).toString())
-                                  }
-                                  className="h-7 px-3 rounded-lg text-[10px] font-black shrink-0 hover:bg-muted text-foreground border-border/50"
-                                >
-                                  {cashVal === grandTotal
-                                    ? "Pas"
-                                    : formatCurrency(cashVal)}
-                                </Button>
-                              );
-                            },
-                          )}
-                        </div>
-                      </div>
-                    )}
 
                     {/* Submit Actions */}
                     <div className="pt-2 flex gap-3">
@@ -968,7 +780,7 @@ const OrderPage = () => {
                         {item.dimension})
                       </span>
                       <span className="font-bold text-foreground">
-                        {formatCurrency(item.pricePerUnit * item.qty)}
+                        {formatCurrency(item.subtotal)}
                       </span>
                     </div>
                   </div>
@@ -982,30 +794,14 @@ const OrderPage = () => {
                   <span>
                     {formatCurrency(
                       lastCompletedOrder.items.reduce(
-                        (s, i) => s + i.pricePerUnit * i.qty,
+                        (s, i) => s + i.subtotal,
                         0,
                       ),
                     )}
                   </span>
                 </div>
 
-                {lastCompletedOrder.discountAmount &&
-                lastCompletedOrder.discountAmount > 0 ? (
-                  <div className="flex justify-between text-rose-600 dark:text-rose-400">
-                    <span>Potongan Diskon:</span>
-                    <span>
-                      -{formatCurrency(lastCompletedOrder.discountAmount)}
-                    </span>
-                  </div>
-                ) : null}
 
-                {lastCompletedOrder.taxAmount &&
-                lastCompletedOrder.taxAmount > 0 ? (
-                  <div className="flex justify-between">
-                    <span>PPN (11%):</span>
-                    <span>{formatCurrency(lastCompletedOrder.taxAmount)}</span>
-                  </div>
-                ) : null}
 
                 <div className="flex justify-between font-bold text-sm border-t border-dotted border-slate-300 dark:border-slate-700 pt-2 text-foreground">
                   <span>TOTAL BELANJA:</span>
