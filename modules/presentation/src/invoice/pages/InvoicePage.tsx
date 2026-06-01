@@ -36,7 +36,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
 import { orderKeys } from "@infrastructure/order/keys";
 import type { AppError } from "@core/shared/errors/domain.error";
-import type { OrderModel } from "@core/order/domains/models/order.model";
+import type { OrderModel, OrderSpkModel } from "@core/order/domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import type { ProcessPaymentInput } from "@core/order/domains/repositories/order.repository";
 
@@ -85,7 +85,16 @@ const InvoicePage = () => {
   const [payAmount, setPayAmount] = useState<number>(0);
   const [payMethod, setPayMethod] = useState<string>("CASH");
 
-  const { getOrdersUseCase, payOrderUseCase } = useOrderDI();
+  const { getOrdersUseCase, payOrderUseCase, getOrderSpkUseCase } = useOrderDI();
+
+  // Fetch SPK from backend when the modal is open
+  const { data: spkResponse, isLoading: isLoadingSpk } = useQuery<OrderSpkModel, AppError>({
+    queryKey: orderKeys.spk(selectedInvoice?.id ?? ""),
+    queryFn: () => getOrderSpkUseCase.execute(selectedInvoice!.id),
+    enabled: isSpkOpen && !!selectedInvoice?.id,
+    staleTime: 5000,
+    refetchOnWindowFocus: false,
+  });
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -173,34 +182,12 @@ const InvoicePage = () => {
     });
   }, [response]);
 
-  // Group active invoice items by simulated categories for production SPK printing
-  const groupedSpkItems = useMemo(() => {
-    if (!selectedInvoice) return {};
-
-    const groups: Record<string, InvoiceItem[]> = {};
-
-    selectedInvoice.items.forEach((item) => {
-      let category = "A3+";
-      const name = item.productName.toLowerCase();
-
-      if (name.includes("banner") || name.includes("flexi") || name.includes("mmt") || name.includes("baliho")) {
-        category = "Spanduk MMT";
-      } else if (name.includes("stiker") || name.includes("vinil") || name.includes("vinyl") || name.includes("label")) {
-        category = "Indoor Media";
-      } else if (name.includes("yasin") || name.includes("buku") || name.includes("kartu") || name.includes("brosur")) {
-        category = "A3+";
-      } else {
-        category = "Finishing & Custom";
-      }
-
-      if (!groups[category]) {
-        groups[category] = [];
-      }
-      groups[category]?.push(item);
-    });
-
-    return groups;
-  }, [selectedInvoice]);
+  // Get active items for the selected SPK category from backend data
+  const activeSpkCategoryItems = useMemo(() => {
+    if (!spkResponse || !selectedSpkCategory) return [];
+    const cat = spkResponse.spk_by_category.find(c => c.category_name === selectedSpkCategory);
+    return cat ? cat.items : [];
+  }, [spkResponse, selectedSpkCategory]);
 
   // Filter dynamic search query on top of fetched items
   const filteredInvoices = useMemo(() => {
@@ -298,7 +285,7 @@ const InvoicePage = () => {
   const handlePrintAllSpk = () => {
     toast.success(
       "Rilis Semua SPK",
-      `Berhasil merilis ${Object.keys(groupedSpkItems).length} SPK terpisah untuk masing-masing divisi produksi.`
+      `Berhasil merilis ${spkResponse?.spk_by_category.length || 0} SPK terpisah untuk masing-masing divisi produksi.`
     );
     setIsSpkOpen(false);
   };
@@ -897,10 +884,18 @@ const InvoicePage = () => {
 
             {/* Category Groups Container */}
             <div className="overflow-y-auto space-y-3 pr-1.5 flex-1 max-h-[45vh] scrollbar-thin">
-              {Object.keys(groupedSpkItems).length > 0 ? (
-                Object.keys(groupedSpkItems).map((category) => (
+              {isLoadingSpk ? (
+                <div className="py-12 text-center space-y-3">
+                  <div className="relative w-8 h-8 mx-auto">
+                    <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                    <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  </div>
+                  <span className="text-xs font-bold text-muted-foreground block">Mengambil data divisi SPK...</span>
+                </div>
+              ) : spkResponse && spkResponse.spk_by_category.length > 0 ? (
+                spkResponse.spk_by_category.map((category) => (
                   <div
-                    key={category}
+                    key={category.category_id}
                     className="flex items-center justify-between p-4 rounded-2xl border border-border/40 bg-card hover:bg-muted/30 transition-all duration-200"
                   >
                     <div className="flex items-center gap-3">
@@ -909,16 +904,16 @@ const InvoicePage = () => {
                       </div>
                       <div>
                         <span className="font-bold text-sm text-foreground block">
-                          {category}
+                          {category.category_name}
                         </span>
                         <span className="text-[10px] text-muted-foreground font-semibold block mt-0.5">
-                          {groupedSpkItems[category]?.length || 0} item cetakan terdeteksi
+                          {category.items.length || 0} item cetakan terdeteksi
                         </span>
                       </div>
                     </div>
                     <Button
                       size="sm"
-                      onClick={() => handlePrintSpk(category)}
+                      onClick={() => handlePrintSpk(category.category_name)}
                       className="h-9 px-4 rounded-xl text-xs font-black bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground border-0 active:scale-95 transition-all flex items-center gap-1.5"
                     >
                       <LuPrinter size={13} />
@@ -994,17 +989,22 @@ const InvoicePage = () => {
                 <span className="font-bold block text-[10px] text-muted-foreground uppercase tracking-wider">
                   Daftar Item Produksi:
                 </span>
-                {(groupedSpkItems[selectedSpkCategory] || []).map((item, idx) => (
+                {activeSpkCategoryItems.map((item, idx) => (
                   <div key={item.id} className="space-y-1 bg-white dark:bg-slate-950 p-2.5 rounded-lg border border-slate-100 dark:border-slate-900">
                     <div className="flex justify-between font-bold text-foreground">
-                      <span>{idx + 1}. {item.productName}</span>
+                      <span>{idx + 1}. {item.variant_name ? `${item.product_name} (${item.variant_name})` : item.product_name}</span>
                       <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px]">
-                        {item.qty} Qty
+                        {item.quantity} Qty
                       </span>
                     </div>
-                    {item.notes && item.notes !== "-" && (
+                    {(item.uom === "m2" || item.uom === "m_lari") && item.length_cm && item.width_cm && (
+                      <div className="text-[10px] text-primary font-black mt-0.5">
+                        Ukuran: {item.length_cm} x {item.width_cm} cm ({item.uom})
+                      </div>
+                    )}
+                    {item.production_notes && item.production_notes !== "-" && item.production_notes !== "" && (
                       <div className="text-[10px] text-rose-500 font-bold border-l-2 border-rose-500 pl-2 mt-1">
-                        Catatan: {item.notes}
+                        Catatan: {item.production_notes}
                       </div>
                     )}
                   </div>

@@ -1,11 +1,11 @@
-import type { DraftOrderModel, OrderModel } from "@core/order/domains/models/order.model";
+import type { DraftOrderModel, OrderModel, OrderSpkModel } from "@core/order/domains/models/order.model";
 import type { OrderRepository, OrderParams, ProcessPaymentInput } from "@core/order/domains/repositories/order.repository";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import { safeApiCall } from "@infrastructure/libs/error";
 import type { HttpClient } from "@erp-digital-printing/http";
 import type { DraftOrderRequest } from "../schemas/order.request";
 import type { ApiResponse } from "@infrastructure/libs/api-response";
-import type { OrderResponse } from "../schemas/order.response";
+import type { OrderResponse, OrderSpkResponse } from "../schemas/order.response";
 
 export class ApiOrderRepository implements OrderRepository {
   constructor(private readonly http: HttpClient) {}
@@ -105,6 +105,41 @@ export class ApiOrderRepository implements OrderRepository {
   async payOrder(id: string, input: ProcessPaymentInput): Promise<void> {
     return safeApiCall(async () => {
       await this.http.post(`/orders/${id}/pay`, input);
+    });
+  }
+
+  async getOrderSpk(id: string): Promise<OrderSpkModel> {
+    return safeApiCall(async () => {
+      const response = await this.http.get<ApiResponse<OrderSpkResponse>>(
+        `/orders/${id}/spk`
+      );
+      const data = response.data;
+      if (!data) {
+        throw new Error("Data SPK tidak ditemukan.");
+      }
+      return {
+        order_id: data.order_id,
+        job_number: data.job_number,
+        invoice_number: data.invoice_number,
+        customer_name: data.customer_name,
+        customer_phone: data.customer_phone,
+        status: data.status,
+        spk_by_category: (data.spk_by_category ?? []).map((cat) => ({
+          category_id: cat.category_id,
+          category_name: cat.category_name,
+          items: (cat.items ?? []).map((item) => ({
+            id: item.id,
+            product_name: item.product_name,
+            variant_name: item.variant_name,
+            uom: item.uom,
+            quantity: item.quantity,
+            design_file_url: item.design_file_url,
+            production_notes: item.production_notes,
+            length_cm: item.length_cm,
+            width_cm: item.width_cm,
+          })),
+        })),
+      };
     });
   }
 }

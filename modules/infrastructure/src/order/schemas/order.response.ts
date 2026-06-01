@@ -34,3 +34,32 @@ export interface OrderResponse {
   created_at: string;
   updated_at: string;
 }
+
+export interface SpkItemResponse {
+  id: string;
+  product_name: string;
+  variant_name: string;
+  uom: string;
+  quantity: number;
+  design_file_url: string;
+  production_notes: string;
+  length_cm?: number | null;
+  width_cm?: number | null;
+}
+
+export interface SpkCategoryResponse {
+  category_id: string;
+  category_name: string;
+  items: SpkItemResponse[];
+}
+
+export interface OrderSpkResponse {
+  order_id: string;
+  job_number: string;
+  invoice_number: string;
+  customer_name: string;
+  customer_phone: string;
+  status: string;
+  spk_by_category: SpkCategoryResponse[];
+}
+

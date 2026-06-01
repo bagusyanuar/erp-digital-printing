@@ -1,6 +1,6 @@
 import type { OrderRepository, OrderParams, ProcessPaymentInput } from "../../domains/repositories/order.repository";
 import type { SaveDraftOrderInput } from "../inputs/order.input";
-import type { OrderModel } from "../../domains/models/order.model";
+import type { OrderModel, OrderSpkModel } from "../../domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 export class SaveDraftOrder {
@@ -34,3 +34,12 @@ export class PayOrder {
     await this.orderRepository.payOrder(id, input);
   }
 }
+
+export class GetOrderSpk {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(id: string): Promise<OrderSpkModel> {
+    return await this.orderRepository.getOrderSpk(id);
+  }
+}
+

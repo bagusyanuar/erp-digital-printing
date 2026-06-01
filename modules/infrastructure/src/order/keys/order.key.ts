@@ -6,4 +6,5 @@ export const orderKeys = {
   list: (params: OrderParams) => [...orderKeys.lists(), params] as const,
   details: () => [...orderKeys.all, "detail"] as const,
   detail: (id: string) => [...orderKeys.details(), id] as const,
+  spk: (id: string) => [...orderKeys.all, "spk", id] as const,
 };

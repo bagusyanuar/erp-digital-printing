@@ -1,4 +1,4 @@
-import type { DraftOrderModel, OrderModel } from "../models/order.model";
+import type { DraftOrderModel, OrderModel, OrderSpkModel } from "../models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 export interface OrderParams {
@@ -23,4 +23,6 @@ export interface OrderRepository {
   getOrders(params: OrderParams): Promise<PaginatedResponse<OrderModel>>;
   submitOrder(id: string): Promise<void>;
   payOrder(id: string, input: ProcessPaymentInput): Promise<void>;
+  getOrderSpk(id: string): Promise<OrderSpkModel>;
 }
+
