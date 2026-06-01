@@ -21,6 +21,9 @@ export interface OrderResponse {
   designer_name: string;
   status: string;
   payment_status: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  reseller_id: string | null;
   notes: string;
   total_additional_cost: number;
   total_product_price: number;

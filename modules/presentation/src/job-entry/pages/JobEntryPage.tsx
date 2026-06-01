@@ -64,10 +64,13 @@ interface JobTransaction {
   id: string;
   ticketNo: string;
   customerName: string;
+  customerPhone: string;
+  resellerId: string | null;
   customerLevel: string;
   status: "Pending" | "Dikirim ke Kasir";
   createdAt: string;
   items: JobItem[];
+  notes?: string;
 }
 
 const columnHelper = createColumnHelper<JobTransaction>();
@@ -123,10 +126,13 @@ const JobEntryPage = () => {
       (order: OrderModel): JobTransaction => ({
         id: order.id,
         ticketNo: order.job_number,
-        customerName: order.notes || "Tanpa Memo",
+        customerName: order.customer_name || "Customer Walk In",
+        customerPhone: order.customer_phone || "-",
+        resellerId: order.reseller_id,
         customerLevel: "DITENTUKAN KASIR",
         status: order.status === "DRAFT" ? "Pending" : "Dikirim ke Kasir",
         createdAt: order.created_at,
+        notes: order.notes,
         items: (order.order_items ?? []).map(
           (item: OrderItemModel): JobItem => {
             let dimensionText = "Pcs";
@@ -204,16 +210,31 @@ const JobEntryPage = () => {
       }),
       columnHelper.accessor("customerName", {
         header: "Pelanggan",
-        cell: (info) => (
-          <div className="flex flex-col gap-0.5">
-            <span className="font-bold text-foreground text-sm">
-              {info.getValue()}
-            </span>
-            <span className="inline-self-start text-[10px] font-bold px-1.5 py-0.2 bg-muted text-muted-foreground rounded uppercase tracking-wider w-max border border-border/50">
-              {info.row.original.customerLevel}
-            </span>
-          </div>
-        ),
+        cell: (info) => {
+          const isReseller = !!info.row.original.resellerId;
+          return (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-foreground text-sm flex items-center gap-1 shrink-0">
+                  <LuUser size={13} className="text-primary/70" />
+                  {info.getValue()}
+                </span>
+                <span
+                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none shrink-0 ${
+                    isReseller
+                      ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
+                      : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
+                  }`}
+                >
+                  {isReseller ? "Biro" : "Retail"}
+                </span>
+              </div>
+              <span className="text-[11px] text-muted-foreground font-semibold">
+                {info.row.original.customerPhone}
+              </span>
+            </div>
+          );
+        },
       }),
       columnHelper.accessor("items", {
         header: "Daftar Cetakan (Multi-Product)",
@@ -517,9 +538,23 @@ const JobEntryPage = () => {
                 <span className="text-primary/70 font-bold block uppercase tracking-wider text-[10px]">
                   Pelanggan
                 </span>
-                <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
-                  <LuUser size={15} className="text-primary" />
-                  {selectedTransaction.customerName}
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-foreground text-sm flex items-center gap-1 leading-none shrink-0">
+                    <LuUser size={15} className="text-primary" />
+                    {selectedTransaction.customerName}
+                  </span>
+                  <span
+                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none shrink-0 ${
+                      selectedTransaction.resellerId
+                        ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
+                        : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
+                    }`}
+                  >
+                    {selectedTransaction.resellerId ? "Biro" : "Retail"}
+                  </span>
+                </div>
+                <span className="text-[11px] text-muted-foreground font-semibold block pl-5 leading-none">
+                  {selectedTransaction.customerPhone}
                 </span>
               </div>
               <div className="space-y-1.5">
