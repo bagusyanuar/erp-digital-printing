@@ -60,10 +60,10 @@ interface OrderTransaction {
   grandTotal?: number;
 }
 
-
-
 const OrderPage = () => {
-  const [localOverrides, setLocalOverrides] = useState<Record<string, Partial<OrderTransaction>>>({});
+  const [localOverrides, setLocalOverrides] = useState<
+    Record<string, Partial<OrderTransaction>>
+  >({});
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -126,13 +126,16 @@ const OrderPage = () => {
 
           // Check if there is an item price override
           const itemOverride = override?.items?.find((it) => it.id === item.id);
-          const pricePerUnit = itemOverride ? itemOverride.pricePerUnit : (item.price_per_unit || 0);
+          const pricePerUnit = itemOverride
+            ? itemOverride.pricePerUnit
+            : item.price_per_unit || 0;
 
           // Calculate subtotal: use BE value if no override, otherwise compute based on UOM
           let itemSubtotal = item.subtotal || 0;
           if (itemOverride) {
             if (item.uom === "m2") {
-              const area = ((item.length_cm || 0) * (item.width_cm || 0)) / 10000;
+              const area =
+                ((item.length_cm || 0) * (item.width_cm || 0)) / 10000;
               itemSubtotal = pricePerUnit * item.quantity * area;
             } else if (item.uom === "m_lari") {
               const length = (item.length_cm || 0) / 100;
@@ -191,10 +194,7 @@ const OrderPage = () => {
   // Calculations for checkout panel
   const subtotal = useMemo(() => {
     if (!activeOrder) return 0;
-    return activeOrder.items.reduce(
-      (sum, item) => sum + item.subtotal,
-      0,
-    );
+    return activeOrder.items.reduce((sum, item) => sum + item.subtotal, 0);
   }, [activeOrder]);
 
   const grandTotal = useMemo(() => {
@@ -234,12 +234,17 @@ const OrderPage = () => {
     setPaymentMethod("CASH");
   };
 
-  const handleUpdateItemPrice = (orderId: string, itemId: string, price: number) => {
+  const handleUpdateItemPrice = (
+    orderId: string,
+    itemId: string,
+    price: number,
+  ) => {
     setLocalOverrides((prev) => {
       const orderOverride = prev[orderId] || {};
-      const currentItems = transactions.find((t) => t.id === orderId)?.items || [];
+      const currentItems =
+        transactions.find((t) => t.id === orderId)?.items || [];
       const updatedItems = currentItems.map((item) =>
-        item.id === itemId ? { ...item, pricePerUnit: price } : item
+        item.id === itemId ? { ...item, pricePerUnit: price } : item,
       );
       return {
         ...prev,
@@ -308,8 +313,8 @@ const OrderPage = () => {
         </div>
 
         {/* Quick Stats Grid */}
-        <div className="grid grid-cols-3 gap-3 md:w-auto w-full">
-          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30 p-3 rounded-2xl flex items-center gap-3">
+        <div className="grid grid-cols-1 gap-3 md:w-auto w-full">
+          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30 py-3 px-6 rounded-2xl flex items-center gap-3">
             <div className="p-2 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-xl">
               <LuClock size={18} />
             </div>
@@ -319,34 +324,6 @@ const OrderPage = () => {
               </span>
               <span className="text-lg font-black text-amber-800 dark:text-amber-300">
                 {stats.pending} Tiket
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-900/30 p-3 rounded-2xl flex items-center gap-3">
-            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-xl">
-              <LuCheck size={18} />
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
-                Terbayar
-              </span>
-              <span className="text-lg font-black text-emerald-800 dark:text-emerald-300">
-                {stats.lunasCount} Invoice
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-primary/5 border border-primary/10 p-3 rounded-2xl flex items-center gap-3">
-            <div className="p-2 bg-primary/10 text-primary rounded-xl">
-              <LuCoins size={18} />
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
-                Omset
-              </span>
-              <span className="text-sm font-black text-foreground">
-                {formatCurrency(stats.totalRevenue)}
               </span>
             </div>
           </div>
@@ -509,14 +486,18 @@ const OrderPage = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase">Nama</span>
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                      Nama
+                    </span>
                     <span className="font-bold text-foreground text-sm flex items-center gap-1.5 leading-none">
                       <LuUser size={14} className="text-primary/70 shrink-0" />
                       {activeOrder.customerName}
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase">No. Handphone</span>
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                      No. Handphone
+                    </span>
                     <span className="font-mono font-bold text-foreground text-xs block leading-none">
                       {activeOrder.customerPhone || "-"}
                     </span>
@@ -545,34 +526,46 @@ const OrderPage = () => {
                       {activeOrder.status === "LUNAS" ? (
                         <span className="text-[10px] font-bold text-primary block">
                           {formatCurrency(item.pricePerUnit)}
-                          {item.uom === "m2" && ` x ${(((item.lengthCm || 0) * (item.widthCm || 0)) / 10000).toFixed(2)} m²`}
-                          {item.uom === "m_lari" && ` x ${((item.lengthCm || 0) / 100).toFixed(2)} m`}
+                          {item.uom === "m2" &&
+                            ` x ${(((item.lengthCm || 0) * (item.widthCm || 0)) / 10000).toFixed(2)} m²`}
+                          {item.uom === "m_lari" &&
+                            ` x ${((item.lengthCm || 0) / 100).toFixed(2)} m`}
                           {` x ${item.qty}`}
                         </span>
                       ) : (
                         <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-[10px] text-muted-foreground font-bold">Harga (Rp):</span>
+                          <span className="text-[10px] text-muted-foreground font-bold">
+                            Harga (Rp):
+                          </span>
                           <input
                             type="number"
                             min="0"
                             value={item.pricePerUnit || ""}
                             onChange={(e) => {
                               const val = parseFloat(e.target.value) || 0;
-                              handleUpdateItemPrice(activeOrder.id, item.id, val);
+                              handleUpdateItemPrice(
+                                activeOrder.id,
+                                item.id,
+                                val,
+                              );
                             }}
                             placeholder="Input Harga..."
                             className="w-24 h-7 px-1.5 py-0.5 text-xs font-mono font-bold bg-muted border border-border/80 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground"
                           />
                           <span className="text-[10px] text-muted-foreground font-black">
-                            {item.uom === "m2" && ` x ${(((item.lengthCm || 0) * (item.widthCm || 0)) / 10000).toFixed(2)} m²`}
-                            {item.uom === "m_lari" && ` x ${((item.lengthCm || 0) / 100).toFixed(2)} m`}
+                            {item.uom === "m2" &&
+                              ` x ${(((item.lengthCm || 0) * (item.widthCm || 0)) / 10000).toFixed(2)} m²`}
+                            {item.uom === "m_lari" &&
+                              ` x ${((item.lengthCm || 0) / 100).toFixed(2)} m`}
                             {` x ${item.qty}`}
                           </span>
                         </div>
                       )}
                     </div>
                     <span className="font-black text-foreground shrink-0 self-center">
-                      {item.pricePerUnit > 0 ? formatCurrency(item.subtotal) : "-"}
+                      {item.pricePerUnit > 0
+                        ? formatCurrency(item.subtotal)
+                        : "-"}
                     </span>
                   </div>
                 ))}
@@ -587,8 +580,6 @@ const OrderPage = () => {
                     {subtotal > 0 ? formatCurrency(subtotal) : "-"}
                   </span>
                 </div>
-
-
 
                 {/* Grand Total Display */}
                 <div className="bg-primary/5 dark:bg-primary/10 p-3.5 rounded-2xl border border-primary/15 flex items-center justify-between">
@@ -660,8 +651,6 @@ const OrderPage = () => {
                         })}
                       </div>
                     </div>
-
-
 
                     {/* Submit Actions */}
                     <div className="pt-2 flex gap-3">
@@ -800,8 +789,6 @@ const OrderPage = () => {
                     )}
                   </span>
                 </div>
-
-
 
                 <div className="flex justify-between font-bold text-sm border-t border-dotted border-slate-300 dark:border-slate-700 pt-2 text-foreground">
                   <span>TOTAL BELANJA:</span>
