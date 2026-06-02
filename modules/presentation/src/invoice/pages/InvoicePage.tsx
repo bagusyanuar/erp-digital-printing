@@ -88,6 +88,7 @@ const InvoicePage = () => {
     null,
   );
   const [isSpkPreviewOpen, setIsSpkPreviewOpen] = useState(false);
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
 
   // Quick Payment form states
   const [payAmount, setPayAmount] = useState<number>(0);
@@ -320,11 +321,9 @@ const InvoicePage = () => {
     });
   };
 
-  const handlePrintInvoice = (invoiceNo: string) => {
-    toast.success(
-      "Cetak Antrean",
-      `Mengirim perintah print untuk nota ${invoiceNo} ke printer kasir.`,
-    );
+  const handlePrintInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsReceiptOpen(true);
   };
 
   const handlePrintSpk = (category: string) => {
@@ -626,7 +625,7 @@ const InvoicePage = () => {
                               </DropdownItem>
                               <DropdownItem
                                 onClick={() =>
-                                  handlePrintInvoice(inv.invoiceNo)
+                                  handlePrintInvoice(inv)
                                 }
                               >
                                 <LuPrinter className="h-3.5 w-3.5 text-muted-foreground" />
@@ -877,7 +876,7 @@ const InvoicePage = () => {
                 className="rounded-xl text-xs font-black px-4 bg-primary text-primary-foreground flex items-center gap-1.5"
                 onClick={() => {
                   setIsDetailOpen(false);
-                  handlePrintInvoice(selectedInvoice.invoiceNo);
+                  handlePrintInvoice(selectedInvoice);
                 }}
               >
                 <LuPrinter size={13} />
@@ -1257,6 +1256,171 @@ const InvoicePage = () => {
               >
                 <LuPrinter size={16} />
                 Cetak SPK
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+      
+      {/* DIALOG 5: Simulated Thermal Receipt Dialog */}
+      <Dialog
+        isOpen={isReceiptOpen}
+        onClose={() => setIsReceiptOpen(false)}
+        size="md"
+        className="rounded-3xl p-6 bg-card border border-border/50 text-foreground overflow-hidden max-h-[90vh] flex flex-col"
+        showCloseButton={true}
+      >
+        {selectedInvoice && (
+          <div className="space-y-5 flex flex-col overflow-hidden">
+            {/* Header info */}
+            <div className="flex flex-col gap-1 border-b border-border/30 pb-4 pr-10">
+              <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
+                <LuPrinter size={20} className="text-primary" />
+                Preview Struk Kasir
+              </h2>
+              <p className="text-xs text-muted-foreground font-semibold">
+                Simulasi hasil cetakan thermal struk digital printing 58mm.
+              </p>
+            </div>
+
+            {/* Simulated Receipt Paper container */}
+            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl font-mono text-[11px] leading-relaxed text-slate-800 dark:text-slate-200 overflow-y-auto max-h-[50vh] shadow-inner">
+              <div className="text-center space-y-1 pb-4 border-b border-dashed border-slate-300 dark:border-slate-700">
+                <span className="font-bold text-sm block">
+                  DIGITAL PRINTING ERP
+                </span>
+                <span className="block text-[10px] text-muted-foreground">
+                  Jl. Percetakan Keren No. 88, Jakarta
+                </span>
+                <span className="block text-[10px] text-muted-foreground">
+                  Telp: 021-555-9081
+                </span>
+              </div>
+
+              {/* Receipt metadata */}
+              <div className="py-3 space-y-1 border-b border-dashed border-slate-300 dark:border-slate-700">
+                <div className="flex justify-between">
+                  <span>No. Nota:</span>
+                  <span className="font-bold">
+                    {selectedInvoice.invoiceNo}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>No. Tiket / Job:</span>
+                  <span className="font-bold">
+                    {selectedInvoice.jobNumber}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tanggal:</span>
+                  <span>{selectedInvoice.createdAt}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold uppercase">
+                    {selectedInvoice.customerName}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Kasir:</span>
+                  <span>Sistem Kasir Utama</span>
+                </div>
+              </div>
+
+              {/* Items listing */}
+              <div className="py-3 border-b border-dashed border-slate-300 dark:border-slate-700 space-y-2.5">
+                {selectedInvoice.items.map((item) => (
+                  <div key={item.id} className="space-y-0.5">
+                    <span className="font-bold block text-foreground">
+                      {item.productName}
+                    </span>
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>
+                        {item.qty} x {formatCurrency(item.pricePerUnit)}
+                        {item.notes && item.notes !== "-" && ` (${item.notes})`}
+                      </span>
+                      <span className="font-bold text-foreground">
+                        {formatCurrency(item.subtotal)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Grand summary */}
+              <div className="py-3 space-y-1.5 text-[10px]">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>
+                    {formatCurrency(
+                      selectedInvoice.items.reduce(
+                        (s, i) => s + i.subtotal,
+                        0,
+                      ),
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between font-bold text-xs border-t border-dotted border-slate-300 dark:border-slate-700 pt-2 text-foreground">
+                  <span>TOTAL BELANJA:</span>
+                  <span>
+                    {formatCurrency(selectedInvoice.totalAmount)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span>Jumlah Bayar:</span>
+                  <span>
+                    {formatCurrency(selectedInvoice.amountPaid)}
+                  </span>
+                </div>
+
+                {selectedInvoice.totalAmount - selectedInvoice.amountPaid > 0 && (
+                  <div className="flex justify-between font-bold text-rose-600 dark:text-rose-400">
+                    <span>SISA TAGIHAN (UTANG):</span>
+                    <span>
+                      {formatCurrency(selectedInvoice.totalAmount - selectedInvoice.amountPaid)}
+                    </span>
+                  </div>
+                )}
+
+                {selectedInvoice.totalAmount - selectedInvoice.amountPaid === 0 && (
+                  <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
+                    <span>Status:</span>
+                    <span>LUNAS</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center pt-5 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-muted-foreground space-y-0.5">
+                <span className="block font-bold">--- TERIMA KASIH ---</span>
+                <span className="block">
+                  Barang yang sudah dibeli tidak dapat ditukar
+                </span>
+                <span className="block">atau dikembalikan. Sukses Selalu!</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsReceiptOpen(false)}
+                className="h-10 px-5 rounded-xl font-bold border-border/60 hover:bg-muted/50"
+              >
+                Tutup Preview
+              </Button>
+              <Button
+                onClick={() => {
+                  toast.success(
+                    "Mencetak Struk...",
+                    "Dokumen struk dikirim ke mesin thermal printer.",
+                  );
+                  setIsReceiptOpen(false);
+                }}
+                className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95"
+              >
+                <LuPrinter size={16} />
+                Cetak ke Thermal Printer
               </Button>
             </div>
           </div>
