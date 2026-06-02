@@ -5,4 +5,6 @@ export interface ResellerResponse {
   phone: string;
   address: string;
   credit_limit: number;
+  outstanding_debt: number;
 }
+

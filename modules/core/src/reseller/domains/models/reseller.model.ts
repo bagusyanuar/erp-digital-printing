@@ -5,4 +5,6 @@ export interface ResellerModel {
   phone: string;
   address: string;
   creditLimit: number;
+  outstandingDebt: number;
 }
+

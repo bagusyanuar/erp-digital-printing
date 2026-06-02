@@ -45,6 +45,7 @@ export interface Reseller {
   phone: string;
   address: string;
   credit_limit: number;
+  outstanding_debt: number;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -131,6 +132,7 @@ export const useResellerTable = (options?: {
       phone: detailResponse.phone,
       address: detailResponse.address,
       credit_limit: detailResponse.creditLimit,
+      outstanding_debt: detailResponse.outstandingDebt,
       customer_level_id: "d2c67ef8-82e4-4d8b-968b-5a1e2f5b6154",
       customer_level: {
         id: "d2c67ef8-82e4-4d8b-968b-5a1e2f5b6154",
@@ -156,6 +158,7 @@ export const useResellerTable = (options?: {
         phone: model.phone,
         address: model.address,
         credit_limit: model.creditLimit,
+        outstanding_debt: model.outstandingDebt,
         customer_level_id: "d2c67ef8-82e4-4d8b-968b-5a1e2f5b6154",
         customer_level: {
           id: "d2c67ef8-82e4-4d8b-968b-5a1e2f5b6154",
@@ -310,6 +313,21 @@ export const useResellerTable = (options?: {
             {formatRupiah(info.getValue())}
           </code>
         ),
+      }),
+      columnHelper.accessor("outstanding_debt", {
+        header: "Sisa Piutang",
+        cell: (info) => {
+          const debt = info.getValue() || 0;
+          return debt > 0 ? (
+            <code className="bg-rose-500/10 dark:bg-rose-500/20 px-2 py-1 rounded text-xs font-bold text-rose-600 dark:text-rose-400 border border-rose-500/20">
+              {formatRupiah(debt)}
+            </code>
+          ) : (
+            <code className="bg-slate-500/10 dark:bg-slate-500/20 px-2 py-1 rounded text-xs font-bold text-slate-500 dark:text-slate-400 border border-slate-500/10">
+              {formatRupiah(debt)}
+            </code>
+          );
+        },
       }),
       columnHelper.accessor("customer_level.name", {
         header: "Level",

@@ -22,6 +22,7 @@ export function mapResellerResponseToModel(
     phone: response.phone,
     address: response.address,
     creditLimit: response.credit_limit,
+    outstandingDebt: response.outstanding_debt,
   };
 }
 
