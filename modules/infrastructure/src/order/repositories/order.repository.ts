@@ -1,11 +1,11 @@
-import type { DraftOrderModel, OrderModel, OrderSpkModel } from "@core/order/domains/models/order.model";
-import type { OrderRepository, OrderParams, ProcessPaymentInput } from "@core/order/domains/repositories/order.repository";
+import type { DraftOrderModel, OrderModel, OrderSpkModel, OrderPaymentModel } from "@core/order/domains/models/order.model";
+import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput } from "@core/order/domains/repositories/order.repository";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import { safeApiCall } from "@infrastructure/libs/error";
 import type { HttpClient } from "@erp-digital-printing/http";
 import type { DraftOrderRequest } from "../schemas/order.request";
 import type { ApiResponse } from "@infrastructure/libs/api-response";
-import type { OrderResponse, OrderSpkResponse } from "../schemas/order.response";
+import type { OrderResponse, OrderSpkResponse, OrderPaymentResponse } from "../schemas/order.response";
 
 export class ApiOrderRepository implements OrderRepository {
   constructor(private readonly http: HttpClient) {}
@@ -108,6 +108,12 @@ export class ApiOrderRepository implements OrderRepository {
     });
   }
 
+  async repayOrder(id: string, input: RepayPaymentInput): Promise<void> {
+    return safeApiCall(async () => {
+      await this.http.post(`/orders/${id}/repay`, input);
+    });
+  }
+
   async getOrderSpk(id: string): Promise<OrderSpkModel> {
     return safeApiCall(async () => {
       const response = await this.http.get<ApiResponse<OrderSpkResponse>>(
@@ -140,6 +146,22 @@ export class ApiOrderRepository implements OrderRepository {
           })),
         })),
       };
+    });
+  }
+
+  async getOrderPayments(id: string): Promise<OrderPaymentModel[]> {
+    return safeApiCall(async () => {
+      const response = await this.http.get<ApiResponse<OrderPaymentResponse[]>>(
+        `/orders/${id}/payments`
+      );
+      return (response.data ?? []).map((pay) => ({
+        id: pay.id,
+        cashier_id: pay.cashier_id,
+        cashier_name: pay.cashier_name,
+        amount: pay.amount,
+        payment_method: pay.payment_method,
+        created_at: pay.created_at,
+      }));
     });
   }
 }

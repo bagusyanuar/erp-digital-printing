@@ -36,9 +36,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
 import { orderKeys } from "@infrastructure/order/keys";
 import type { AppError } from "@core/shared/errors/domain.error";
-import type { OrderModel, OrderSpkModel } from "@core/order/domains/models/order.model";
+import type {
+  OrderModel,
+  OrderSpkModel,
+  OrderPaymentModel,
+} from "@core/order/domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
-import type { ProcessPaymentInput } from "@core/order/domains/repositories/order.repository";
+import type { ProcessPaymentInput, RepayPaymentInput } from "@core/order/domains/repositories/order.repository";
 
 // Interfaces for mapped presentation UI
 interface InvoiceItem {
@@ -67,7 +71,9 @@ interface Invoice {
 
 const InvoicePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "PAID" | "UNPAID">("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "PAID" | "UNPAID">(
+    "ALL",
+  );
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -78,20 +84,38 @@ const InvoicePage = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [isSpkOpen, setIsSpkOpen] = useState(false);
-  const [selectedSpkCategory, setSelectedSpkCategory] = useState<string | null>(null);
+  const [selectedSpkCategory, setSelectedSpkCategory] = useState<string | null>(
+    null,
+  );
   const [isSpkPreviewOpen, setIsSpkPreviewOpen] = useState(false);
 
   // Quick Payment form states
   const [payAmount, setPayAmount] = useState<number>(0);
   const [payMethod, setPayMethod] = useState<string>("CASH");
 
-  const { getOrdersUseCase, payOrderUseCase, getOrderSpkUseCase } = useOrderDI();
+  const { getOrdersUseCase, repayOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase } =
+    useOrderDI();
 
   // Fetch SPK from backend when the modal is open
-  const { data: spkResponse, isLoading: isLoadingSpk } = useQuery<OrderSpkModel, AppError>({
+  const { data: spkResponse, isLoading: isLoadingSpk } = useQuery<
+    OrderSpkModel,
+    AppError
+  >({
     queryKey: orderKeys.spk(selectedInvoice?.id ?? ""),
     queryFn: () => getOrderSpkUseCase.execute(selectedInvoice!.id),
     enabled: isSpkOpen && !!selectedInvoice?.id,
+    staleTime: 5000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch Payment History from backend when the detail modal is open
+  const { data: payments, isLoading: isLoadingPayments } = useQuery<
+    OrderPaymentModel[],
+    AppError
+  >({
+    queryKey: orderKeys.payments(selectedInvoice?.id ?? ""),
+    queryFn: () => getOrderPaymentsUseCase.execute(selectedInvoice!.id),
+    enabled: isDetailOpen && !!selectedInvoice?.id,
     staleTime: 5000,
     refetchOnWindowFocus: false,
   });
@@ -185,7 +209,9 @@ const InvoicePage = () => {
   // Get active items for the selected SPK category from backend data
   const activeSpkCategoryItems = useMemo(() => {
     if (!spkResponse || !selectedSpkCategory) return [];
-    const cat = spkResponse.spk_by_category.find(c => c.category_name === selectedSpkCategory);
+    const cat = spkResponse.spk_by_category.find(
+      (c) => c.category_name === selectedSpkCategory,
+    );
     return cat ? cat.items : [];
   }, [spkResponse, selectedSpkCategory]);
 
@@ -206,8 +232,19 @@ const InvoicePage = () => {
     const totalCount = invoices.length;
     const paidCount = invoices.filter((i) => i.status === "PAID").length;
     const unpaidCount = invoices.filter((i) => i.status !== "PAID").length;
-    const totalReceivable = invoices.reduce((sum, i) => sum + (i.totalAmount - i.amountPaid), 0);
+    const totalReceivable = invoices.reduce(
+      (sum, i) => sum + (i.totalAmount - i.amountPaid),
+      0,
+    );
     const totalCollected = invoices.reduce((sum, i) => sum + i.amountPaid, 0);
+
+    // Total Penjualan: Lunas + Piutang (Grand Total of all invoices)
+    const totalSales = invoices.reduce((sum, i) => sum + i.totalAmount, 0);
+
+    // Total Pendapatan: Hanya transaksi yang lunas saja
+    const totalRevenue = invoices
+      .filter((i) => i.status === "PAID")
+      .reduce((sum, i) => sum + i.totalAmount, 0);
 
     return {
       totalCount,
@@ -215,6 +252,8 @@ const InvoicePage = () => {
       unpaidCount,
       totalReceivable,
       totalCollected,
+      totalSales,
+      totalRevenue,
     };
   }, [invoices]);
 
@@ -226,20 +265,25 @@ const InvoicePage = () => {
   };
 
   // Mutation to process quick payment (pelunasan) in backend
-  const processPaymentMutation = useMutation<void, AppError, { id: string; payload: ProcessPaymentInput }>({
-    mutationFn: ({ id, payload }) => payOrderUseCase.execute(id, payload),
+  const processPaymentMutation = useMutation<
+    void,
+    AppError,
+    { id: string; payload: RepayPaymentInput }
+  >({
+    mutationFn: ({ id, payload }) => repayOrderUseCase.execute(id, payload),
     onSuccess: () => {
       refetch();
       setIsPayOpen(false);
       toast.success(
         "Pelunasan Berhasil",
-        `Pembayaran pelunasan untuk nota ${selectedInvoice?.invoiceNo} berhasil disimpan.`
+        `Pembayaran pelunasan untuk nota ${selectedInvoice?.invoiceNo} berhasil disimpan.`,
       );
     },
     onError: (error) => {
       toast.error(
         "Pelunasan Gagal",
-        error.message || "Terjadi kesalahan saat memproses pelunasan di server."
+        error.message ||
+          "Terjadi kesalahan saat memproses pelunasan di server.",
       );
     },
   });
@@ -248,22 +292,25 @@ const InvoicePage = () => {
     if (!selectedInvoice) return;
 
     if (payAmount <= 0) {
-      toast.error("Nominal pelunasan tidak valid", "Jumlah bayar harus lebih besar dari 0.");
+      toast.error(
+        "Nominal pelunasan tidak valid",
+        "Jumlah bayar harus lebih besar dari 0.",
+      );
       return;
     }
 
-    const outstanding = selectedInvoice.totalAmount - selectedInvoice.amountPaid;
+    const outstanding =
+      selectedInvoice.totalAmount - selectedInvoice.amountPaid;
     if (payAmount > outstanding) {
-      toast.error("Nominal berlebih", `Jumlah pembayaran melebihi sisa tagihan (${formatCurrency(outstanding)}).`);
+      toast.error(
+        "Nominal berlebih",
+        `Jumlah pembayaran melebihi sisa tagihan (${formatCurrency(outstanding)}).`,
+      );
       return;
     }
 
-    const payload: ProcessPaymentInput = {
-      reseller_id: selectedInvoice.isReseller ? "reseller" : null, // Backend will auto-resolve reseller info if needed or we can pass null
-      customer_name: selectedInvoice.customerName,
-      customer_phone: selectedInvoice.customerPhone || "",
+    const payload: RepayPaymentInput = {
       payment_method: payMethod.toLowerCase(),
-      payment_type: "tempo", // Pelunasan is always part of credit/tempo settlement
       amount_paid: payAmount,
     };
 
@@ -274,7 +321,10 @@ const InvoicePage = () => {
   };
 
   const handlePrintInvoice = (invoiceNo: string) => {
-    toast.success("Cetak Antrean", `Mengirim perintah print untuk nota ${invoiceNo} ke printer kasir.`);
+    toast.success(
+      "Cetak Antrean",
+      `Mengirim perintah print untuk nota ${invoiceNo} ke printer kasir.`,
+    );
   };
 
   const handlePrintSpk = (category: string) => {
@@ -285,7 +335,7 @@ const InvoicePage = () => {
   const handlePrintAllSpk = () => {
     toast.success(
       "Rilis Semua SPK",
-      `Berhasil merilis ${spkResponse?.spk_by_category.length || 0} SPK terpisah untuk masing-masing divisi produksi.`
+      `Berhasil merilis ${spkResponse?.spk_by_category.length || 0} SPK terpisah untuk masing-masing divisi produksi.`,
     );
     setIsSpkOpen(false);
   };
@@ -300,7 +350,8 @@ const InvoicePage = () => {
             Kelola Invoice & Piutang
           </h1>
           <p className="text-muted-foreground font-medium text-sm">
-            Pantau pembayaran nota lunas/tempo, kelola pelunasan cicilan, dan cetak ulang nota kasir.
+            Pantau pembayaran nota lunas/tempo, kelola pelunasan cicilan, dan
+            cetak ulang nota kasir.
           </p>
         </div>
 
@@ -309,7 +360,12 @@ const InvoicePage = () => {
           <Button
             variant="outline"
             className="rounded-xl font-bold text-xs flex items-center gap-2 border-border/60"
-            onClick={() => toast.success("Ekspor Data", "Mengekspor laporan invoice ke Excel.")}
+            onClick={() =>
+              toast.success(
+                "Ekspor Data",
+                "Mengekspor laporan invoice ke Excel.",
+              )
+            }
           >
             Ekspor Laporan
           </Button>
@@ -318,7 +374,24 @@ const InvoicePage = () => {
 
       {/* Top Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Stat Collected */}
+        {/* Stat Total Sales (Lunas + Piutang) */}
+        <Card className="rounded-2xl border border-border/40 bg-card overflow-hidden">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl">
+              <LuShoppingBag size={22} />
+            </div>
+            <div>
+              <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
+                Total Penjualan
+              </span>
+              <span className="text-xl font-black text-foreground">
+                {formatCurrency(stats.totalSales)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Stat Revenue (Lunas Only) */}
         <Card className="rounded-2xl border border-border/40 bg-card overflow-hidden">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-2xl">
@@ -326,10 +399,10 @@ const InvoicePage = () => {
             </div>
             <div>
               <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
-                Total Pendapatan Masuk
+                Total Pendapatan (Lunas)
               </span>
               <span className="text-xl font-black text-foreground">
-                {formatCurrency(stats.totalCollected)}
+                {formatCurrency(stats.totalRevenue)}
               </span>
             </div>
           </CardContent>
@@ -347,23 +420,6 @@ const InvoicePage = () => {
               </span>
               <span className="text-xl font-black text-rose-600 dark:text-rose-400">
                 {formatCurrency(stats.totalReceivable)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stat Paid */}
-        <Card className="rounded-2xl border border-border/40 bg-card overflow-hidden">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl">
-              <LuCheck size={22} />
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
-                Invoice Terbayar (Lunas)
-              </span>
-              <span className="text-xl font-black text-foreground">
-                {stats.paidCount} / {stats.totalCount} Nota
               </span>
             </div>
           </CardContent>
@@ -406,11 +462,13 @@ const InvoicePage = () => {
 
           {/* Quick Status Filters (Pills) */}
           <div className="flex gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
-            {([
-              { id: "ALL", label: "Semua Invoice" },
-              { id: "PAID", label: "Lunas" },
-              { id: "UNPAID", label: "Belum Lunas" },
-            ] as const).map((tab) => {
+            {(
+              [
+                { id: "ALL", label: "Semua Invoice" },
+                { id: "PAID", label: "Lunas" },
+                { id: "UNPAID", label: "Belum Lunas" },
+              ] as const
+            ).map((tab) => {
               const isActive = statusFilter === tab.id;
               return (
                 <button
@@ -458,7 +516,9 @@ const InvoicePage = () => {
                       <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
                       <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                     </div>
-                    <span className="text-xs font-bold text-muted-foreground block">Memuat Data Invoice...</span>
+                    <span className="text-xs font-bold text-muted-foreground block">
+                      Memuat Data Invoice...
+                    </span>
                   </td>
                 </tr>
               ) : filteredInvoices.length > 0 ? (
@@ -522,7 +582,9 @@ const InvoicePage = () => {
                             {formatCurrency(outstanding)}
                           </span>
                         ) : (
-                          <span className="text-emerald-600 dark:text-emerald-400">-</span>
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            -
+                          </span>
                         )}
                       </td>
 
@@ -563,7 +625,9 @@ const InvoicePage = () => {
                                 <span>Detail Rincian</span>
                               </DropdownItem>
                               <DropdownItem
-                                onClick={() => handlePrintInvoice(inv.invoiceNo)}
+                                onClick={() =>
+                                  handlePrintInvoice(inv.invoiceNo)
+                                }
                               >
                                 <LuPrinter className="h-3.5 w-3.5 text-muted-foreground" />
                                 <span>Cetak Ulang Struk</span>
@@ -597,10 +661,16 @@ const InvoicePage = () => {
               ) : (
                 <tr>
                   <td colSpan={8} className="py-12 px-5 text-center space-y-3">
-                    <LuInfo size={36} className="text-muted-foreground/60 mx-auto" />
-                    <h3 className="font-bold text-foreground text-sm">Tidak Ada Data Invoice</h3>
+                    <LuInfo
+                      size={36}
+                      className="text-muted-foreground/60 mx-auto"
+                    />
+                    <h3 className="font-bold text-foreground text-sm">
+                      Tidak Ada Data Invoice
+                    </h3>
                     <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                      Tidak ada invoice yang cocok dengan kriteria filter pencarian atau status saat ini.
+                      Tidak ada invoice yang cocok dengan kriteria filter
+                      pencarian atau status saat ini.
                     </p>
                   </td>
                 </tr>
@@ -623,7 +693,6 @@ const InvoicePage = () => {
         />
       </Card>
 
-      {/* DIALOG 1: Invoice Detail Dialog */}
       <Dialog
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
@@ -631,74 +700,172 @@ const InvoicePage = () => {
         showCloseButton={true}
       >
         {selectedInvoice && (
-          <div className="space-y-5 flex flex-col overflow-hidden">
+          <div className="space-y-5 flex flex-col overflow-hidden h-[75vh] max-h-[75vh]">
             {/* Dialog Header */}
-            <div className="flex flex-col gap-1 border-b border-border/30 pb-4">
+            <div className="flex flex-col gap-1 border-b border-border/30 pb-4 shrink-0">
               <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
                 <LuReceipt size={20} className="text-primary" />
                 Detail Rincian Belanja Nota
               </h2>
             </div>
 
-            {/* Header info */}
-            <div className="grid grid-cols-2 gap-4 bg-muted/30 p-3.5 rounded-xl border border-border/40">
-              <div className="space-y-1">
-                <span className="text-[9px] font-bold text-muted-foreground uppercase">Nomor Invoice</span>
-                <span className="font-mono font-black text-foreground text-xs block">{selectedInvoice.invoiceNo}</span>
+            {/* Scrollable Body Content */}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-5 scrollbar-thin">
+              {/* Header info */}
+              <div className="grid grid-cols-2 gap-4 bg-muted/30 p-3.5 rounded-xl border border-border/40">
+                <div className="space-y-1">
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                    Nomor Invoice
+                  </span>
+                  <span className="font-mono font-black text-foreground text-xs block">
+                    {selectedInvoice.invoiceNo}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                    Pelanggan
+                  </span>
+                  <span className="font-bold text-foreground text-xs block">
+                    {selectedInvoice.customerName}
+                  </span>
+                </div>
               </div>
-              <div className="space-y-1">
-                <span className="text-[9px] font-bold text-muted-foreground uppercase">Pelanggan</span>
-                <span className="font-bold text-foreground text-xs block">{selectedInvoice.customerName}</span>
-              </div>
-            </div>
 
-            {/* Item list */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
-                Daftar Item Cetak
-              </span>
-              <div className="border border-border/40 rounded-xl overflow-hidden divide-y divide-border/20">
-                {selectedInvoice.items.map((item, idx) => (
-                  <div key={item.id} className="p-3 bg-card flex justify-between gap-4 text-xs font-semibold">
-                    <div>
-                      <span className="text-foreground block">{idx + 1}. {item.productName}</span>
-                      {item.notes && (
-                        <span className="text-[10px] text-muted-foreground block font-medium mt-0.5">
-                          Finishing: {item.notes}
+              {/* Item list */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
+                  Daftar Item Cetak
+                </span>
+                <div className="border border-border/40 rounded-xl overflow-hidden divide-y divide-border/20">
+                  {selectedInvoice.items.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      className="p-3 bg-card flex justify-between gap-4 text-xs font-semibold"
+                    >
+                      <div>
+                        <span className="text-foreground block">
+                          {idx + 1}. {item.productName}
                         </span>
-                      )}
-                      <span className="text-[10px] text-primary font-bold block mt-1">
-                        {formatCurrency(item.pricePerUnit)} x {item.qty} Qty
+                        {item.notes && (
+                          <span className="text-[10px] text-muted-foreground block font-medium mt-0.5">
+                            Finishing: {item.notes}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-primary font-bold block mt-1">
+                          {formatCurrency(item.pricePerUnit)} x {item.qty} Qty
+                        </span>
+                      </div>
+                      <span className="font-black text-foreground shrink-0 self-center">
+                        {formatCurrency(item.subtotal)}
                       </span>
                     </div>
-                    <span className="font-black text-foreground shrink-0 self-center">
-                      {formatCurrency(item.subtotal)}
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Subtotals & Payment summary */}
-            <div className="border-t border-border/20 pt-4 space-y-2 text-xs font-semibold">
-              <div className="flex justify-between items-center text-muted-foreground">
-                <span>Total Belanja</span>
-                <span className="font-bold text-foreground">{formatCurrency(selectedInvoice.totalAmount)}</span>
-              </div>
-              <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
-                <span>Jumlah Telah Terbayar</span>
-                <span className="font-black">{formatCurrency(selectedInvoice.amountPaid)}</span>
-              </div>
-              <div className="flex justify-between items-center border-t border-dashed border-border/30 pt-2 font-black">
-                <span className="text-primary uppercase tracking-wider text-[10px]">Sisa Tagihan</span>
-                <span className="text-sm text-rose-500">
-                  {formatCurrency(selectedInvoice.totalAmount - selectedInvoice.amountPaid)}
+              {/* Riwayat Pembayaran (Dynamic Timeline UI) */}
+              <div className="space-y-2.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
+                  Riwayat Pembayaran
                 </span>
+                <div className="bg-muted/15 border border-border/40 rounded-2xl p-4 max-h-[180px] overflow-y-auto scrollbar-thin">
+                  {isLoadingPayments ? (
+                    <div className="flex flex-col items-center justify-center py-6 space-y-2">
+                      <div className="relative w-6 h-6">
+                        <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                        <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                      </div>
+                      <span className="text-[10px] font-bold text-muted-foreground">
+                        Memuat Riwayat Pembayaran...
+                      </span>
+                    </div>
+                  ) : payments && payments.length > 0 ? (
+                    <div className="relative border-l border-border pl-4 space-y-4">
+                      {payments.map((pay, idx) => (
+                        <div key={pay.id} className="relative">
+                          {/* Circle Indicator */}
+                          <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 dark:ring-emerald-950/40" />
+                          <div className="flex justify-between items-start gap-4 text-xs font-semibold">
+                            <div>
+                              <span className="text-foreground font-black block">
+                                {idx === 0 ? "Pembayaran Awal" : `Cicilan Pelunasan #${idx}`}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
+                                {pay.created_at} • {pay.payment_method.toUpperCase()} • Kasir: {pay.cashier_name}
+                              </span>
+                            </div>
+                            <span className="font-black text-emerald-600 dark:text-emerald-400 shrink-0">
+                              {formatCurrency(pay.amount)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* If outstanding balance exists, show warning dot/installment step */}
+                      {selectedInvoice.totalAmount - selectedInvoice.amountPaid > 0 && (
+                        <div className="relative">
+                          {/* Orange Indicator for unpaid remaining */}
+                          <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-4 ring-amber-100 dark:ring-amber-950/40 animate-pulse" />
+                          <div className="flex justify-between items-start gap-4 text-xs font-semibold">
+                            <div>
+                              <span className="text-amber-600 dark:text-amber-400 font-black block">
+                                Sisa Tagihan Belum Lunas (Piutang)
+                              </span>
+                              <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
+                                Menunggu pelunasan
+                              </span>
+                            </div>
+                            <span className="font-black text-rose-500 shrink-0">
+                              {formatCurrency(
+                                selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 space-y-1">
+                      <span className="text-xs font-bold text-muted-foreground block">
+                        Belum ada riwayat pembayaran
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block font-medium">
+                        Transaksi ini berstatus piutang tanpa pembayaran awal.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Subtotals & Payment summary */}
+              <div className="border-t border-border/20 pt-4 space-y-2 text-xs font-semibold">
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Total Belanja</span>
+                  <span className="font-bold text-foreground">
+                    {formatCurrency(selectedInvoice.totalAmount)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
+                  <span>Jumlah Telah Terbayar</span>
+                  <span className="font-black">
+                    {formatCurrency(selectedInvoice.amountPaid)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-dashed border-border/30 pt-2 font-black">
+                  <span className="text-primary uppercase tracking-wider text-[10px]">
+                    Sisa Tagihan
+                  </span>
+                  <span className="text-sm text-rose-500">
+                    {formatCurrency(
+                      selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* Buttons */}
-            <div className="flex justify-end gap-2.5 border-t border-border/20 pt-4">
+            <div className="flex justify-end gap-2.5 border-t border-border/20 pt-4 shrink-0">
               <Button
                 variant="outline"
                 className="rounded-xl text-xs font-bold px-4 border-border/50"
@@ -741,17 +908,27 @@ const InvoicePage = () => {
             {/* Short info */}
             <div className="bg-primary/5 dark:bg-primary/10 p-4 rounded-2xl border border-primary/15 space-y-1">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase text-muted-foreground">Nomor Nota</span>
-                <span className="font-mono font-black text-xs text-foreground">{selectedInvoice.invoiceNo}</span>
+                <span className="text-[10px] font-black uppercase text-muted-foreground">
+                  Nomor Nota
+                </span>
+                <span className="font-mono font-black text-xs text-foreground">
+                  {selectedInvoice.invoiceNo}
+                </span>
               </div>
               <div className="flex justify-between items-center font-bold text-xs">
                 <span className="text-muted-foreground">Pelanggan:</span>
-                <span className="text-foreground">{selectedInvoice.customerName}</span>
+                <span className="text-foreground">
+                  {selectedInvoice.customerName}
+                </span>
               </div>
               <div className="flex justify-between items-center font-black text-xs pt-1.5 border-t border-primary/10">
-                <span className="text-rose-600 dark:text-rose-400">Sisa Tagihan (Piutang):</span>
                 <span className="text-rose-600 dark:text-rose-400">
-                  {formatCurrency(selectedInvoice.totalAmount - selectedInvoice.amountPaid)}
+                  Sisa Tagihan (Piutang):
+                </span>
+                <span className="text-rose-600 dark:text-rose-400">
+                  {formatCurrency(
+                    selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                  )}
                 </span>
               </div>
             </div>
@@ -772,7 +949,8 @@ const InvoicePage = () => {
                   value={payAmount || ""}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value) || 0;
-                    const outstanding = selectedInvoice.totalAmount - selectedInvoice.amountPaid;
+                    const outstanding =
+                      selectedInvoice.totalAmount - selectedInvoice.amountPaid;
                     setPayAmount(Math.min(val, outstanding));
                   }}
                   placeholder="Masukkan nominal bayar..."
@@ -782,7 +960,11 @@ const InvoicePage = () => {
               <div className="flex justify-end gap-1 px-1">
                 <button
                   type="button"
-                  onClick={() => setPayAmount(selectedInvoice.totalAmount - selectedInvoice.amountPaid)}
+                  onClick={() =>
+                    setPayAmount(
+                      selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                    )
+                  }
                   className="text-[10px] font-black text-primary hover:underline"
                 >
                   Bayar Lunas Semua
@@ -809,7 +991,11 @@ const InvoicePage = () => {
                           : "hover:bg-muted text-muted-foreground border-border/60"
                       }`}
                     >
-                      {method === "CASH" ? <LuDollarSign size={13} /> : <LuCreditCard size={13} />}
+                      {method === "CASH" ? (
+                        <LuDollarSign size={13} />
+                      ) : (
+                        <LuCreditCard size={13} />
+                      )}
                       {method}
                     </Button>
                   );
@@ -866,19 +1052,28 @@ const InvoicePage = () => {
                 Rilis Surat Perintah Kerja (SPK)
               </h2>
               <p className="text-xs text-muted-foreground font-semibold">
-                Sistem mengelompokkan item cetakan secara otomatis berdasarkan divisi mesin untuk didistribusikan ke workshop.
+                Sistem mengelompokkan item cetakan secara otomatis berdasarkan
+                divisi mesin untuk didistribusikan ke workshop.
               </p>
             </div>
 
             {/* Invoice Meta */}
             <div className="grid grid-cols-2 gap-4 bg-muted/20 p-3.5 rounded-2xl border border-border/20 text-xs">
               <div className="space-y-0.5">
-                <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider block">No. Nota</span>
-                <span className="font-mono font-black text-foreground">{selectedInvoice.invoiceNo}</span>
+                <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider block">
+                  No. Nota
+                </span>
+                <span className="font-mono font-black text-foreground">
+                  {selectedInvoice.invoiceNo}
+                </span>
               </div>
               <div className="space-y-0.5">
-                <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider block">Pelanggan</span>
-                <span className="font-black text-foreground">{selectedInvoice.customerName}</span>
+                <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider block">
+                  Pelanggan
+                </span>
+                <span className="font-black text-foreground">
+                  {selectedInvoice.customerName}
+                </span>
               </div>
             </div>
 
@@ -890,7 +1085,9 @@ const InvoicePage = () => {
                     <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
                     <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                   </div>
-                  <span className="text-xs font-bold text-muted-foreground block">Mengambil data divisi SPK...</span>
+                  <span className="text-xs font-bold text-muted-foreground block">
+                    Mengambil data divisi SPK...
+                  </span>
                 </div>
               ) : spkResponse && spkResponse.spk_by_category.length > 0 ? (
                 spkResponse.spk_by_category.map((category) => (
@@ -924,7 +1121,9 @@ const InvoicePage = () => {
               ) : (
                 <div className="flex flex-col items-center justify-center p-8 text-center space-y-2">
                   <LuInfo size={28} className="text-muted-foreground/60" />
-                  <span className="text-xs font-bold text-muted-foreground">Tidak ada item cetakan terdeteksi.</span>
+                  <span className="text-xs font-bold text-muted-foreground">
+                    Tidak ada item cetakan terdeteksi.
+                  </span>
                 </div>
               )}
             </div>
@@ -949,7 +1148,8 @@ const InvoicePage = () => {
                 Preview SPK Kerja ({selectedSpkCategory})
               </h2>
               <p className="text-xs text-muted-foreground font-semibold">
-                Simulasi hasil cetakan Surat Perintah Kerja (SPK) divisi workshop produksi.
+                Simulasi hasil cetakan Surat Perintah Kerja (SPK) divisi
+                workshop produksi.
               </p>
             </div>
 
@@ -976,7 +1176,9 @@ const InvoicePage = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Pelanggan:</span>
-                  <span className="font-bold uppercase">{selectedInvoice.customerName}</span>
+                  <span className="font-bold uppercase">
+                    {selectedInvoice.customerName}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Tanggal:</span>
@@ -990,30 +1192,47 @@ const InvoicePage = () => {
                   Daftar Item Produksi:
                 </span>
                 {activeSpkCategoryItems.map((item, idx) => (
-                  <div key={item.id} className="space-y-1 bg-white dark:bg-slate-950 p-2.5 rounded-lg border border-slate-100 dark:border-slate-900">
+                  <div
+                    key={item.id}
+                    className="space-y-1 bg-white dark:bg-slate-950 p-2.5 rounded-lg border border-slate-100 dark:border-slate-900"
+                  >
                     <div className="flex justify-between font-bold text-foreground">
-                      <span>{idx + 1}. {item.variant_name ? `${item.product_name} (${item.variant_name})` : item.product_name}</span>
+                      <span>
+                        {idx + 1}.{" "}
+                        {item.variant_name
+                          ? `${item.product_name} (${item.variant_name})`
+                          : item.product_name}
+                      </span>
                       <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px]">
                         {item.quantity} Qty
                       </span>
                     </div>
-                    {(item.uom === "m2" || item.uom === "m_lari") && item.length_cm && item.width_cm && (
-                      <div className="text-[10px] text-primary font-black mt-0.5">
-                        Ukuran: {item.length_cm} x {item.width_cm} cm ({item.uom})
-                      </div>
-                    )}
-                    {item.production_notes && item.production_notes !== "-" && item.production_notes !== "" && (
-                      <div className="text-[10px] text-rose-500 font-bold border-l-2 border-rose-500 pl-2 mt-1">
-                        Catatan: {item.production_notes}
-                      </div>
-                    )}
+                    {(item.uom === "m2" || item.uom === "m_lari") &&
+                      item.length_cm &&
+                      item.width_cm && (
+                        <div className="text-[10px] text-primary font-black mt-0.5">
+                          Ukuran: {item.length_cm} x {item.width_cm} cm (
+                          {item.uom})
+                        </div>
+                      )}
+                    {item.production_notes &&
+                      item.production_notes !== "-" &&
+                      item.production_notes !== "" && (
+                        <div className="text-[10px] text-rose-500 font-bold border-l-2 border-rose-500 pl-2 mt-1">
+                          Catatan: {item.production_notes}
+                        </div>
+                      )}
                   </div>
                 ))}
               </div>
 
               <div className="text-center pt-5 text-[10px] text-muted-foreground space-y-0.5 font-bold">
-                <span className="block">--- HARAP DIKERJAKAN SESUAI SPESIFIKASI ---</span>
-                <span className="block text-[9px] font-medium">Sistem ERP Digital Printing</span>
+                <span className="block">
+                  --- HARAP DIKERJAKAN SESUAI SPESIFIKASI ---
+                </span>
+                <span className="block text-[9px] font-medium">
+                  Sistem ERP Digital Printing
+                </span>
               </div>
             </div>
 
@@ -1030,7 +1249,7 @@ const InvoicePage = () => {
                 onClick={() => {
                   toast.success(
                     "Mencetak SPK...",
-                    `SPK Divisi ${selectedSpkCategory} berhasil dikirim ke printer workshop produksi.`
+                    `SPK Divisi ${selectedSpkCategory} berhasil dikirim ke printer workshop produksi.`,
                   );
                   setIsSpkPreviewOpen(false);
                 }}

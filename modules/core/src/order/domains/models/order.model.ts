@@ -83,3 +83,12 @@ export interface OrderSpkModel {
   spk_by_category: SpkCategoryModel[];
 }
 
+export interface OrderPaymentModel {
+  id: string;
+  cashier_id: string;
+  cashier_name: string;
+  amount: number;
+  payment_method: string;
+  created_at: string;
+}
+
