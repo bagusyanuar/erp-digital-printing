@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
@@ -16,6 +17,7 @@ import {
   LuCalendar,
   LuBox,
   LuUser,
+  LuLoader,
 } from "@erp-digital-printing/ui/icons";
 import {
   Dropdown,
@@ -637,6 +639,35 @@ const JobEntryPage = () => {
           </div>
         )}
       </Dialog>
+
+      <AnimatePresence>
+        {submitOrderMutation.isPending && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] bg-background/80 backdrop-blur-md flex flex-col items-center justify-center gap-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="p-8 rounded-3xl bg-card border border-border/50 shadow-2xl flex flex-col items-center justify-center text-center max-w-sm mx-4"
+            >
+              <div className="relative w-16 h-16 flex items-center justify-center bg-primary/10 rounded-2xl mb-4">
+                <LuLoader className="animate-spin text-primary" size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-foreground mb-1">
+                Mengirim ke Kasir
+              </h3>
+              <p className="text-xs text-muted-foreground font-semibold">
+                Sedang memproses tiket pesanan Anda. Mohon tidak menutup halaman ini.
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

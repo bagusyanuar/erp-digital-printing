@@ -6,6 +6,15 @@ import { Typography } from "@erp-digital-printing/ui/Typography";
 import { HelperText } from "@erp-digital-printing/ui/HelperText";
 import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
 import {
+  Combobox,
+  ComboboxTrigger,
+  ComboboxContent,
+  ComboboxInput,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@erp-digital-printing/ui/Combobox";
+import {
   Table,
   TableHeader,
   TableBody,
@@ -26,6 +35,7 @@ import {
   LuChevronLeft,
   LuInfo,
   LuPencil,
+  LuUserCheck,
 } from "@erp-digital-printing/ui/icons";
 
 import { toast } from "@erp-digital-printing/ui/Toast";
@@ -122,7 +132,9 @@ const CreateJobEntryPage = () => {
   }, [editId]);
 
   // States untuk Right Column (Order Metadata & Cart)
-  const [customerType, setCustomerType] = useState<"end_user" | "reseller">("end_user");
+  const [customerType, setCustomerType] = useState<"end_user" | "reseller">(
+    "end_user",
+  );
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [selectedResellerId, setSelectedResellerId] = useState("");
@@ -408,10 +420,7 @@ const CreateJobEntryPage = () => {
   // Submit job entry ticket to backend "Kasir" queue
   const handleSubmitTicket = () => {
     if (!customerName.trim()) {
-      toast.error(
-        "Input Wajib",
-        "Nama pelanggan wajib diisi atau dipilih!",
-      );
+      toast.error("Input Wajib", "Nama pelanggan wajib diisi atau dipilih!");
       return;
     }
     if (cartItems.length === 0) {
@@ -424,7 +433,10 @@ const CreateJobEntryPage = () => {
 
     const payload = {
       designer_id: "4f2411ec-ef69-476f-9549-85de0fa097ab", // Hardcoded Administrator UUID
-      reseller_id: customerType === "reseller" && selectedResellerId ? selectedResellerId : null,
+      reseller_id:
+        customerType === "reseller" && selectedResellerId
+          ? selectedResellerId
+          : null,
       customer_name: customerName.trim(),
       customer_phone: customerPhone.trim(),
       notes: notes.trim(),
@@ -507,18 +519,32 @@ const CreateJobEntryPage = () => {
                 >
                   Kategori Produk <span className="text-rose-500">*</span>
                 </Typography>
-                <select
+                <Combobox
                   value={selectedCategory}
-                  onChange={handleCategoryChange}
-                  className="w-full border border-border/50 rounded-xl px-3 py-2 text-sm bg-card hover:bg-muted/30 focus:bg-background h-10 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
+                  onValueChange={(val) => {
+                    setSelectedCategory(val);
+                    setSelectedProduct("");
+                    setSelectedVariant("");
+                  }}
                 >
-                  <option value="">-- Pilih Kategori --</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.name}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
+                  <ComboboxTrigger className="font-semibold">
+                    <span>{selectedCategory || "-- Pilih Kategori --"}</span>
+                  </ComboboxTrigger>
+                  <ComboboxContent
+                    align="start"
+                    className="w-[var(--radix-popover-trigger-width)]"
+                  >
+                    <ComboboxInput placeholder="Cari kategori..." />
+                    <ComboboxEmpty>Kategori tidak ditemukan.</ComboboxEmpty>
+                    <ComboboxList>
+                      {categories.map((cat) => (
+                        <ComboboxItem key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </ComboboxItem>
+                      ))}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
               </div>
 
               {/* Cascade 2: Produk (hanya aktif jika kategori terpilih) */}
@@ -530,19 +556,34 @@ const CreateJobEntryPage = () => {
                 >
                   Produk / Bahan <span className="text-rose-500">*</span>
                 </Typography>
-                <select
+                <Combobox
                   value={selectedProduct}
-                  onChange={handleProductChange}
-                  disabled={!selectedCategory}
-                  className="w-full border border-border/50 rounded-xl px-3 py-2 text-sm bg-card hover:bg-muted/30 focus:bg-background h-10 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  onValueChange={(val) => {
+                    setSelectedProduct(val);
+                    setSelectedVariant("");
+                  }}
                 >
-                  <option value="">-- Pilih Produk/Bahan --</option>
-                  {filteredProducts.map((p) => (
-                    <option key={p.id} value={p.name}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  <ComboboxTrigger
+                    className="font-semibold"
+                    disabled={!selectedCategory}
+                  >
+                    <span>{selectedProduct || "-- Pilih Produk/Bahan --"}</span>
+                  </ComboboxTrigger>
+                  <ComboboxContent
+                    align="start"
+                    className="w-[var(--radix-popover-trigger-width)]"
+                  >
+                    <ComboboxInput placeholder="Cari produk..." />
+                    <ComboboxEmpty>Produk tidak ditemukan.</ComboboxEmpty>
+                    <ComboboxList>
+                      {filteredProducts.map((p) => (
+                        <ComboboxItem key={p.id} value={p.name}>
+                          {p.name}
+                        </ComboboxItem>
+                      ))}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
               </div>
 
               {/* Cascade 3: Varian (jika ada varian bawaan) */}
@@ -557,25 +598,38 @@ const CreateJobEntryPage = () => {
                     (Opsional)
                   </span>
                 </Typography>
-                <select
+                <Combobox
                   value={selectedVariant}
-                  onChange={(e) => setSelectedVariant(e.target.value)}
-                  disabled={!selectedProduct || productVariants.length === 0}
-                  className="w-full border border-border/50 rounded-xl px-3 py-2 text-sm bg-card hover:bg-muted/30 focus:bg-background h-10 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  onValueChange={setSelectedVariant}
                 >
-                  <option value="">
-                    {!selectedProduct
-                      ? "-- Pilih Varian --"
-                      : productVariants.length > 0
-                        ? "-- Pilih Varian --"
-                        : "-- Tidak Ada Variasi --"}
-                  </option>
-                  {productVariants.map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
+                  <ComboboxTrigger
+                    className="font-semibold"
+                    disabled={!selectedProduct || productVariants.length === 0}
+                  >
+                    <span>
+                      {selectedVariant ||
+                        (!selectedProduct
+                          ? "-- Pilih Varian --"
+                          : productVariants.length > 0
+                            ? "-- Pilih Varian --"
+                            : "-- Tidak Ada Variasi --")}
+                    </span>
+                  </ComboboxTrigger>
+                  <ComboboxContent
+                    align="start"
+                    className="w-[var(--radix-popover-trigger-width)]"
+                  >
+                    <ComboboxInput placeholder="Cari varian..." />
+                    <ComboboxEmpty>Varian tidak ditemukan.</ComboboxEmpty>
+                    <ComboboxList>
+                      {productVariants.map((v) => (
+                        <ComboboxItem key={v} value={v}>
+                          {v}
+                        </ComboboxItem>
+                      ))}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
               </div>
 
               {/* Dynamic Size Inputs (Panjang x Lebar) */}
@@ -739,13 +793,14 @@ const CreateJobEntryPage = () => {
                       setCustomerPhone("");
                       setSelectedResellerId("");
                     }}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all border active:scale-95 ${
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border active:scale-95 ${
                       customerType === "end_user"
                         ? "bg-primary text-primary-foreground border-primary shadow-sm"
                         : "bg-background text-muted-foreground border-border hover:bg-muted/30"
                     }`}
                   >
-                    R: Retail
+                    <LuUser size={14} />
+                    <span>R</span>
                   </button>
                   <button
                     type="button"
@@ -755,13 +810,14 @@ const CreateJobEntryPage = () => {
                       setCustomerPhone("");
                       setSelectedResellerId("");
                     }}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all border active:scale-95 ${
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border active:scale-95 ${
                       customerType === "reseller"
                         ? "bg-primary text-primary-foreground border-primary shadow-sm"
                         : "bg-background text-muted-foreground border-border hover:bg-muted/30"
                     }`}
                   >
-                    B: Biro / Reseller
+                    <LuUserCheck size={14} />
+                    <span>B</span>
                   </button>
                 </div>
               </div>
@@ -770,7 +826,11 @@ const CreateJobEntryPage = () => {
               {customerType === "end_user" ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-muted/20 border border-border/40 animate-in fade-in duration-300">
                   <div className="space-y-1.5">
-                    <Typography variant="small" weight="bold" className="text-xs text-foreground/80">
+                    <Typography
+                      variant="small"
+                      weight="bold"
+                      className="text-xs text-foreground/80"
+                    >
                       Nama Customer <span className="text-rose-500">*</span>
                     </Typography>
                     <TextField
@@ -781,7 +841,11 @@ const CreateJobEntryPage = () => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Typography variant="small" weight="bold" className="text-xs text-foreground/80">
+                    <Typography
+                      variant="small"
+                      weight="bold"
+                      className="text-xs text-foreground/80"
+                    >
                       No. Telepon
                     </Typography>
                     <TextField
@@ -795,15 +859,20 @@ const CreateJobEntryPage = () => {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-primary/5 border border-primary/10 animate-in fade-in duration-300">
                   <div className="space-y-1.5">
-                    <Typography variant="small" weight="bold" className="text-xs text-primary">
+                    <Typography
+                      variant="small"
+                      weight="bold"
+                      className="text-xs text-primary"
+                    >
                       Pilih Reseller <span className="text-rose-500">*</span>
                     </Typography>
-                    <select
+                    <Combobox
                       value={selectedResellerId}
-                      onChange={(e) => {
-                        const resellerId = e.target.value;
+                      onValueChange={(resellerId) => {
                         setSelectedResellerId(resellerId);
-                        const selected = resellers.find((r) => r.id === resellerId);
+                        const selected = resellers.find(
+                          (r) => r.id === resellerId,
+                        );
                         if (selected) {
                           setCustomerName(selected.name);
                           setCustomerPhone(selected.phone);
@@ -812,18 +881,35 @@ const CreateJobEntryPage = () => {
                           setCustomerPhone("");
                         }
                       }}
-                      className="w-full border border-primary/20 rounded-xl px-3 py-2 text-sm bg-card hover:bg-muted/30 focus:bg-background h-10 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
                     >
-                      <option value="">-- Pilih Reseller --</option>
-                      {resellers.map((reseller) => (
-                        <option key={reseller.id} value={reseller.id}>
-                          {reseller.name}
-                        </option>
-                      ))}
-                    </select>
+                      <ComboboxTrigger className="font-semibold">
+                        <span>
+                          {resellers.find((r) => r.id === selectedResellerId)
+                            ?.name || "-- Pilih Reseller --"}
+                        </span>
+                      </ComboboxTrigger>
+                      <ComboboxContent
+                        align="start"
+                        className="w-[var(--radix-popover-trigger-width)]"
+                      >
+                        <ComboboxInput placeholder="Cari reseller..." />
+                        <ComboboxEmpty>Reseller tidak ditemukan.</ComboboxEmpty>
+                        <ComboboxList>
+                          {resellers.map((reseller) => (
+                            <ComboboxItem key={reseller.id} value={reseller.id}>
+                              {reseller.name}
+                            </ComboboxItem>
+                          ))}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
                   </div>
                   <div className="space-y-1.5">
-                    <Typography variant="small" weight="bold" className="text-xs text-primary">
+                    <Typography
+                      variant="small"
+                      weight="bold"
+                      className="text-xs text-primary"
+                    >
                       No. Telepon Reseller
                     </Typography>
                     <TextField
