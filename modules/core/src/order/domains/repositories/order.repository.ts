@@ -9,13 +9,16 @@ export interface OrderParams {
   payment_status?: string;
 }
 
+export interface PaymentItemInput {
+  payment_method: string;
+  amount_paid: number;
+}
+
 export interface ProcessPaymentInput {
   reseller_id: string | null;
   customer_name: string;
   customer_phone: string;
-  payment_method: string;
-  payment_type: string;
-  amount_paid: number;
+  payments: PaymentItemInput[];
 }
 
 export interface RepayPaymentInput {
