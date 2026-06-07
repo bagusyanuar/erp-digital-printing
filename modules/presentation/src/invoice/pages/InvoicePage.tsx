@@ -31,6 +31,7 @@ import {
   LuDollarSign,
   LuEllipsisVertical,
   LuScissors,
+  LuQrCode,
 } from "@erp-digital-printing/ui/icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
@@ -63,7 +64,7 @@ interface Invoice {
   isReseller: boolean;
   createdAt: string;
   items: InvoiceItem[];
-  paymentMethod?: string;
+  paymentMethods: string[];
   totalAmount: number;
   amountPaid: number;
   status: "PAID" | "PARTIAL" | "UNPAID";
@@ -93,6 +94,25 @@ const InvoicePage = () => {
   // Quick Payment form states
   const [payAmount, setPayAmount] = useState<number>(0);
   const [payMethod, setPayMethod] = useState<string>("CASH");
+  const [isSplitPayment, setIsSplitPayment] = useState<boolean>(false);
+  const [splitAmounts, setSplitAmounts] = useState<{
+    cash: number;
+    transfer: number;
+    qris: number;
+  }>({ cash: 0, transfer: 0, qris: 0 });
+
+  const outstandingAmount = useMemo(() => {
+    if (!selectedInvoice) return 0;
+    return selectedInvoice.totalAmount - selectedInvoice.amountPaid;
+  }, [selectedInvoice]);
+
+  const totalSplitInput = useMemo(() => {
+    return splitAmounts.cash + splitAmounts.transfer + splitAmounts.qris;
+  }, [splitAmounts]);
+
+  const remainingOutstanding = useMemo(() => {
+    return Math.max(0, outstandingAmount - (isSplitPayment ? totalSplitInput : payAmount));
+  }, [outstandingAmount, isSplitPayment, totalSplitInput, payAmount]);
 
   const { getOrdersUseCase, repayOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase } =
     useOrderDI();
@@ -120,6 +140,42 @@ const InvoicePage = () => {
     staleTime: 5000,
     refetchOnWindowFocus: false,
   });
+
+  const groupedPayments = useMemo(() => {
+    if (!payments) return [];
+    
+    // Group by payment_number
+    const map = new Map<number, typeof payments>();
+    payments.forEach((p) => {
+      const num = p.payment_number || 1; // Fallback to 1 if missing
+      if (!map.has(num)) {
+        map.set(num, []);
+      }
+      map.get(num)!.push(p);
+    });
+
+    // Convert map to array and sort by payment_number
+    return Array.from(map.entries())
+      .map(([payment_number, pays]) => {
+        const totalAmount = pays.reduce((sum, p) => sum + p.amount, 0);
+        const created_at = pays[0]?.created_at;
+        const cashier_name = pays[0]?.cashier_name;
+        const methods = pays.map((p) => p.payment_method).join(", ");
+        const payment_type = pays[0]?.payment_type; 
+        
+        return {
+          id: pays[0]?.id ?? "",
+          payment_number,
+          payment_type,
+          methods,
+          totalAmount,
+          created_at,
+          cashier_name,
+          details: pays,
+        };
+      })
+      .sort((a, b) => a.payment_number - b.payment_number);
+  }, [payments]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -197,6 +253,13 @@ const InvoicePage = () => {
         })),
         totalAmount: order.grand_total || 0,
         amountPaid: order.amount_paid || 0,
+        paymentMethods: Array.from(
+          new Set(
+            (order.order_payments ?? [])
+              .map((pay) => pay.payment_method.toUpperCase())
+              .filter(Boolean)
+          )
+        ),
         status:
           order.payment_status === "PAID"
             ? "PAID"
@@ -262,6 +325,8 @@ const InvoicePage = () => {
     setSelectedInvoice(invoice);
     setPayAmount(invoice.totalAmount - invoice.amountPaid);
     setPayMethod("CASH");
+    setIsSplitPayment(false);
+    setSplitAmounts({ cash: 0, transfer: 0, qris: 0 });
     setIsPayOpen(true);
   };
 
@@ -292,27 +357,38 @@ const InvoicePage = () => {
   const handleProcessPayment = () => {
     if (!selectedInvoice) return;
 
-    if (payAmount <= 0) {
+    const payments = isSplitPayment
+      ? [
+          { payment_method: "cash", amount_paid: splitAmounts.cash },
+          { payment_method: "transfer", amount_paid: splitAmounts.transfer },
+          { payment_method: "qris", amount_paid: splitAmounts.qris },
+        ].filter((p) => p.amount_paid > 0)
+      : [
+          {
+            payment_method: payMethod.toLowerCase(),
+            amount_paid: payAmount,
+          },
+        ];
+
+    if (payments.length === 0) {
       toast.error(
         "Nominal pelunasan tidak valid",
-        "Jumlah bayar harus lebih besar dari 0.",
+        "Silakan masukkan nominal pembayaran.",
       );
       return;
     }
 
-    const outstanding =
-      selectedInvoice.totalAmount - selectedInvoice.amountPaid;
-    if (payAmount > outstanding) {
+    const totalToPay = payments.reduce((sum, p) => sum + p.amount_paid, 0);
+    if (totalToPay > outstandingAmount) {
       toast.error(
         "Nominal berlebih",
-        `Jumlah pembayaran melebihi sisa tagihan (${formatCurrency(outstanding)}).`,
+        `Jumlah pembayaran melebihi sisa tagihan (${formatCurrency(outstandingAmount)}).`,
       );
       return;
     }
 
     const payload: RepayPaymentInput = {
-      payment_method: payMethod.toLowerCase(),
-      amount_paid: payAmount,
+      payments,
     };
 
     processPaymentMutation.mutate({
@@ -503,6 +579,7 @@ const InvoicePage = () => {
                 <th className="py-4 px-5 text-right">Total Tagihan</th>
                 <th className="py-4 px-5 text-right">Telah Dibayar</th>
                 <th className="py-4 px-5 text-right">Sisa Piutang</th>
+                <th className="py-4 px-5 text-center">Metode</th>
                 <th className="py-4 px-5 text-center">Status</th>
                 <th className="py-4 px-5 text-center">Aksi</th>
               </tr>
@@ -510,7 +587,7 @@ const InvoicePage = () => {
             <tbody className="divide-y divide-border/20 text-xs font-semibold text-foreground">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center space-y-3">
+                  <td colSpan={9} className="py-12 text-center space-y-3">
                     <div className="relative w-8 h-8 mx-auto">
                       <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
                       <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -587,6 +664,35 @@ const InvoicePage = () => {
                         )}
                       </td>
 
+                      {/* Metode Pembayaran */}
+                      <td className="py-4 px-5 text-center">
+                        <div className="flex flex-wrap gap-1 justify-center">
+                          {inv.paymentMethods.length > 0 ? (
+                            inv.paymentMethods.map((method) => {
+                              let badgeColor = "bg-muted text-muted-foreground border-border/50";
+                              const normalized = method.toLowerCase();
+                              if (normalized === "qris") {
+                                badgeColor = "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
+                              } else if (normalized === "cash" || normalized === "tunai") {
+                                badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
+                              } else if (normalized === "transfer" || normalized === "bank") {
+                                badgeColor = "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
+                              }
+                              return (
+                                <span
+                                  key={method}
+                                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${badgeColor}`}
+                                >
+                                  {method}
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <span className="text-muted-foreground text-[10px]">-</span>
+                          )}
+                        </div>
+                      </td>
+
                       {/* Payment Status Badge */}
                       <td className="py-4 px-5 text-center">
                         <span
@@ -659,7 +765,7 @@ const InvoicePage = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-12 px-5 text-center space-y-3">
+                  <td colSpan={9} className="py-12 px-5 text-center space-y-3">
                     <LuInfo
                       size={36}
                       className="text-muted-foreground/60 mx-auto"
@@ -780,22 +886,36 @@ const InvoicePage = () => {
                     </div>
                   ) : payments && payments.length > 0 ? (
                     <div className="relative border-l border-border pl-4 space-y-4">
-                      {payments.map((pay, idx) => (
-                        <div key={pay.id} className="relative">
+                      {groupedPayments.map((pay, idx) => (
+                        <div key={pay.id} className="relative flex flex-col gap-2">
                           {/* Circle Indicator */}
                           <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 dark:ring-emerald-950/40" />
                           <div className="flex justify-between items-start gap-4 text-xs font-semibold">
                             <div>
                               <span className="text-foreground font-black block">
-                                {idx === 0 ? "Pembayaran Awal" : `Cicilan Pelunasan #${idx}`}
+                                {pay.payment_type === "DOWN_PAYMENT" 
+                                  ? "Pembayaran Awal (DP)" 
+                                  : pay.payment_type === "FULL_PAYMENT"
+                                  ? "Lunas / Pembayaran Langsung"
+                                  : `Pelunasan #${pay.payment_number > 1 ? pay.payment_number - 1 : idx}`}
                               </span>
                               <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
-                                {pay.created_at} • {pay.payment_method.toUpperCase()} • Kasir: {pay.cashier_name}
+                                {pay.created_at} • Kasir: {pay.cashier_name}
                               </span>
                             </div>
                             <span className="font-black text-emerald-600 dark:text-emerald-400 shrink-0">
-                              {formatCurrency(pay.amount)}
+                              {formatCurrency(pay.totalAmount)}
                             </span>
+                          </div>
+
+                          {/* Detail Rincian Metode Pembayaran */}
+                          <div className="ml-0 mt-1 pl-3 border-l-2 border-border/40 space-y-1.5">
+                            {pay.details.map((detail) => (
+                              <div key={detail.id} className="flex justify-between items-center text-[10px] font-semibold">
+                                <span className="text-muted-foreground uppercase tracking-wider">{detail.payment_method}</span>
+                                <span className="text-foreground">{formatCurrency(detail.amount)}</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))}
@@ -932,75 +1052,300 @@ const InvoicePage = () => {
               </div>
             </div>
 
-            {/* Input field */}
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
-                Jumlah Pembayaran (Pelunasan)
-              </span>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
-                  Rp
+            {/* Toggle Split Payment */}
+            <div className="flex items-center justify-between bg-muted/20 border border-border/50 p-3.5 rounded-2xl shadow-sm animate-in fade-in duration-200">
+              <div className="flex flex-col">
+                <span className="text-xs font-black text-foreground">
+                  Split Pembayaran
                 </span>
-                <input
-                  type="number"
-                  min="1"
-                  max={selectedInvoice.totalAmount - selectedInvoice.amountPaid}
-                  value={payAmount || ""}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value) || 0;
-                    const outstanding =
-                      selectedInvoice.totalAmount - selectedInvoice.amountPaid;
-                    setPayAmount(Math.min(val, outstanding));
-                  }}
-                  placeholder="Masukkan nominal bayar..."
-                  className="w-full h-11 pl-9 pr-3 text-sm font-mono font-bold bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                <span className="text-[10px] text-muted-foreground font-semibold">
+                  Bayar menggunakan beberapa metode sekaligus
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSplitPayment(!isSplitPayment);
+                  setPayAmount(selectedInvoice.totalAmount - selectedInvoice.amountPaid);
+                  setSplitAmounts({ cash: 0, transfer: 0, qris: 0 });
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  isSplitPayment ? "bg-primary" : "bg-muted-foreground/30"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    isSplitPayment ? "translate-x-5" : "translate-x-0"
+                  }`}
                 />
-              </div>
-              <div className="flex justify-end gap-1 px-1">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPayAmount(
-                      selectedInvoice.totalAmount - selectedInvoice.amountPaid,
-                    )
-                  }
-                  className="text-[10px] font-black text-primary hover:underline"
-                >
-                  Bayar Lunas Semua
-                </button>
-              </div>
+              </button>
             </div>
 
-            {/* Payment Method chips */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
-                Metode Pembayaran
-              </span>
-              <div className="grid grid-cols-2 gap-3">
-                {["CASH", "TRANSFER"].map((method) => {
-                  const isSelected = payMethod === method;
-                  return (
-                    <Button
-                      key={method}
-                      variant={isSelected ? "default" : "outline"}
-                      onClick={() => setPayMethod(method)}
-                      className={`h-11 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
-                        isSelected
-                          ? "bg-primary text-primary-foreground shadow-md"
-                          : "hover:bg-muted text-muted-foreground border-border/60"
-                      }`}
+            {!isSplitPayment ? (
+              <>
+                {/* Input field */}
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                    Jumlah Pembayaran (Pelunasan)
+                  </span>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
+                      Rp
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      max={selectedInvoice.totalAmount - selectedInvoice.amountPaid}
+                      value={payAmount || ""}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        const outstanding =
+                          selectedInvoice.totalAmount - selectedInvoice.amountPaid;
+                        setPayAmount(Math.min(val, outstanding));
+                      }}
+                      placeholder="Masukkan nominal bayar..."
+                      className="w-full h-11 pl-9 pr-3 text-sm font-mono font-bold bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-1 px-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPayAmount(
+                          selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                        )
+                      }
+                      className="text-[10px] font-black text-primary hover:underline"
                     >
-                      {method === "CASH" ? (
-                        <LuDollarSign size={13} />
-                      ) : (
-                        <LuCreditCard size={13} />
+                      Bayar Lunas Semua
+                    </button>
+                  </div>
+                </div>
+
+                {/* Payment Method chips */}
+                <div className="space-y-2 animate-in fade-in duration-200">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                    Metode Pembayaran
+                  </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {["CASH", "TRANSFER", "QRIS"].map((method) => {
+                      const isSelected = payMethod === method;
+                      return (
+                        <Button
+                          key={method}
+                          variant={isSelected ? "default" : "outline"}
+                          onClick={() => setPayMethod(method)}
+                          className={`h-11 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground shadow-md"
+                              : "hover:bg-muted text-muted-foreground border-border/60"
+                          }`}
+                        >
+                          {method === "CASH" ? (
+                            <LuDollarSign size={13} />
+                          ) : method === "TRANSFER" ? (
+                            <LuCreditCard size={13} />
+                          ) : (
+                            <LuQrCode size={13} />
+                          )}
+                          {method}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Split Payment Mode inputs */}
+                <div className="space-y-3.5 max-h-[35vh] overflow-y-auto pr-1 scrollbar-thin animate-in fade-in duration-200">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                    Nominal Pembayaran Terbagi
+                  </span>
+
+                  {/* Cash Input */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-foreground flex items-center gap-1.5">
+                        <LuDollarSign size={13} className="text-primary/70" />
+                        Tunai (Cash)
+                      </span>
+                      {outstandingAmount - (splitAmounts.transfer + splitAmounts.qris) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sisa = Math.max(
+                              0,
+                              outstandingAmount - (splitAmounts.transfer + splitAmounts.qris),
+                            );
+                            setSplitAmounts((prev) => ({ ...prev, cash: sisa }));
+                          }}
+                          className="text-[9px] font-black text-primary hover:underline"
+                        >
+                          Gunakan Sisa (
+                          {formatCurrency(
+                            Math.max(
+                              0,
+                              outstandingAmount -
+                                (splitAmounts.transfer + splitAmounts.qris),
+                            ),
+                          )}
+                          )
+                        </button>
                       )}
-                      {method}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
+                        Rp
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={splitAmounts.cash || ""}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setSplitAmounts((prev) => ({ ...prev, cash: val }));
+                        }}
+                        placeholder="0"
+                        className="w-full h-11 pl-9 pr-3 text-sm font-mono font-bold bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Transfer Input */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-foreground flex items-center gap-1.5">
+                        <LuCreditCard size={13} className="text-primary/70" />
+                        Transfer Bank
+                      </span>
+                      {outstandingAmount - (splitAmounts.cash + splitAmounts.qris) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sisa = Math.max(
+                              0,
+                              outstandingAmount - (splitAmounts.cash + splitAmounts.qris),
+                            );
+                            setSplitAmounts((prev) => ({ ...prev, transfer: sisa }));
+                          }}
+                          className="text-[9px] font-black text-primary hover:underline"
+                        >
+                          Gunakan Sisa (
+                          {formatCurrency(
+                            Math.max(
+                              0,
+                              outstandingAmount - (splitAmounts.cash + splitAmounts.qris),
+                            ),
+                          )}
+                          )
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
+                        Rp
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={splitAmounts.transfer || ""}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setSplitAmounts((prev) => ({
+                            ...prev,
+                            transfer: val,
+                          }));
+                        }}
+                        placeholder="0"
+                        className="w-full h-11 pl-9 pr-3 text-sm font-mono font-bold bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  {/* QRIS Input */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-foreground flex items-center gap-1.5">
+                        <LuQrCode size={13} className="text-primary/70" />
+                        QRIS
+                      </span>
+                      {outstandingAmount - (splitAmounts.cash + splitAmounts.transfer) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sisa = Math.max(
+                              0,
+                              outstandingAmount - (splitAmounts.cash + splitAmounts.transfer),
+                            );
+                            setSplitAmounts((prev) => ({ ...prev, qris: sisa }));
+                          }}
+                          className="text-[9px] font-black text-primary hover:underline"
+                        >
+                          Gunakan Sisa (
+                          {formatCurrency(
+                            Math.max(
+                              0,
+                              outstandingAmount -
+                                (splitAmounts.cash + splitAmounts.transfer),
+                            ),
+                          )}
+                          )
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
+                        Rp
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={splitAmounts.qris || ""}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setSplitAmounts((prev) => ({ ...prev, qris: val }));
+                        }}
+                        placeholder="0"
+                        className="w-full h-11 pl-9 pr-3 text-sm font-mono font-bold bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Split Summary */}
+                  <div className="bg-primary/[0.02] border border-border/40 p-3.5 rounded-2xl text-[11px] font-semibold space-y-1.5">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Sisa Piutang:</span>
+                      <span className="text-foreground font-bold">
+                        {formatCurrency(outstandingAmount)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total Diinput:</span>
+                      <span className="text-foreground font-bold">
+                        {formatCurrency(totalSplitInput)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Sisa Belum Terbayar:
+                      </span>
+                      <span
+                        className={`font-black ${
+                          remainingOutstanding > 0
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-emerald-600 dark:text-emerald-400"
+                        }`}
+                      >
+                        {remainingOutstanding > 0
+                          ? formatCurrency(remainingOutstanding)
+                          : "PAS / LUNAS"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Actions button */}
             <div className="flex justify-end gap-2.5 border-t border-border/20 pt-4">
@@ -1015,7 +1360,12 @@ const InvoicePage = () => {
               <Button
                 className="rounded-xl text-xs font-black px-5 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-md disabled:opacity-50"
                 onClick={handleProcessPayment}
-                disabled={processPaymentMutation.isPending || payAmount <= 0}
+                disabled={
+                  processPaymentMutation.isPending ||
+                  (isSplitPayment
+                    ? totalSplitInput <= 0 || totalSplitInput > outstandingAmount
+                    : payAmount <= 0 || payAmount > outstandingAmount)
+                }
               >
                 {processPaymentMutation.isPending ? (
                   <>
@@ -1024,8 +1374,8 @@ const InvoicePage = () => {
                   </>
                 ) : (
                   <>
-                    <LuCheck size={13} />
-                    Simpan Pelunasan
+                    <LuCheck size={14} />
+                    Bayar Pelunasan
                   </>
                 )}
               </Button>

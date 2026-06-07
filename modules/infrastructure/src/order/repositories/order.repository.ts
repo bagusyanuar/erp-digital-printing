@@ -86,6 +86,16 @@ export class ApiOrderRepository implements OrderRepository {
             length_cm: item.length_cm,
             width_cm: item.width_cm,
           })),
+          order_payments: (order.order_payments ?? []).map((pay) => ({
+            id: pay.id,
+            cashier_id: pay.cashier_id,
+            cashier_name: pay.cashier_name,
+            amount: pay.amount,
+            payment_method: pay.payment_method,
+            payment_type: pay.payment_type,
+            payment_number: pay.payment_number,
+            created_at: pay.created_at,
+          })),
           created_at: order.created_at,
           updated_at: order.updated_at,
         })),
@@ -160,6 +170,8 @@ export class ApiOrderRepository implements OrderRepository {
         cashier_name: pay.cashier_name,
         amount: pay.amount,
         payment_method: pay.payment_method,
+        payment_type: pay.payment_type,
+        payment_number: pay.payment_number,
         created_at: pay.created_at,
       }));
     });

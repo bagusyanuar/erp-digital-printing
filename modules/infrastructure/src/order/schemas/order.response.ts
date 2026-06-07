@@ -31,6 +31,7 @@ export interface OrderResponse {
   grand_total: number;
   amount_paid: number;
   order_items: OrderItemResponse[];
+  order_payments?: OrderPaymentResponse[];
   created_at: string;
   updated_at: string;
 }
@@ -69,6 +70,8 @@ export interface OrderPaymentResponse {
   cashier_name: string;
   amount: number;
   payment_method: string;
+  payment_type: string;
+  payment_number: number;
   created_at: string;
 }
 

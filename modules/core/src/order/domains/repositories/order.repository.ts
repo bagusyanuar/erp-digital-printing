@@ -22,8 +22,7 @@ export interface ProcessPaymentInput {
 }
 
 export interface RepayPaymentInput {
-  amount_paid: number;
-  payment_method: string;
+  payments: PaymentItemInput[];
 }
 
 export interface OrderRepository {

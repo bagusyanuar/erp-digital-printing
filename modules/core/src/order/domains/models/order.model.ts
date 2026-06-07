@@ -51,6 +51,7 @@ export interface OrderModel {
   grand_total: number;
   amount_paid: number;
   order_items: OrderItemModel[];
+  order_payments?: OrderPaymentModel[];
   created_at: string;
   updated_at: string;
 }
@@ -89,6 +90,8 @@ export interface OrderPaymentModel {
   cashier_name: string;
   amount: number;
   payment_method: string;
+  payment_type: string;
+  payment_number: number;
   created_at: string;
 }
 
