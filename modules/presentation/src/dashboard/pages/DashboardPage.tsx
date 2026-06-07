@@ -25,6 +25,8 @@ import {
     Cell
 } from "recharts"
 
+import { DateRangePicker, type DateRange } from "@erp-digital-printing/ui/DateRangePicker"
+
 // Dummy Data for Revenue Chart
 const revenueData = [
     { name: "Mon", revenue: 4500000 },
@@ -51,6 +53,11 @@ const recentOrders = [
 ]
 
 export default function DashboardPage() {
+    const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
+        from: new Date(),
+        to: new Date(),
+    })
+
     return (
         <div className="p-6 space-y-8 font-sans bg-background min-h-screen">
             {/* Header */}
@@ -65,11 +72,13 @@ export default function DashboardPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border/50 text-sm font-bold text-foreground hover:bg-muted transition-all">
-                        <LuClock size={18} />
-                        Real-time Data
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+                    <DateRangePicker
+                        value={dateRange}
+                        onChange={setDateRange}
+                        isClearable
+                        className="w-[280px]"
+                    />
+                    <button className="flex items-center gap-2 h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all cursor-pointer">
                         <LuPrinter size={18} />
                         Cetak Laporan
                     </button>
