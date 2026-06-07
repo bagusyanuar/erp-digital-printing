@@ -6,7 +6,11 @@ export interface OrderParams {
   limit: number;
   status?: string;
   designer_id?: string;
+  cashier_id?: string;
   payment_status?: string;
+  search?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface PaymentItemInput {

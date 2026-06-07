@@ -45,8 +45,20 @@ export class ApiOrderRepository implements OrderRepository {
       if (params.designer_id) {
         query.designer_id = params.designer_id;
       }
+      if (params.cashier_id) {
+        query.cashier_id = params.cashier_id;
+      }
       if (params.payment_status) {
         query.payment_status = params.payment_status;
+      }
+      if (params.search) {
+        query.search = params.search;
+      }
+      if (params.start_date) {
+        query.start_date = params.start_date;
+      }
+      if (params.end_date) {
+        query.end_date = params.end_date;
       }
 
       const response = await this.http.get<ApiResponse<OrderResponse[]>>(

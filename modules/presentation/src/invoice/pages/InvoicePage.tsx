@@ -36,6 +36,7 @@ import {
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
 import { orderKeys } from "@infrastructure/order/keys";
+import { useDebounce } from "../../shared/hooks/useDebounce";
 import type { AppError } from "@core/shared/errors/domain.error";
 import type {
   OrderModel,
@@ -72,6 +73,7 @@ interface Invoice {
 
 const InvoicePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 750);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PAID" | "UNPAID">(
     "ALL",
   );
@@ -203,6 +205,7 @@ const InvoicePage = () => {
       limit: pageSize,
       status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
       payment_status: mappedPaymentStatus,
+      search: debouncedSearch || undefined,
     }),
     queryFn: () =>
       getOrdersUseCase.execute({
@@ -210,6 +213,7 @@ const InvoicePage = () => {
         limit: pageSize,
         status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
         payment_status: mappedPaymentStatus,
+        search: debouncedSearch || undefined,
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -279,17 +283,8 @@ const InvoicePage = () => {
     return cat ? cat.items : [];
   }, [spkResponse, selectedSpkCategory]);
 
-  // Filter dynamic search query on top of fetched items
-  const filteredInvoices = useMemo(() => {
-    return invoices.filter((inv) => {
-      const query = searchQuery.toLowerCase();
-      return (
-        inv.invoiceNo.toLowerCase().includes(query) ||
-        inv.customerName.toLowerCase().includes(query) ||
-        inv.jobNumber.toLowerCase().includes(query)
-      );
-    });
-  }, [invoices, searchQuery]);
+  // Invoices are already filtered on the backend side
+  const filteredInvoices = invoices;
 
   // Statistics Computations
   const stats = useMemo(() => {
