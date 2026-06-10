@@ -90,7 +90,8 @@ const JobEntryPage = () => {
     pageSize: 10,
   });
 
-  const { getOrdersUseCase, submitOrderUseCase, updateOrderStatusUseCase } = useOrderDI();
+  const { getOrdersUseCase, submitOrderUseCase, updateOrderStatusUseCase } =
+    useOrderDI();
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const [cancelTargetTicket, setCancelTargetTicket] = useState<string>("");
@@ -186,7 +187,8 @@ const JobEntryPage = () => {
 
   // Mutation to cancel order
   const cancelOrderMutation = useMutation<void, AppError, string>({
-    mutationFn: (id: string) => updateOrderStatusUseCase.execute(id, "CANCELLED"),
+    mutationFn: (id: string) =>
+      updateOrderStatusUseCase.execute(id, "CANCELLED"),
     onSuccess: () => {
       toast.success(
         "Transaksi Dibatalkan",
@@ -212,13 +214,6 @@ const JobEntryPage = () => {
     if (!cancelTargetId) return;
     cancelOrderMutation.mutate(cancelTargetId);
     setIsCancelConfirmOpen(false);
-  };
-
-  const handleDeleteTransaction = (id: string) => {
-    toast.warning(
-      "Hapus Pesanan",
-      "Fasilitas hapus pesanan permanen memerlukan hak otoritas administrator backend.",
-    );
   };
 
   const columns = useMemo(
@@ -355,7 +350,7 @@ const JobEntryPage = () => {
                         }}
                       >
                         <LuTrash2 className="h-3.5 w-3.5 text-rose-600" />
-                        <span>Batalkan Transaksi</span>
+                        <span>Batalkan Tiket</span>
                       </DropdownItem>
                     </>
                   )}
@@ -735,7 +730,9 @@ const JobEntryPage = () => {
                 <LuLoader className="animate-spin text-primary" size={32} />
               </div>
               <h3 className="text-lg font-bold text-foreground mb-1">
-                {submitOrderMutation.isPending ? "Mengirim ke Kasir" : "Membatalkan Transaksi"}
+                {submitOrderMutation.isPending
+                  ? "Mengirim ke Kasir"
+                  : "Membatalkan Transaksi"}
               </h3>
               <p className="text-xs text-muted-foreground font-semibold">
                 {submitOrderMutation.isPending

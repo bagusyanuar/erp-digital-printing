@@ -29,7 +29,6 @@ import {
   LuTrash2,
   LuSend,
   LuBox,
-  LuScissors,
   LuFileText,
   LuUser,
   LuChevronLeft,
@@ -63,17 +62,6 @@ interface JobItem {
   width_cm?: number;
 }
 
-interface JobTransaction {
-  id: string;
-  ticketNo: string;
-  customerName: string;
-  customerLevel: string;
-  status: "Pending" | "Dikirim ke Kasir";
-  createdAt: string;
-  items: JobItem[];
-  notes?: string;
-}
-
 const CreateJobEntryPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -82,7 +70,8 @@ const CreateJobEntryPage = () => {
   // Fetch Categories, Products, and Order usecases from DI
   const { getCategoriesUseCase } = useCategoryDI();
   const { getProductsUseCase } = useProductDI();
-  const { saveDraftOrderUseCase, getOrderByIdUseCase, updateOrderUseCase } = useOrderDI();
+  const { saveDraftOrderUseCase, getOrderByIdUseCase, updateOrderUseCase } =
+    useOrderDI();
   const { getResellersUseCase } = useResellerDI();
 
   const { data: categoryResponse } = useQuery({
@@ -148,38 +137,41 @@ const CreateJobEntryPage = () => {
 
   // Load existing ticket details if we are in Edit Mode
   useEffect(() => {
+    let timer: NodeJS.Timeout | undefined;
     if (orderDetail) {
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         setCustomerType(orderDetail.reseller_id ? "reseller" : "end_user");
         setCustomerName(orderDetail.customer_name || "");
         setCustomerPhone(orderDetail.customer_phone || "");
         setSelectedResellerId(orderDetail.reseller_id || "");
         setNotes(orderDetail.notes || "");
-        
-        const mappedItems = (orderDetail.order_items ?? []).map((item): JobItem => {
-          let dimensionText = "Pcs";
-          if (item.uom === "m2" || item.uom === "m_lari") {
-            dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
-          } else if (item.uom === "box") {
-            dimensionText = "Box";
-          } else if (item.uom === "lembar") {
-            dimensionText = "Lembar A3+";
-          }
-          return {
-            id: item.id,
-            product_variant_id: item.product_variant_id,
-            productName: item.variant_name
-              ? `${item.product_name} (${item.variant_name})`
-              : item.product_name,
-            dimension: dimensionText,
-            qty: item.quantity,
-            uom: item.uom,
-            production_notes: item.production_notes || "",
-            finishing_ids: [],
-            length_cm: item.length_cm,
-            width_cm: item.width_cm,
-          };
-        });
+
+        const mappedItems = (orderDetail.order_items ?? []).map(
+          (item): JobItem => {
+            let dimensionText = "Pcs";
+            if (item.uom === "m2" || item.uom === "m_lari") {
+              dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
+            } else if (item.uom === "box") {
+              dimensionText = "Box";
+            } else if (item.uom === "lembar") {
+              dimensionText = "Lembar A3+";
+            }
+            return {
+              id: item.id,
+              product_variant_id: item.product_variant_id,
+              productName: item.variant_name
+                ? `${item.product_name} (${item.variant_name})`
+                : item.product_name,
+              dimension: dimensionText,
+              qty: item.quantity,
+              uom: item.uom,
+              production_notes: item.production_notes || "",
+              finishing_ids: [],
+              length_cm: item.length_cm,
+              width_cm: item.width_cm,
+            };
+          },
+        );
         setCartItems(mappedItems);
 
         toast.success(
@@ -187,8 +179,10 @@ const CreateJobEntryPage = () => {
           `Memuat data transaksi ${orderDetail.job_number}`,
         );
       }, 0);
-      return () => clearTimeout(timer);
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [orderDetail]);
 
   // State Form Kiri (Technical Specification Builder)
@@ -297,19 +291,6 @@ const CreateJobEntryPage = () => {
   const showSizeFields = useMemo(() => {
     return activeProductUoM === "m2" || activeProductUoM === "m_lari";
   }, [activeProductUoM]);
-
-  // Reset Product and Variant when Category changes
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedCategory(e.target.value);
-    setSelectedProduct("");
-    setSelectedVariant("");
-  };
-
-  // Reset Variant when Product changes
-  const handleProductChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedProduct(e.target.value);
-    setSelectedVariant("");
-  };
 
   // Add Item to active cart
   const handleAddItemToCart = () => {
@@ -509,7 +490,9 @@ const CreateJobEntryPage = () => {
             <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
             <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
           </div>
-          <span className="text-sm font-bold text-foreground">Memuat data transaksi...</span>
+          <span className="text-sm font-bold text-foreground">
+            Memuat data transaksi...
+          </span>
         </div>
       </div>
     );
