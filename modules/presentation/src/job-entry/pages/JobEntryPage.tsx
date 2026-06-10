@@ -90,7 +90,10 @@ const JobEntryPage = () => {
     pageSize: 10,
   });
 
-  const { getOrdersUseCase, submitOrderUseCase } = useOrderDI();
+  const { getOrdersUseCase, submitOrderUseCase, updateOrderStatusUseCase } = useOrderDI();
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [cancelTargetTicket, setCancelTargetTicket] = useState<string>("");
 
   // Map local status state filter to API query parameters
   const mappedStatus = useMemo(() => {
@@ -181,9 +184,34 @@ const JobEntryPage = () => {
     },
   });
 
+  // Mutation to cancel order
+  const cancelOrderMutation = useMutation<void, AppError, string>({
+    mutationFn: (id: string) => updateOrderStatusUseCase.execute(id, "CANCELLED"),
+    onSuccess: () => {
+      toast.success(
+        "Transaksi Dibatalkan",
+        "Tiket pesanan berhasil dibatalkan.",
+      );
+      refetch();
+      setSelectedTransaction(null);
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Membatalkan Transaksi",
+        error.message || "Terjadi kesalahan saat membatalkan transaksi.",
+      );
+    },
+  });
+
   // Action Helpers
   const handleSendToKasir = (id: string) => {
     submitOrderMutation.mutate(id);
+  };
+
+  const handleCancelOrder = () => {
+    if (!cancelTargetId) return;
+    cancelOrderMutation.mutate(cancelTargetId);
+    setIsCancelConfirmOpen(false);
   };
 
   const handleDeleteTransaction = (id: string) => {
@@ -320,12 +348,14 @@ const JobEntryPage = () => {
                       </DropdownItem>
                       <DropdownItem
                         variant="danger"
-                        onClick={() =>
-                          handleDeleteTransaction(info.row.original.id)
-                        }
+                        onClick={() => {
+                          setCancelTargetId(info.row.original.id);
+                          setCancelTargetTicket(info.row.original.ticketNo);
+                          setIsCancelConfirmOpen(true);
+                        }}
                       >
                         <LuTrash2 className="h-3.5 w-3.5 text-rose-600" />
-                        <span>Hapus</span>
+                        <span>Batalkan Transaksi</span>
                       </DropdownItem>
                     </>
                   )}
@@ -640,8 +670,54 @@ const JobEntryPage = () => {
         )}
       </Dialog>
 
+      {/* Confirmation Dialog: Cancel Order */}
+      <Dialog
+        isOpen={isCancelConfirmOpen}
+        onClose={() => setIsCancelConfirmOpen(false)}
+        size="sm"
+        className="rounded-3xl p-6 bg-card border border-border/50 text-foreground"
+        showCloseButton={true}
+      >
+        <div className="space-y-5 flex flex-col">
+          <div className="flex flex-col gap-1 border-b border-border/30 pb-4 pr-10">
+            <h2 className="text-lg font-black tracking-tight text-rose-600 dark:text-rose-400 flex items-center gap-2">
+              <LuTrash2 size={18} />
+              Batalkan Transaksi?
+            </h2>
+            <p className="text-xs text-muted-foreground font-semibold">
+              Konfirmasi pembatalan tiket pesanan.
+            </p>
+          </div>
+
+          <p className="text-xs text-foreground/80 leading-relaxed font-semibold">
+            Apakah Anda yakin ingin membatalkan transaksi tiket{" "}
+            <span className="font-mono font-bold text-foreground bg-muted px-1.5 py-0.5 rounded border border-border/50">
+              {cancelTargetTicket}
+            </span>{" "}
+            secara permanen?
+          </p>
+
+          <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsCancelConfirmOpen(false)}
+              className="h-9 px-4 rounded-xl font-bold border-border/60 hover:bg-muted/50 text-xs"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleCancelOrder}
+              className="h-9 px-5 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/25 flex items-center gap-1.5 text-xs transition-all active:scale-95"
+            >
+              <LuTrash2 size={14} />
+              Ya, Batalkan
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
       <AnimatePresence>
-        {submitOrderMutation.isPending && (
+        {(submitOrderMutation.isPending || cancelOrderMutation.isPending) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -659,10 +735,12 @@ const JobEntryPage = () => {
                 <LuLoader className="animate-spin text-primary" size={32} />
               </div>
               <h3 className="text-lg font-bold text-foreground mb-1">
-                Mengirim ke Kasir
+                {submitOrderMutation.isPending ? "Mengirim ke Kasir" : "Membatalkan Transaksi"}
               </h3>
               <p className="text-xs text-muted-foreground font-semibold">
-                Sedang memproses tiket pesanan Anda. Mohon tidak menutup halaman ini.
+                {submitOrderMutation.isPending
+                  ? "Sedang memproses tiket pesanan Anda. Mohon tidak menutup halaman ini."
+                  : "Sedang membatalkan transaksi di server. Mohon tunggu."}
               </p>
             </motion.div>
           </motion.div>

@@ -1,5 +1,5 @@
 import { ApiOrderRepository } from "../repositories/order.repository";
-import { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, GetOrderSpk, GetOrderPayments } from "@core/order/applications/usecases/order.usecase";
+import { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder } from "@core/order/applications/usecases/order.usecase";
 import type { HttpClient } from "@erp-digital-printing/http";
 
 export function saveDraftUseCase(http: HttpClient): SaveDraftOrder {
@@ -35,5 +35,20 @@ export function getOrderPaymentsUseCase(http: HttpClient): GetOrderPayments {
 export function getOrderSpkUseCase(http: HttpClient): GetOrderSpk {
   const repository = new ApiOrderRepository(http);
   return new GetOrderSpk(repository);
+}
+
+export function updateOrderStatusUseCase(http: HttpClient): UpdateOrderStatus {
+  const repository = new ApiOrderRepository(http);
+  return new UpdateOrderStatus(repository);
+}
+
+export function getOrderByIdUseCase(http: HttpClient): GetOrderById {
+  const repository = new ApiOrderRepository(http);
+  return new GetOrderById(repository);
+}
+
+export function updateOrderUseCase(http: HttpClient): UpdateOrder {
+  const repository = new ApiOrderRepository(http);
+  return new UpdateOrder(repository);
 }
 

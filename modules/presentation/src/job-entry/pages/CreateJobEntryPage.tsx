@@ -82,7 +82,7 @@ const CreateJobEntryPage = () => {
   // Fetch Categories, Products, and Order usecases from DI
   const { getCategoriesUseCase } = useCategoryDI();
   const { getProductsUseCase } = useProductDI();
-  const { saveDraftOrderUseCase } = useOrderDI();
+  const { saveDraftOrderUseCase, getOrderByIdUseCase, updateOrderUseCase } = useOrderDI();
   const { getResellersUseCase } = useResellerDI();
 
   const { data: categoryResponse } = useQuery({
@@ -116,20 +116,13 @@ const CreateJobEntryPage = () => {
     [resellerResponse],
   );
 
-  // Load existing ticket details if we are in Edit Mode
-  const foundEditTransaction = useMemo((): JobTransaction | null => {
-    if (!editId) return null;
-    const savedTx = localStorage.getItem("job_entry_transactions");
-    if (savedTx) {
-      try {
-        const list: JobTransaction[] = JSON.parse(savedTx);
-        return list.find((t) => t.id === editId) || null;
-      } catch (e) {
-        console.error("Failed to parse transactions", e);
-      }
-    }
-    return null;
-  }, [editId]);
+  // Query to fetch order details from backend if in edit mode
+  const { data: orderDetail, isLoading: isLoadingOrder } = useQuery({
+    queryKey: ["order", editId],
+    queryFn: () => getOrderByIdUseCase.execute(editId!),
+    enabled: !!editId,
+    staleTime: 5000,
+  });
 
   // States untuk Right Column (Order Metadata & Cart)
   const [customerType, setCustomerType] = useState<"end_user" | "reseller">(
@@ -140,28 +133,63 @@ const CreateJobEntryPage = () => {
   const [selectedResellerId, setSelectedResellerId] = useState("");
 
   const [notes, setNotes] = useState(() => {
-    if (foundEditTransaction) {
-      return foundEditTransaction.notes || "";
-    }
+    if (editId) return "";
     return localStorage.getItem("job_entry_active_notes") || "";
   });
   const [cartItems, setCartItems] = useState<JobItem[]>(() => {
-    if (foundEditTransaction) {
-      return foundEditTransaction.items;
-    }
+    if (editId) return [];
     const saved = localStorage.getItem("job_entry_active_cart");
-    return saved ? JSON.parse(saved) : [];
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
-  // Tampilkan toast mode edit satu kali saat terdeteksi
+  // Load existing ticket details if we are in Edit Mode
   useEffect(() => {
-    if (foundEditTransaction) {
-      toast.success(
-        "Mode Ubah Tiket",
-        `Memuat data transaksi ${foundEditTransaction.ticketNo}`,
-      );
+    if (orderDetail) {
+      const timer = setTimeout(() => {
+        setCustomerType(orderDetail.reseller_id ? "reseller" : "end_user");
+        setCustomerName(orderDetail.customer_name || "");
+        setCustomerPhone(orderDetail.customer_phone || "");
+        setSelectedResellerId(orderDetail.reseller_id || "");
+        setNotes(orderDetail.notes || "");
+        
+        const mappedItems = (orderDetail.order_items ?? []).map((item): JobItem => {
+          let dimensionText = "Pcs";
+          if (item.uom === "m2" || item.uom === "m_lari") {
+            dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
+          } else if (item.uom === "box") {
+            dimensionText = "Box";
+          } else if (item.uom === "lembar") {
+            dimensionText = "Lembar A3+";
+          }
+          return {
+            id: item.id,
+            product_variant_id: item.product_variant_id,
+            productName: item.variant_name
+              ? `${item.product_name} (${item.variant_name})`
+              : item.product_name,
+            dimension: dimensionText,
+            qty: item.quantity,
+            uom: item.uom,
+            production_notes: item.production_notes || "",
+            finishing_ids: [],
+            length_cm: item.length_cm,
+            width_cm: item.width_cm,
+          };
+        });
+        setCartItems(mappedItems);
+
+        toast.success(
+          "Mode Ubah Tiket",
+          `Memuat data transaksi ${orderDetail.job_number}`,
+        );
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [foundEditTransaction]);
+  }, [orderDetail]);
 
   // State Form Kiri (Technical Specification Builder)
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -391,14 +419,18 @@ const CreateJobEntryPage = () => {
     toast.info("Item Dihapus", "Item cetakan dikeluarkan dari draf keranjang.");
   };
 
-  // React Query Mutation to POST /orders/draft
+  // React Query Mutation to POST /orders/draft or PUT /orders/:id
   const saveDraftMutation = useMutation<void, AppError, SaveDraftOrderInput>({
     mutationFn: (payload: SaveDraftOrderInput) =>
-      saveDraftOrderUseCase.execute(payload),
+      editId
+        ? updateOrderUseCase.execute(editId, payload)
+        : saveDraftOrderUseCase.execute(payload),
     onSuccess: () => {
       toast.success(
         "Tiket Berhasil Disimpan",
-        "Tiket pesanan berhasil disimpan sebagai draft.",
+        editId
+          ? "Tiket pesanan berhasil diperbarui."
+          : "Tiket pesanan berhasil disimpan sebagai draft.",
       );
 
       // Clear active states
@@ -468,6 +500,20 @@ const CreateJobEntryPage = () => {
       navigate("/job-entry");
     }
   };
+
+  if (editId && isLoadingOrder) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative w-10 h-10">
+            <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+            <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          </div>
+          <span className="text-sm font-bold text-foreground">Memuat data transaksi...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 font-sans bg-background min-h-screen animate-in fade-in duration-500">

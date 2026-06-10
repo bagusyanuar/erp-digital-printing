@@ -59,3 +59,27 @@ export class GetOrderPayments {
   }
 }
 
+export class UpdateOrderStatus {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(id: string, status: string): Promise<void> {
+    await this.orderRepository.updateOrderStatus(id, status);
+  }
+}
+
+export class GetOrderById {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(id: string): Promise<OrderModel> {
+    return await this.orderRepository.getOrderById(id);
+  }
+}
+
+export class UpdateOrder {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(id: string, input: SaveDraftOrderInput): Promise<void> {
+    await this.orderRepository.updateOrder(id, input);
+  }
+}
+

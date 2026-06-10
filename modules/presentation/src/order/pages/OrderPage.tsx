@@ -22,6 +22,8 @@ import {
   LuCoins,
   LuArrowRight,
   LuQrCode,
+  LuCornerUpLeft,
+  LuTrash2,
 } from "@erp-digital-printing/ui/icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
@@ -69,8 +71,10 @@ const OrderPage = () => {
   >({});
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isDraftConfirmOpen, setIsDraftConfirmOpen] = useState(false);
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
 
-  const { getOrdersUseCase, payOrderUseCase } = useOrderDI();
+  const { getOrdersUseCase, payOrderUseCase, updateOrderStatusUseCase } = useOrderDI();
 
   // Cashier POS only handles PENDING_PAYMENT status orders.
   const mappedStatus = "PENDING_PAYMENT";
@@ -264,6 +268,18 @@ const OrderPage = () => {
   }, [transactions]);
 
   // Handlers
+  const handleSendBackToDraft = () => {
+    if (!activeOrder) return;
+    updateStatusMutation.mutate({ id: activeOrder.id, status: "DRAFT" });
+    setIsDraftConfirmOpen(false);
+  };
+
+  const handleCancelOrder = () => {
+    if (!activeOrder) return;
+    updateStatusMutation.mutate({ id: activeOrder.id, status: "CANCELLED" });
+    setIsCancelConfirmOpen(false);
+  };
+
   const handleSelectOrder = (orderId: string) => {
     // Clear override of previous order if not yet paid/DP-ed
     if (selectedOrderId && selectedOrderId !== orderId) {
@@ -351,6 +367,26 @@ const OrderPage = () => {
       toast.error(
         "Transaksi Gagal",
         error.message || "Terjadi kesalahan saat memproses pembayaran di server.",
+      );
+    },
+  });
+
+  // Mutation to update order status (e.g. Send Back to Draft or Cancel Order)
+  const updateStatusMutation = useMutation<void, AppError, { id: string; status: string }>({
+    mutationFn: ({ id, status }) => updateOrderStatusUseCase.execute(id, status),
+    onSuccess: (_, variables) => {
+      // Refresh the orders queue from API
+      refetch();
+      setSelectedOrderId(null);
+      toast.success(
+        "Status Diperbarui",
+        `Order berhasil ${variables.status === "DRAFT" ? "dikembalikan ke Draft" : "dibatalkan"}.`,
+      );
+    },
+    onError: (error) => {
+      toast.error(
+        "Gagal Memperbarui Status",
+        error.message || "Terjadi kesalahan saat menghubungi server.",
       );
     },
   });
@@ -748,6 +784,28 @@ const OrderPage = () => {
                   </div>
                 ) : (
                   <>
+                    {/* Actions: Send to Draft & Cancel Order */}
+                    <div className="grid grid-cols-2 gap-3 pb-4 border-b border-border/30">
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={() => setIsDraftConfirmOpen(true)}
+                        className="h-9 rounded-xl font-bold text-[11px] border-amber-500/20 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                      >
+                        <LuCornerUpLeft size={13} />
+                        Kirim ke Draft
+                      </Button>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={() => setIsCancelConfirmOpen(true)}
+                        className="h-9 rounded-xl font-bold text-[11px] border-rose-500/20 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                      >
+                        <LuTrash2 size={13} />
+                        Batalkan Order
+                      </Button>
+                    </div>
+
                     {/* Toggle Split Payment */}
                     <div className="flex items-center justify-between bg-card border border-border/60 p-3.5 rounded-2xl shadow-sm">
                       <div className="flex flex-col">
@@ -1270,6 +1328,114 @@ const OrderPage = () => {
           </div>
         )}
       </Dialog>
+
+      {/* Confirmation Dialog: Send Back to Draft */}
+      <Dialog
+        isOpen={isDraftConfirmOpen}
+        onClose={() => setIsDraftConfirmOpen(false)}
+        size="sm"
+        className="rounded-3xl p-6 bg-card border border-border/50 text-foreground"
+        showCloseButton={true}
+      >
+        <div className="space-y-5 flex flex-col">
+          <div className="flex flex-col gap-1 border-b border-border/30 pb-4 pr-10">
+            <h2 className="text-lg font-black tracking-tight text-amber-600 dark:text-amber-400 flex items-center gap-2">
+              <LuCornerUpLeft size={18} />
+              Kembalikan ke Draft?
+            </h2>
+            <p className="text-xs text-muted-foreground font-semibold">
+              Konfirmasi pengembalian status transaksi.
+            </p>
+          </div>
+
+          <p className="text-xs text-foreground/80 leading-relaxed font-semibold">
+            Tindakan ini akan mengembalikan pesanan{" "}
+            <span className="font-mono font-bold text-foreground bg-muted px-1.5 py-0.5 rounded border border-border/50">
+              {activeOrder?.ticketNo}
+            </span>{" "}
+            ke status **Draft**. Desainer akan dapat mengedit kembali item belanja ini. Transaksi akan dihapus dari antrean kasir.
+          </p>
+
+          <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsDraftConfirmOpen(false)}
+              className="h-9 px-4 rounded-xl font-bold border-border/60 hover:bg-muted/50 text-xs"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleSendBackToDraft}
+              className="h-9 px-5 rounded-xl font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-600/25 flex items-center gap-1.5 text-xs transition-all active:scale-95"
+            >
+              <LuCornerUpLeft size={14} />
+              Kirim ke Draft
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Confirmation Dialog: Cancel Order */}
+      <Dialog
+        isOpen={isCancelConfirmOpen}
+        onClose={() => setIsCancelConfirmOpen(false)}
+        size="sm"
+        className="rounded-3xl p-6 bg-card border border-border/50 text-foreground"
+        showCloseButton={true}
+      >
+        <div className="space-y-5 flex flex-col">
+          <div className="flex flex-col gap-1 border-b border-border/30 pb-4 pr-10">
+            <h2 className="text-lg font-black tracking-tight text-rose-600 dark:text-rose-400 flex items-center gap-2">
+              <LuTrash2 size={18} />
+              Batalkan Pesanan?
+            </h2>
+            <p className="text-xs text-muted-foreground font-semibold">
+              Konfirmasi pembatalan transaksi permanen.
+            </p>
+          </div>
+
+          <p className="text-xs text-foreground/80 leading-relaxed font-semibold">
+            Apakah Anda yakin ingin membatalkan pesanan{" "}
+            <span className="font-mono font-bold text-foreground bg-muted px-1.5 py-0.5 rounded border border-border/50">
+              {activeOrder?.ticketNo}
+            </span>{" "}
+            secara permanen? Tindakan ini tidak dapat dibatalkan dan transaksi tidak dapat diproses lebih lanjut.
+          </p>
+
+          <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsCancelConfirmOpen(false)}
+              className="h-9 px-4 rounded-xl font-bold border-border/60 hover:bg-muted/50 text-xs"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleCancelOrder}
+              className="h-9 px-5 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/25 flex items-center gap-1.5 text-xs transition-all active:scale-95"
+            >
+              <LuTrash2 size={14} />
+              Batalkan Order
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Full-screen Loading Overlay for status mutations */}
+      {updateStatusMutation.isPending && (
+        <div className="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-card border border-border/50 p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4 max-w-xs text-center">
+            <div className="relative w-10 h-10">
+              <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+              <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+            </div>
+            <div>
+              <h3 className="font-bold text-foreground text-sm">Memproses Permintaan...</h3>
+              <p className="text-[11px] text-muted-foreground mt-1">Sedang memperbarui status order di server</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

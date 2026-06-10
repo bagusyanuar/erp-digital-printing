@@ -188,4 +188,87 @@ export class ApiOrderRepository implements OrderRepository {
       }));
     });
   }
+
+  async updateOrderStatus(id: string, status: string): Promise<void> {
+    return safeApiCall(async () => {
+      await this.http.patch(`/orders/${id}/status`, { status });
+    });
+  }
+
+  async getOrderById(id: string): Promise<OrderModel> {
+    return safeApiCall(async () => {
+      const response = await this.http.get<ApiResponse<OrderResponse>>(`/orders/${id}`);
+      const order = response.data;
+      if (!order) {
+        throw new Error("Order tidak ditemukan.");
+      }
+      return {
+        id: order.id,
+        job_number: order.job_number,
+        invoice_number: order.invoice_number,
+        designer_id: order.designer_id,
+        designer_name: order.designer_name,
+        status: order.status,
+        payment_status: order.payment_status,
+        customer_name: order.customer_name,
+        customer_phone: order.customer_phone,
+        reseller_id: order.reseller_id,
+        notes: order.notes,
+        total_additional_cost: order.total_additional_cost,
+        total_product_price: order.total_product_price,
+        grand_total: order.grand_total,
+        amount_paid: order.amount_paid,
+        order_items: (order.order_items ?? []).map((item) => ({
+          id: item.id,
+          product_variant_id: item.product_variant_id,
+          product_name: item.product_name,
+          variant_name: item.variant_name,
+          uom: item.uom,
+          quantity: item.quantity,
+          design_file_url: item.design_file_url,
+          production_notes: item.production_notes,
+          price_per_unit: item.price_per_unit,
+          additional_cost: item.additional_cost,
+          subtotal: item.subtotal,
+          length_cm: item.length_cm,
+          width_cm: item.width_cm,
+        })),
+        order_payments: (order.order_payments ?? []).map((pay) => ({
+          id: pay.id,
+          cashier_id: pay.cashier_id,
+          cashier_name: pay.cashier_name,
+          amount: pay.amount,
+          payment_method: pay.payment_method,
+          payment_type: pay.payment_type,
+          payment_number: pay.payment_number,
+          created_at: pay.created_at,
+        })),
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+      };
+    });
+  }
+
+  async updateOrder(id: string, input: DraftOrderModel): Promise<void> {
+    return safeApiCall(async () => {
+      const payload = {
+        designer_id: input.designer_id,
+        reseller_id: input.reseller_id,
+        customer_name: input.customer_name,
+        customer_phone: input.customer_phone,
+        notes: input.notes,
+        items: input.items.map((item) => ({
+          product_variant_id: item.product_variant_id,
+          uom: item.uom,
+          quantity: item.quantity,
+          design_file_url: item.design_file_url,
+          production_notes: item.production_notes,
+          finishing_ids: item.finishing_ids,
+          length_cm: item.length_cm,
+          width_cm: item.width_cm,
+        })),
+      };
+      await this.http.put(`/orders/${id}`, payload);
+    });
+  }
 }

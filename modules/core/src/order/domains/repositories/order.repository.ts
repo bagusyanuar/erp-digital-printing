@@ -37,5 +37,8 @@ export interface OrderRepository {
   repayOrder(id: string, input: RepayPaymentInput): Promise<void>;
   getOrderSpk(id: string): Promise<OrderSpkModel>;
   getOrderPayments(id: string): Promise<OrderPaymentModel[]>;
+  updateOrderStatus(id: string, status: string): Promise<void>;
+  getOrderById(id: string): Promise<OrderModel>;
+  updateOrder(id: string, input: DraftOrderModel): Promise<void>;
 }
 
