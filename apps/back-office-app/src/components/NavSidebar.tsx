@@ -111,6 +111,21 @@ export const NavSidebar = () => {
             )}
           </NavLink>
         </SidebarGroup>
+ 
+        <SidebarGroup label="Keuangan">
+          <NavLink to="/cash-flow" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuBanknote />}
+                label="Arus Kas (Cash Flow)"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
+        </SidebarGroup>
 
         {/* <SidebarGroup label="Produksi">
           <SidebarItemTree icon={<LuPrinter />} label="Work Order">
