@@ -8,6 +8,7 @@ export interface CashFlowTransactionModel {
   paymentMethod: string;
   description?: string;
   customerName?: string;
+  invoiceNumber?: string | null;
   cashierName: string;
 }
 

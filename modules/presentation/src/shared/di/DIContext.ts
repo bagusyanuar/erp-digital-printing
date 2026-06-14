@@ -10,6 +10,7 @@ import type { GetAttributes, CreateAttribute, GetAttributeById, UpdateAttribute,
 import type { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteProduct } from "@core/product/applications/usecases/product.usecase";
 import type { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder } from "@core/order/applications/usecases/order.usecase";
 import type { GetCashFlowReport, GetCashFlowSummary, CreateCashFlowAdjustment, GetCashAccounts } from "@core/cash-flow/applications/usecases/cash-flow.usecase";
+import type { GetUsers } from "@core/user/applications/usecases/user.usecase";
 
 
 // ──────────────────────────────────────────────
@@ -75,6 +76,10 @@ export interface CashFlowUseCases {
   getCashAccountsUseCase: GetCashAccounts;
 }
 
+export interface UserUseCases {
+  getUsersUseCase: GetUsers;
+}
+
 
 // ──────────────────────────────────────────────
 // App Container
@@ -89,6 +94,7 @@ export interface AppContainer {
   product: GetProductUseCases;
   order: OrderUseCases;
   cashFlow: CashFlowUseCases;
+  user: UserUseCases;
 }
 
 // ──────────────────────────────────────────────

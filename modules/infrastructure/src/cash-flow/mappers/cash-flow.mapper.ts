@@ -27,6 +27,7 @@ export function mapTransactionResponseToModel(res: CashFlowTransactionResponse):
     paymentMethod: res.payment_method,
     description: res.description,
     customerName: res.customer_name,
+    invoiceNumber: res.invoice_number,
     cashierName: res.cashier_name,
   };
 }

@@ -58,13 +58,21 @@ export const DateRangePicker = ({
           <LuCalendar className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="flex-1 truncate">{displayText}</span>
           {isClearable && value?.from && !disabled && (
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               onClick={handleClear}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onChange?.(undefined);
+                }
+              }}
               className="rounded-full p-0.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <LuX className="h-3.5 w-3.5" />
-            </button>
+            </span>
           )}
         </button>
       </PopoverPrimitive.Trigger>

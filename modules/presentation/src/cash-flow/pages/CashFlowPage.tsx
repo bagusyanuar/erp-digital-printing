@@ -2,7 +2,9 @@ import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCashFlowDI } from "../hooks/useCashFlowDI";
+import { useUserDI } from "../../user/hooks/useUserDI";
 import { cashFlowKeys } from "@infrastructure/cash-flow/keys/cash-flow.key";
+import { userKeys } from "@infrastructure/user/keys/user.key";
 import type { AppError } from "@core/shared/errors/domain.error";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
@@ -63,6 +65,7 @@ const CashFlowPage = () => {
     createCashFlowAdjustmentUseCase,
     getCashAccountsUseCase,
   } = useCashFlowDI();
+  const { getUsersUseCase } = useUserDI();
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState("");
@@ -71,6 +74,7 @@ const CashFlowPage = () => {
   const [typeFilter, setTypeFilter] = useState<"semua" | "DEBIT" | "CREDIT">("semua");
   const [categoryFilter, setCategoryFilter] = useState<string>("semua");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("semua");
+  const [cashierFilter, setCashierFilter] = useState<string>("semua");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>(() => {
     const today = new Date();
@@ -85,8 +89,9 @@ const CashFlowPage = () => {
     if (typeFilter !== "semua") count++;
     if (categoryFilter !== "semua") count++;
     if (paymentMethodFilter !== "semua") count++;
+    if (cashierFilter !== "semua") count++;
     return count;
-  }, [typeFilter, categoryFilter, paymentMethodFilter]);
+  }, [typeFilter, categoryFilter, paymentMethodFilter, cashierFilter]);
 
   // Pagination States
   const [page, setPage] = useState(1);
@@ -119,9 +124,10 @@ const CashFlowPage = () => {
       type: typeFilter !== "semua" ? typeFilter : undefined,
       referenceType: categoryFilter !== "semua" ? categoryFilter : undefined,
       paymentMethod: paymentMethodFilter !== "semua" ? paymentMethodFilter : undefined,
+      cashierId: cashierFilter !== "semua" ? cashierFilter : undefined,
       search: debouncedSearch || undefined,
     };
-  }, [dateRangeParams, typeFilter, categoryFilter, paymentMethodFilter, debouncedSearch]);
+  }, [dateRangeParams, typeFilter, categoryFilter, paymentMethodFilter, cashierFilter, debouncedSearch]);
 
   // Queries
   const { data: reportData, isLoading: isReportLoading } = useQuery({
@@ -144,6 +150,12 @@ const CashFlowPage = () => {
   const { data: accountsData, isLoading: isAccountsLoading } = useQuery({
     queryKey: cashFlowKeys.accounts(),
     queryFn: () => getCashAccountsUseCase.execute(),
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: usersData } = useQuery({
+    queryKey: userKeys.lists(),
+    queryFn: () => getUsersUseCase.execute(),
     refetchOnWindowFocus: false,
   });
 
@@ -175,6 +187,30 @@ const CashFlowPage = () => {
   const totalActualBalance = useMemo(() => {
     return accountsData?.reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
   }, [accountsData]);
+
+  const debitDetails = useMemo(() => {
+    const details = summaryData?.detailsByMethod ?? {};
+    return ["cash", "qris", "transfer"].map((method) => {
+      const val = details[method] || { debit: 0, credit: 0, balance: 0 };
+      return [method, val] as const;
+    });
+  }, [summaryData?.detailsByMethod]);
+
+  const creditDetails = useMemo(() => {
+    const details = summaryData?.detailsByMethod ?? {};
+    return ["cash", "qris", "transfer"].map((method) => {
+      const val = details[method] || { debit: 0, credit: 0, balance: 0 };
+      return [method, val] as const;
+    });
+  }, [summaryData?.detailsByMethod]);
+
+  const periodDetails = useMemo(() => {
+    const details = summaryData?.detailsByMethod ?? {};
+    return ["cash", "qris", "transfer"].map((method) => {
+      const val = details[method] || { debit: 0, credit: 0, balance: 0 };
+      return [method, val] as const;
+    });
+  }, [summaryData?.detailsByMethod]);
 
   // Handle manual transaction submit
   const handleAddTransactionSubmit = (e: React.FormEvent) => {
@@ -281,6 +317,16 @@ const CashFlowPage = () => {
                 Akumulasi seluruh mutasi kas berjalan
               </p>
             </div>
+            {accountsData && accountsData.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 border-t border-border/30 pt-3 mt-3">
+                {accountsData.map((acc) => (
+                  <div key={acc.id} className="flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded text-[10px] font-bold text-muted-foreground">
+                    <span className="uppercase">{acc.name}</span>:
+                    <span className="text-foreground">Rp {acc.balance.toLocaleString("id-ID")}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -307,6 +353,18 @@ const CashFlowPage = () => {
                 selisih arus kas periode ini
               </p>
             </div>
+            {periodDetails.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 border-t border-border/30 pt-3 mt-3">
+                {periodDetails.map(([method, val]) => (
+                  <div key={method} className="flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded text-[10px] font-bold text-muted-foreground">
+                    <span className="uppercase">{method}</span>:
+                    <span className={`font-extrabold ${val.balance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                      Rp {val.balance.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -331,6 +389,16 @@ const CashFlowPage = () => {
                 Dari retail & invoice biro
               </p>
             </div>
+            {debitDetails.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 border-t border-border/30 pt-3 mt-3">
+                {debitDetails.map(([method, val]) => (
+                  <div key={method} className="flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded text-[10px] font-bold text-muted-foreground">
+                    <span className="uppercase">{method}</span>:
+                    <span className="text-foreground">Rp {val.debit.toLocaleString("id-ID")}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -355,6 +423,16 @@ const CashFlowPage = () => {
                 Bahan baku, gaji, & operasional
               </p>
             </div>
+            {creditDetails.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 border-t border-border/30 pt-3 mt-3">
+                {creditDetails.map(([method, val]) => (
+                  <div key={method} className="flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded text-[10px] font-bold text-muted-foreground">
+                    <span className="uppercase">{method}</span>:
+                    <span className="text-foreground">Rp {val.credit.toLocaleString("id-ID")}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -505,6 +583,28 @@ const CashFlowPage = () => {
                               </select>
                             </div>
 
+                            {/* Kasir / Karyawan */}
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
+                                Kasir
+                              </label>
+                              <select
+                                value={cashierFilter}
+                                onChange={(e) => {
+                                  setCashierFilter(e.target.value);
+                                  setPage(1);
+                                }}
+                                className="w-full h-10 px-3 rounded-xl border border-border bg-card text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
+                              >
+                                <option value="semua">Semua Kasir</option>
+                                {usersData?.map((user) => (
+                                  <option key={user.id} value={user.id}>
+                                    {user.username}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
                             {/* Action Buttons */}
                             <div className="flex items-center justify-between pt-3 border-t border-border/40">
                               <button
@@ -513,6 +613,7 @@ const CashFlowPage = () => {
                                   setTypeFilter("semua");
                                   setCategoryFilter("semua");
                                   setPaymentMethodFilter("semua");
+                                  setCashierFilter("semua");
                                   setPage(1);
                                 }}
                                 className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors"
@@ -581,6 +682,11 @@ const CashFlowPage = () => {
                                 {tx.description || "-"}
                               </span>
                               <div className="flex items-center gap-1.5 flex-wrap">
+                                {tx.invoiceNumber && (
+                                  <span className="text-[10px] text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded w-max border border-blue-500/20 font-bold">
+                                    Invoice: {tx.invoiceNumber}
+                                  </span>
+                                )}
                                 {tx.referenceId && (
                                   <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded w-max border border-border/30">
                                     Ref ID: {tx.referenceId.substring(0, 8)}...

@@ -12,6 +12,7 @@ import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, u
 import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase } from "@infrastructure/product/containers/product.container";
 import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase } from "@infrastructure/order/containers/order.container";
 import { getCashFlowReportUseCase, getCashFlowSummaryUseCase, createCashFlowAdjustmentUseCase, getCashAccountsUseCase } from "@infrastructure/cash-flow/containers/cash-flow.container";
+import { getUsersUseCase } from "@infrastructure/user/containers/user.container";
 
 /**
  * createAppContainer
@@ -77,6 +78,9 @@ export function createAppContainer(): AppContainer {
       getCashFlowSummaryUseCase: getCashFlowSummaryUseCase(httpClient),
       createCashFlowAdjustmentUseCase: createCashFlowAdjustmentUseCase(httpClient),
       getCashAccountsUseCase: getCashAccountsUseCase(httpClient),
+    },
+    user: {
+      getUsersUseCase: getUsersUseCase(httpClient),
     },
   };
 }
