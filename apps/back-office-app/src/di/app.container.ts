@@ -11,6 +11,7 @@ import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, upda
 import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, updateAttributeUseCase, deleteAttributeUseCase } from "@infrastructure/attribute/containers/attribute.container";
 import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase } from "@infrastructure/product/containers/product.container";
 import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase } from "@infrastructure/order/containers/order.container";
+import { getCashFlowReportUseCase, getCashFlowSummaryUseCase, createCashFlowAdjustmentUseCase, getCashAccountsUseCase } from "@infrastructure/cash-flow/containers/cash-flow.container";
 
 /**
  * createAppContainer
@@ -70,6 +71,12 @@ export function createAppContainer(): AppContainer {
       updateOrderStatusUseCase: updateOrderStatusUseCase(httpClient),
       getOrderByIdUseCase: getOrderByIdUseCase(httpClient),
       updateOrderUseCase: updateOrderUseCase(httpClient),
+    },
+    cashFlow: {
+      getCashFlowReportUseCase: getCashFlowReportUseCase(httpClient),
+      getCashFlowSummaryUseCase: getCashFlowSummaryUseCase(httpClient),
+      createCashFlowAdjustmentUseCase: createCashFlowAdjustmentUseCase(httpClient),
+      getCashAccountsUseCase: getCashAccountsUseCase(httpClient),
     },
   };
 }

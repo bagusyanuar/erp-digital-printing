@@ -9,6 +9,7 @@ import type { GetCategories, CreateCategory, GetCategoryById, UpdateCategory, De
 import type { GetAttributes, CreateAttribute, GetAttributeById, UpdateAttribute, DeleteAttribute } from "@core/attribute/applications/usecases/attribute.usecase";
 import type { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteProduct } from "@core/product/applications/usecases/product.usecase";
 import type { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder } from "@core/order/applications/usecases/order.usecase";
+import type { GetCashFlowReport, GetCashFlowSummary, CreateCashFlowAdjustment, GetCashAccounts } from "@core/cash-flow/applications/usecases/cash-flow.usecase";
 
 
 // ──────────────────────────────────────────────
@@ -67,6 +68,13 @@ export interface OrderUseCases {
   updateOrderUseCase: UpdateOrder;
 }
 
+export interface CashFlowUseCases {
+  getCashFlowReportUseCase: GetCashFlowReport;
+  getCashFlowSummaryUseCase: GetCashFlowSummary;
+  createCashFlowAdjustmentUseCase: CreateCashFlowAdjustment;
+  getCashAccountsUseCase: GetCashAccounts;
+}
+
 
 // ──────────────────────────────────────────────
 // App Container
@@ -80,6 +88,7 @@ export interface AppContainer {
   attribute: GetAttributeUseCases;
   product: GetProductUseCases;
   order: OrderUseCases;
+  cashFlow: CashFlowUseCases;
 }
 
 // ──────────────────────────────────────────────
