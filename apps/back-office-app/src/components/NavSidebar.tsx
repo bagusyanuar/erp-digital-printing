@@ -27,6 +27,7 @@ import {
   LuSignature,
   LuTags,
   LuBriefcase,
+  LuReceipt,
 } from "@erp-digital-printing/ui/icons";
 
 export const NavSidebar = () => {
@@ -125,6 +126,18 @@ export const NavSidebar = () => {
               </SidebarItem>
             )}
           </NavLink>
+          <NavLink to="/expense" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuCreditCard />}
+                label="Pengeluaran (Expense)"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
         </SidebarGroup>
 
         {/* <SidebarGroup label="Produksi">
@@ -153,6 +166,18 @@ export const NavSidebar = () => {
                 asChild
                 icon={<LuTags />}
                 label="Kategori Produk"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
+          <NavLink to="/expense-category" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuReceipt />}
+                label="Kategori Pengeluaran"
                 active={isActive}
               >
                 <button />
