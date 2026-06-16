@@ -46,7 +46,7 @@ export const DatePicker = ({
               ? "border-border focus:ring-primary"
               : "border-red-500 focus:ring-red-500",
             !value && "text-muted-foreground",
-            className
+            className,
           )}
         >
           <LuCalendar className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -65,16 +65,12 @@ export const DatePicker = ({
         </button>
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Content
-          align="start"
-          sideOffset={8}
-          asChild
-        >
+        <PopoverPrimitive.Content align="start" sideOffset={8} asChild>
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -4 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.12, ease: "easeOut" }}
-            className="z-50 overflow-hidden rounded-xl border border-border/50 bg-background/95 backdrop-blur-md p-3 shadow-lg outline-none"
+            className="z-[10000] overflow-hidden rounded-xl border border-border/50 bg-background/95 backdrop-blur-md p-3 shadow-lg outline-none"
           >
             <DayPicker
               mode="single"
@@ -86,28 +82,29 @@ export const DatePicker = ({
               classNames={{
                 months: "flex flex-col sm:flex-row gap-4",
                 month: "space-y-4",
-                month_caption: "flex justify-center pt-1 relative items-center h-9",
+                month_caption:
+                  "flex justify-center pt-1 relative items-center h-9",
                 caption_label: "text-sm font-semibold text-foreground",
                 nav: "flex items-center gap-1 absolute right-2 top-2 z-10",
                 button_previous: cn(
-                  "flex h-7 w-7 items-center justify-center rounded-md border border-border bg-transparent p-0 opacity-50 hover:opacity-100 transition-opacity cursor-pointer hover:bg-muted"
+                  "flex h-7 w-7 items-center justify-center rounded-md border border-border bg-transparent p-0 opacity-50 hover:opacity-100 transition-opacity cursor-pointer hover:bg-muted",
                 ),
                 button_next: cn(
-                  "flex h-7 w-7 items-center justify-center rounded-md border border-border bg-transparent p-0 opacity-50 hover:opacity-100 transition-opacity cursor-pointer hover:bg-muted"
+                  "flex h-7 w-7 items-center justify-center rounded-md border border-border bg-transparent p-0 opacity-50 hover:opacity-100 transition-opacity cursor-pointer hover:bg-muted",
                 ),
                 month_grid: "w-full border-collapse space-y-1",
                 weekdays: "flex",
-                weekday: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] text-center",
+                weekday:
+                  "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] text-center",
                 week: "flex w-full mt-2",
-                day: cn(
-                  "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:rounded-md h-9 w-9"
-                ),
+                day: "group relative p-0 text-center text-sm focus-within:relative focus-within:z-20 h-9 w-9",
                 day_button: cn(
-                  "h-9 w-9 p-0 font-normal aria-selected:opacity-100 rounded-md hover:bg-muted cursor-pointer transition-colors flex items-center justify-center text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  "h-9 w-9 p-0 font-normal rounded-md group-[.selected]:bg-primary group-[.selected]:text-primary-foreground group-[.selected]:hover:bg-primary/90 group-[:not(.selected)]:hover:bg-muted cursor-pointer transition-colors flex items-center justify-center text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 ),
-                selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                today: "bg-accent text-accent-foreground font-semibold",
-                outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+                selected: "selected",
+                today: "bg-accent text-accent-foreground font-semibold rounded-md",
+                outside:
+                  "day-outside text-muted-foreground opacity-50 group-[.selected]:bg-primary/30 aria-selected:text-muted-foreground aria-selected:opacity-30",
                 disabled: "text-muted-foreground opacity-30",
                 hidden: "invisible",
               }}

@@ -4,14 +4,14 @@ import { LuCreditCard, LuReceipt, LuTrendingDown } from "@erp-digital-printing/u
 
 interface ExpenseSummaryCardsProps {
   totalExpense?: number;
-  totalProduction?: number;
-  totalOperational?: number;
+  totalPaid?: number;
+  totalDebt?: number;
 }
 
 export const ExpenseSummaryCards: React.FC<ExpenseSummaryCardsProps> = ({
   totalExpense = 45750000,
-  totalProduction = 28500000,
-  totalOperational = 17250000,
+  totalPaid = 28500000,
+  totalDebt = 17250000,
 }) => {
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -34,7 +34,7 @@ export const ExpenseSummaryCards: React.FC<ExpenseSummaryCardsProps> = ({
               {formatCurrency(totalExpense)}
             </h3>
             <p className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
-              <span className="text-emerald-500 font-bold">12%</span> dibanding bulan lalu
+              Akumulasi nilai seluruh nota tagihan
             </p>
           </div>
           <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
@@ -43,41 +43,41 @@ export const ExpenseSummaryCards: React.FC<ExpenseSummaryCardsProps> = ({
         </CardContent>
       </Card>
 
-      {/* Pengeluaran Produksi */}
-      <Card className="rounded-3xl border-border/50 overflow-hidden relative shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-card via-card to-sky-500/5">
+      {/* Total Terbayar */}
+      <Card className="rounded-3xl border-border/50 overflow-hidden relative shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-card via-card to-emerald-500/5">
         <CardContent className="p-6 flex items-center justify-between">
           <div className="space-y-2">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-              Total Biaya Produksi
+              Total Terbayar
             </span>
             <h3 className="text-2xl font-black text-foreground tracking-tight">
-              {formatCurrency(totalProduction)}
+              {formatCurrency(totalPaid)}
             </h3>
             <p className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
-              Bahan baku & pengerjaan cetak
+              Kas/Bank yang sudah keluar
             </p>
           </div>
-          <div className="h-12 w-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-600 shadow-sm">
+          <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 shadow-sm">
             <LuReceipt size={24} />
           </div>
         </CardContent>
       </Card>
 
-      {/* Pengeluaran Operasional */}
-      <Card className="rounded-3xl border-border/50 overflow-hidden relative shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-card via-card to-emerald-500/5">
+      {/* Sisa Hutang Dagang */}
+      <Card className="rounded-3xl border-border/50 overflow-hidden relative shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-card via-card to-rose-500/5">
         <CardContent className="p-6 flex items-center justify-between">
           <div className="space-y-2">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-              Total Biaya Operasional
+              Sisa Hutang Dagang
             </span>
             <h3 className="text-2xl font-black text-foreground tracking-tight">
-              {formatCurrency(totalOperational)}
+              {formatCurrency(totalDebt)}
             </h3>
             <p className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
-              Sewa, listrik, gaji, & operasional kantor
+              Kewajiban pembayaran jatuh tempo
             </p>
           </div>
-          <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 shadow-sm">
+          <div className="h-12 w-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-600 shadow-sm">
             <LuTrendingDown size={24} />
           </div>
         </CardContent>
