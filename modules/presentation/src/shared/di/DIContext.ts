@@ -12,6 +12,8 @@ import type { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteP
 import type { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder } from "@core/order/applications/usecases/order.usecase";
 import type { GetCashFlowReport, GetCashFlowSummary, CreateCashFlowAdjustment, GetCashAccounts } from "@core/cash-flow/applications/usecases/cash-flow.usecase";
 import type { GetUsers } from "@core/user/applications/usecases/user.usecase";
+import type { GetSuppliers, CreateSupplier, GetSupplierById, UpdateSupplier, DeleteSupplier } from "@core/supplier/applications/usecases/supplier.usecase";
+
 
 
 // ──────────────────────────────────────────────
@@ -32,6 +34,15 @@ export interface GetResellerUseCases {
   updateResellerUseCase: UpdateReseller;
   deleteResellerUseCase: DeleteReseller;
 }
+
+export interface SupplierUseCases {
+  getSuppliersUseCase: GetSuppliers;
+  createSupplierUseCase: CreateSupplier;
+  getSupplierByIdUseCase: GetSupplierById;
+  updateSupplierUseCase: UpdateSupplier;
+  deleteSupplierUseCase: DeleteSupplier;
+}
+
 
 export interface GetCategoryUseCases {
   getCategoriesUseCase: GetCategories;
@@ -105,6 +116,7 @@ export interface AppContainer {
   order: OrderUseCases;
   cashFlow: CashFlowUseCases;
   user: UserUseCases;
+  supplier: SupplierUseCases;
 }
 
 // ──────────────────────────────────────────────

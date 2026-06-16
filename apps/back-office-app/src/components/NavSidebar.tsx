@@ -220,8 +220,19 @@ export const NavSidebar = () => {
               </SidebarItem>
             )}
           </NavLink>
-          {/* <SidebarItem icon={<LuUsers />} label="Database Supplier" />
-          <SidebarItem icon={<LuSettings />} label="Konfigurasi Mesin" /> */}
+          <NavLink to="/supplier" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuTruck />}
+                label="Database Supplier"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
+          {/* <SidebarItem icon={<LuSettings />} label="Konfigurasi Mesin" /> */}
         </SidebarGroup>
 
         <SidebarGroup label="Laporan">

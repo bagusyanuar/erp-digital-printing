@@ -7,6 +7,7 @@ import { productRoutes } from "./modules/product.routes";
 import { attributeRoutes } from "./modules/attribute.routes";
 import { customerRoutes } from "./modules/customer.routes";
 import { resellerRoutes } from "./modules/reseller.routes";
+import { supplierRoutes } from "./modules/supplier.routes";
 import { jobEntryRoutes } from "./modules/job-entry.routes";
 import { orderRoutes } from "./modules/order.routes";
 import { invoiceRoutes } from "./modules/invoice.routes";
@@ -53,6 +54,7 @@ const router = createBrowserRouter([
               ...attributeRoutes,
               ...customerRoutes,
               ...resellerRoutes,
+              ...supplierRoutes,
               ...jobEntryRoutes,
               ...orderRoutes,
               ...invoiceRoutes,
