@@ -283,10 +283,10 @@ const ExpenseCategoryPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="font-bold text-sm">Nama Kategori</TableHead>
-                <TableHead className="font-bold text-sm">Grup Pengeluaran</TableHead>
-                <TableHead className="font-bold text-sm">Kategori Produk Terkait</TableHead>
-                <TableHead className="text-right font-bold text-sm pr-6">Aksi</TableHead>
+                <TableHead>Nama Kategori</TableHead>
+                <TableHead>Grup Pengeluaran</TableHead>
+                <TableHead>Kategori Produk Terkait</TableHead>
+                <TableHead className="text-right pr-6">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

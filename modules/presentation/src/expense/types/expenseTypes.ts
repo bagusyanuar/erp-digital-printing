@@ -23,6 +23,7 @@ export interface ExpenseBill {
   date: string;
   supplierId?: string;
   supplierName: string;
+  discount?: number;
   totalAmount: number;
   paidAmount: number;
   paymentStatus: "UNPAID" | "PARTIAL_PAID" | "PAID" | "VOID";

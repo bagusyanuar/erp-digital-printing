@@ -97,6 +97,7 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
   const [supplierId, setSupplierId] = useState(() => bill?.supplierId || "");
   const [supplierName, setSupplierName] = useState(() => bill?.supplierName || "");
   const [description, setDescription] = useState(() => bill?.description || "");
+  const [discount, setDiscount] = useState(() => (bill?.discount || 0).toString());
 
   // Added Items List
   const [items, setItems] = useState<ExpenseBillItem[]>(() => {
@@ -195,7 +196,9 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
   };
 
   // Computations
-  const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const discountAmount = parseFloat(discount) || 0;
+  const totalAmount = Math.max(0, subtotal - discountAmount);
 
   const livePaidAmount = isSplitPayment
     ? (parseFloat(splitAmountCash) || 0) + (parseFloat(splitAmountTransfer) || 0)
@@ -301,6 +304,7 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
       date,
       supplierId: isManualSupplier ? undefined : supplierId,
       supplierName: finalSupplierName,
+      discount: discountAmount,
       totalAmount,
       paidAmount: finalPaidAmount,
       paymentStatus: bill ? bill.paymentStatus : paymentStatus,
@@ -665,7 +669,26 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                     <div className="space-y-3 text-xs">
                       <div className="flex justify-between items-center text-muted-foreground">
                         <span>Subtotal Belanja:</span>
-                        <span className="font-semibold text-foreground">{formatCurrency(totalAmount)}</span>
+                        <span className="font-semibold text-foreground">{formatCurrency(subtotal)}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-muted-foreground gap-4">
+                        <span>Potongan / Diskon:</span>
+                        {readOnly ? (
+                          <span className="font-semibold text-foreground">{formatCurrency(discountAmount)}</span>
+                        ) : (
+                          <div className="flex items-center gap-1.5 w-32 justify-end">
+                            <span className="text-[10px] text-muted-foreground">Rp</span>
+                            <TextField
+                              type="number"
+                              disabled={readOnly}
+                              placeholder="0"
+                              className="border-border/40 text-right font-semibold text-xs h-7 p-1 w-24 bg-background"
+                              value={discount}
+                              onChange={(e) => setDiscount(e.target.value)}
+                            />
+                          </div>
+                        )}
                       </div>
 
                       {!bill && !readOnly && (

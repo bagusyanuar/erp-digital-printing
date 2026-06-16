@@ -74,14 +74,14 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="font-bold text-sm">Tanggal</TableHead>
-              <TableHead className="font-bold text-sm">No. Nota</TableHead>
-              <TableHead className="font-bold text-sm">Supplier / Vendor</TableHead>
-              <TableHead className="font-bold text-sm text-right">Total Tagihan</TableHead>
-              <TableHead className="font-bold text-sm text-right">Sudah Dibayar</TableHead>
-              <TableHead className="font-bold text-sm text-right">Sisa Hutang</TableHead>
-              <TableHead className="font-bold text-sm text-center">Status</TableHead>
-              <TableHead className="text-right font-bold text-sm pr-6">Aksi</TableHead>
+              <TableHead>Tanggal</TableHead>
+              <TableHead>No. Nota</TableHead>
+              <TableHead>Supplier / Vendor</TableHead>
+              <TableHead className="text-right">Total Tagihan</TableHead>
+              <TableHead className="text-right">Sudah Dibayar</TableHead>
+              <TableHead className="text-right">Sisa Hutang</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="text-right pr-6">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
