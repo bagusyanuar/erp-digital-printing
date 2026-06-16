@@ -8,6 +8,13 @@ import { useAuthStore } from "@presentation/auth/stores/auth.store";
 import type { AppContainer } from "@presentation/shared/di/DIContext";
 import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase, updateResellerUseCase, deleteResellerUseCase } from "@infrastructure/reseller/containers/reseller.container";
 import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, deleteCategoryUseCase } from "@infrastructure/category/containers/category.container";
+import {
+  getExpenseCategoriesUseCase,
+  createExpenseCategoryUseCase,
+  getExpenseCategoryByIdUseCase,
+  updateExpenseCategoryUseCase,
+  deleteExpenseCategoryUseCase,
+} from "@infrastructure/expense-category/containers/expense-category.container";
 import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, updateAttributeUseCase, deleteAttributeUseCase } from "@infrastructure/attribute/containers/attribute.container";
 import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase } from "@infrastructure/product/containers/product.container";
 import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase } from "@infrastructure/order/containers/order.container";
@@ -46,6 +53,13 @@ export function createAppContainer(): AppContainer {
       getCategoryByIdUseCase: getCategoryByIdUseCase(httpClient),
       updateCategoryUseCase: updateCategoryUseCase(httpClient),
       deleteCategoryUseCase: deleteCategoryUseCase(httpClient),
+    },
+    expenseCategory: {
+      getExpenseCategoriesUseCase: getExpenseCategoriesUseCase(httpClient),
+      createExpenseCategoryUseCase: createExpenseCategoryUseCase(httpClient),
+      getExpenseCategoryByIdUseCase: getExpenseCategoryByIdUseCase(httpClient),
+      updateExpenseCategoryUseCase: updateExpenseCategoryUseCase(httpClient),
+      deleteExpenseCategoryUseCase: deleteExpenseCategoryUseCase(httpClient),
     },
     attribute: {
       getAttributesUseCase: getAttributeUseCase(httpClient),

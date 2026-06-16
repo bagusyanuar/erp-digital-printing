@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Typography } from "@erp-digital-printing/ui/Typography";
@@ -27,6 +27,7 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  TablePagination,
 } from "@erp-digital-printing/ui/Table";
 import {
   Combobox,
@@ -37,13 +38,10 @@ import {
   ComboboxList,
   ComboboxItem,
 } from "@erp-digital-printing/ui/Combobox";
+import { useExpenseCategory } from "../hooks/useExpenseCategory";
+import { useDebounce } from "../../shared/hooks/useDebounce";
 
-// Define Interfaces
-interface ProductCategory {
-  id: string;
-  name: string;
-}
-
+// Define Interfaces for presentation layer
 interface ExpenseCategory {
   id: string;
   name: string;
@@ -52,29 +50,15 @@ interface ExpenseCategory {
   productCategoryName?: string;
 }
 
-// Mock Data
-const MOCK_PRODUCT_CATEGORIES: ProductCategory[] = [
-  { id: "pc-1", name: "A3+ Printing" },
-  { id: "pc-2", name: "Banner (MMT & Kain)" },
-  { id: "pc-3", name: "Indoor Media" },
-  { id: "pc-4", name: "Merchandise & Gift" },
-  { id: "pc-5", name: "Sticker & Label" },
-];
-
-const INITIAL_EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  { id: "ec-1", name: "Sewa Ruko Utama", group: "OPERATIONAL", productCategoryId: null },
-  { id: "ec-2", name: "Tagihan Listrik & Internet", group: "OPERATIONAL", productCategoryId: null },
-  { id: "ec-3", name: "Kertas Art Paper & Carton", group: "PRODUCTION", productCategoryId: "pc-1" },
-  { id: "ec-4", name: "Bahan Flexi 280g & 340g", group: "PRODUCTION", productCategoryId: "pc-2" },
-  { id: "ec-5", name: "Gaji & Lembur Karyawan", group: "OPERATIONAL", productCategoryId: null },
-  { id: "ec-6", name: "Tinta Cetak Eco-Solvent", group: "PRODUCTION", productCategoryId: "pc-3" },
-];
-
 const ExpenseCategoryPage = () => {
   // States
-  const [categories, setCategories] = useState<ExpenseCategory[]>(INITIAL_EXPENSE_CATEGORIES);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 750);
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<"ALL" | "OPERATIONAL" | "PRODUCTION">("ALL");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+
 
   // Dialog States
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -87,29 +71,37 @@ const ExpenseCategoryPage = () => {
   const [formProductCategoryId, setFormProductCategoryId] = useState("");
   const [formError, setFormError] = useState("");
 
+  const {
+    expenseCategories,
+    productCategories,
+    totalEntries,
+    totalPages,
+    isLoadingExpense,
+    isCreating,
+    isUpdating,
+    isDeleting,
+    createExpenseCategory,
+    updateExpenseCategory,
+    deleteExpenseCategory,
+  } = useExpenseCategory(debouncedSearchQuery, selectedGroupFilter, page, pageSize);
+
   // Map product categories for easy name lookup
   const productCategoryMap = useMemo(() => {
     const map = new Map<string, string>();
-    MOCK_PRODUCT_CATEGORIES.forEach((pc) => map.set(pc.id, pc.name));
+    productCategories.forEach((pc) => map.set(pc.id, pc.name));
     return map;
-  }, []);
+  }, [productCategories]);
 
-  // Filter Categories
+  // Map expense categories to UI model
   const filteredCategories = useMemo(() => {
-    return categories
-      .map((cat) => ({
-        ...cat,
-        productCategoryName: cat.productCategoryId ? productCategoryMap.get(cat.productCategoryId) : undefined,
-      }))
-      .filter((cat) => {
-        const matchesSearch = cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (cat.productCategoryName?.toLowerCase() || "").includes(searchQuery.toLowerCase());
-        
-        const matchesGroup = selectedGroupFilter === "ALL" || cat.group === selectedGroupFilter;
-        
-        return matchesSearch && matchesGroup;
-      });
-  }, [categories, searchQuery, selectedGroupFilter, productCategoryMap]);
+    return expenseCategories.map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      group: cat.group,
+      productCategoryId: cat.productCategoryId,
+      productCategoryName: cat.productCategoryId ? productCategoryMap.get(cat.productCategoryId) : undefined,
+    }));
+  }, [expenseCategories, productCategoryMap]);
 
   // Open Form Dialog (Create)
   const handleOpenCreate = () => {
@@ -138,7 +130,7 @@ const ExpenseCategoryPage = () => {
   };
 
   // Handle Submit Form
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
 
@@ -156,40 +148,42 @@ const ExpenseCategoryPage = () => {
 
     const targetProductCategoryId = formGroup === "PRODUCTION" ? formProductCategoryId : null;
 
-    if (selectedCategory) {
-      // Edit mode
-      setCategories((prev) =>
-        prev.map((cat) =>
-          cat.id === selectedCategory.id
-            ? {
-                ...cat,
-                name: formName,
-                group: formGroup,
-                productCategoryId: targetProductCategoryId,
-              }
-            : cat
-        )
-      );
-    } else {
-      // Create mode
-      const newCategory: ExpenseCategory = {
-        id: `ec-${Date.now()}`,
-        name: formName,
-        group: formGroup,
-        productCategoryId: targetProductCategoryId,
-      };
-      setCategories((prev) => [...prev, newCategory]);
+    try {
+      if (selectedCategory) {
+        // Edit mode
+        await updateExpenseCategory({
+          id: selectedCategory.id,
+          input: {
+            name: formName,
+            group: formGroup,
+            productCategoryId: targetProductCategoryId,
+          },
+        });
+      } else {
+        // Create mode
+        await createExpenseCategory({
+          name: formName,
+          group: formGroup,
+          productCategoryId: targetProductCategoryId,
+        });
+      }
+      setIsFormOpen(false);
+    } catch (error) {
+      const apiError = error as { message?: string };
+      setFormError(apiError.message || "Gagal menyimpan kategori pengeluaran.");
     }
-
-    setIsFormOpen(false);
   };
 
   // Handle Delete Confirm
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!selectedCategory) return;
-    setCategories((prev) => prev.filter((cat) => cat.id !== selectedCategory.id));
-    setIsDeleteOpen(false);
-    setSelectedCategory(null);
+    try {
+      await deleteExpenseCategory(selectedCategory.id);
+      setIsDeleteOpen(false);
+      setSelectedCategory(null);
+    } catch {
+      // Error handled by mutation toast
+    }
   };
 
   return (
@@ -217,7 +211,10 @@ const ExpenseCategoryPage = () => {
                 placeholder="Cari kategori pengeluaran..."
                 prefixIcon={LuSearch}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className="w-full h-10"
               />
             </div>
@@ -226,7 +223,10 @@ const ExpenseCategoryPage = () => {
             <div className="flex bg-muted p-1 rounded-xl border border-border/50">
               <button
                 type="button"
-                onClick={() => setSelectedGroupFilter("ALL")}
+                onClick={() => {
+                  setSelectedGroupFilter("ALL");
+                  setPage(1);
+                }}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                   selectedGroupFilter === "ALL"
                     ? "bg-background text-foreground shadow-sm"
@@ -237,7 +237,10 @@ const ExpenseCategoryPage = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedGroupFilter("OPERATIONAL")}
+                onClick={() => {
+                  setSelectedGroupFilter("OPERATIONAL");
+                  setPage(1);
+                }}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                   selectedGroupFilter === "OPERATIONAL"
                     ? "bg-background text-foreground shadow-sm"
@@ -248,7 +251,10 @@ const ExpenseCategoryPage = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedGroupFilter("PRODUCTION")}
+                onClick={() => {
+                  setSelectedGroupFilter("PRODUCTION");
+                  setPage(1);
+                }}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                   selectedGroupFilter === "PRODUCTION"
                     ? "bg-background text-foreground shadow-sm"
@@ -284,7 +290,16 @@ const ExpenseCategoryPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCategories.length > 0 ? (
+              {isLoadingExpense ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="h-32 text-center text-muted-foreground font-medium"
+                  >
+                    Sedang memuat data...
+                  </TableCell>
+                </TableRow>
+              ) : filteredCategories.length > 0 ? (
                 filteredCategories.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="font-semibold">{row.name}</TableCell>
@@ -343,6 +358,16 @@ const ExpenseCategoryPage = () => {
             </TableBody>
           </Table>
         </CardContent>
+
+        {/* Table Footer / Pagination */}
+        <TablePagination
+          currentPage={page}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalEntries={totalEntries}
+          onPageChange={(p) => setPage(p)}
+          onPageSizeChange={(size) => setPageSize(size)}
+        />
       </Card>
 
       {/* Create / Edit Dialog */}
@@ -453,7 +478,7 @@ const ExpenseCategoryPage = () => {
                 >
                   <ComboboxTrigger className="font-semibold w-full h-11 border rounded-xl px-3 border-border/50 text-sm bg-background text-left flex items-center justify-between">
                     <span>
-                      {MOCK_PRODUCT_CATEGORIES.find((pc) => pc.id === formProductCategoryId)
+                      {productCategories.find((pc) => pc.id === formProductCategoryId)
                         ?.name || "-- Pilih Kategori Produk --"}
                     </span>
                   </ComboboxTrigger>
@@ -464,7 +489,7 @@ const ExpenseCategoryPage = () => {
                     <ComboboxInput placeholder="Cari kategori produk..." />
                     <ComboboxEmpty>Kategori produk tidak ditemukan.</ComboboxEmpty>
                     <ComboboxList className="max-h-60 overflow-y-auto p-1">
-                      {MOCK_PRODUCT_CATEGORIES.map((pc) => (
+                      {productCategories.map((pc) => (
                         <ComboboxItem key={pc.id} value={pc.id} className="text-sm rounded-lg">
                           {pc.name}
                         </ComboboxItem>
@@ -492,8 +517,13 @@ const ExpenseCategoryPage = () => {
             <Button
               className="h-10 px-4 rounded-xl font-bold bg-primary hover:bg-primary/95 text-white active:scale-95 transition-all"
               type="submit"
+              disabled={isCreating || isUpdating}
             >
-              {selectedCategory ? "Perbarui" : "Simpan"}
+              {isCreating || isUpdating
+                ? "Menyimpan..."
+                : selectedCategory
+                ? "Perbarui"
+                : "Simpan"}
             </Button>
           </div>
         </form>
@@ -534,9 +564,10 @@ const ExpenseCategoryPage = () => {
           <Button
             className="h-10 px-4 rounded-xl font-bold bg-rose-600 hover:bg-rose-500 active:scale-95 transition-all text-white flex items-center gap-2"
             onClick={handleDeleteConfirm}
+            disabled={isDeleting}
           >
             <LuTrash2 className="h-4 w-4" />
-            Hapus Kategori
+            {isDeleting ? "Menghapus..." : "Hapus Kategori"}
           </Button>
         </div>
       </Dialog>

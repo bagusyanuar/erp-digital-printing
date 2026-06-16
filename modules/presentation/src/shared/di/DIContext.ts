@@ -6,6 +6,7 @@ import type {
 } from "@core/auth/applications/usecases/auth.usecase";
 import type { GetResellers, CreateReseller, GetResellerById, UpdateReseller, DeleteReseller } from "@core/reseller/applications/usecases/reseller.usecase";
 import type { GetCategories, CreateCategory, GetCategoryById, UpdateCategory, DeleteCategory } from "@core/category/applications/usecases/category.usecase";
+import type { GetExpenseCategories, CreateExpenseCategory, GetExpenseCategoryById, UpdateExpenseCategory, DeleteExpenseCategory } from "@core/expense-category/applications/usecases/expense-category.usecase";
 import type { GetAttributes, CreateAttribute, GetAttributeById, UpdateAttribute, DeleteAttribute } from "@core/attribute/applications/usecases/attribute.usecase";
 import type { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteProduct } from "@core/product/applications/usecases/product.usecase";
 import type { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder } from "@core/order/applications/usecases/order.usecase";
@@ -38,6 +39,14 @@ export interface GetCategoryUseCases {
   getCategoryByIdUseCase: GetCategoryById;
   updateCategoryUseCase: UpdateCategory;
   deleteCategoryUseCase: DeleteCategory;
+}
+
+export interface ExpenseCategoryUseCases {
+  getExpenseCategoriesUseCase: GetExpenseCategories;
+  createExpenseCategoryUseCase: CreateExpenseCategory;
+  getExpenseCategoryByIdUseCase: GetExpenseCategoryById;
+  updateExpenseCategoryUseCase: UpdateExpenseCategory;
+  deleteExpenseCategoryUseCase: DeleteExpenseCategory;
 }
 
 export interface GetAttributeUseCases {
@@ -90,6 +99,7 @@ export interface AppContainer {
   auth: AuthUseCases;
   reseller: GetResellerUseCases;
   category: GetCategoryUseCases;
+  expenseCategory: ExpenseCategoryUseCases;
   attribute: GetAttributeUseCases;
   product: GetProductUseCases;
   order: OrderUseCases;

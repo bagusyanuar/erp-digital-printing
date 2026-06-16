@@ -12,6 +12,7 @@ import { orderRoutes } from "./modules/order.routes";
 import { invoiceRoutes } from "./modules/invoice.routes";
 import { cashFlowRoutes } from "./modules/cash-flow.routes";
 import { expenseCategoryRoutes } from "./modules/expense-category.routes";
+import { expenseRoutes } from "./modules/expense.routes";
 import { PageLoader } from "../components/PageLoader";
 import MainLayout from "../layouts/MainLayout";
 
@@ -47,6 +48,7 @@ const router = createBrowserRouter([
               ...dashboardRoutes,
               ...categoryRoutes,
               ...expenseCategoryRoutes,
+              ...expenseRoutes,
               ...productRoutes,
               ...attributeRoutes,
               ...customerRoutes,
