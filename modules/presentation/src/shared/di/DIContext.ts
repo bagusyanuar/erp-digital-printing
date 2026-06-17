@@ -13,6 +13,7 @@ import type { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, GetO
 import type { GetCashFlowReport, GetCashFlowSummary, CreateCashFlowAdjustment, GetCashAccounts } from "@core/cash-flow/applications/usecases/cash-flow.usecase";
 import type { GetUsers } from "@core/user/applications/usecases/user.usecase";
 import type { GetSuppliers, CreateSupplier, GetSupplierById, UpdateSupplier, DeleteSupplier } from "@core/supplier/applications/usecases/supplier.usecase";
+import type { CreateExpense, GetExpenses } from "@core/expense/applications/usecases/expense.usecase";
 
 
 
@@ -100,6 +101,11 @@ export interface UserUseCases {
   getUsersUseCase: GetUsers;
 }
 
+export interface ExpenseUseCases {
+  createExpenseUseCase: CreateExpense;
+  getExpensesUseCase: GetExpenses;
+}
+
 
 // ──────────────────────────────────────────────
 // App Container
@@ -117,6 +123,7 @@ export interface AppContainer {
   cashFlow: CashFlowUseCases;
   user: UserUseCases;
   supplier: SupplierUseCases;
+  expense: ExpenseUseCases;
 }
 
 // ──────────────────────────────────────────────

@@ -1,4 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useExpenseDI } from "../hooks/useExpenseDI";
+import type { CreateExpenseInput } from "@core/expense/applications/inputs/expense.input";
+import type { ExpenseModel, ExpenseItemModel, ExpensePaymentModel } from "@core/expense/domains/models/expense.model";
+import { toast } from "@erp-digital-printing/ui/Toast";
+import { useExpenseCategoryDI } from "../../expense-category/hooks/useExpenseCategoryDI";
+import { expenseCategoryKeys } from "@infrastructure/expense-category/keys";
+import { useSupplierDI } from "../../supplier/hooks/useSupplierDI";
+import { supplierKeys } from "@infrastructure/supplier/keys";
 import { Dialog } from "@erp-digital-printing/ui/Dialog";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
@@ -38,7 +47,7 @@ import {
   LuBox,
   LuReceipt,
 } from "@erp-digital-printing/ui/icons";
-import { ExpenseBill, ExpenseBillItem } from "../types/expenseTypes";
+import type { ExpenseBill, ExpenseBillItem } from "../types/expenseTypes";
 
 interface ExpenseFormDialogProps {
   isOpen: boolean;
@@ -48,23 +57,7 @@ interface ExpenseFormDialogProps {
   onSave?: (bill: ExpenseBill) => void;
 }
 
-// Category lists with automatic cost type classification
-const CATEGORIES = [
-  { id: "cat-1", name: "ART PAPER", type: "PRODUCTION" as const },
-  { id: "cat-2", name: "TINTA OUTDOOR", type: "PRODUCTION" as const },
-  { id: "cat-3", name: "TONER / SPAREPART", type: "PRODUCTION" as const },
-  { id: "cat-4", name: "STIKER", type: "PRODUCTION" as const },
-  { id: "cat-5", name: "Gaji Karyawan", type: "OPERATIONAL" as const },
-  { id: "cat-6", name: "Biaya Listrik (PLN)", type: "OPERATIONAL" as const },
-  { id: "cat-7", name: "Biaya Internet (Indihome)", type: "OPERATIONAL" as const },
-  { id: "cat-8", name: "Air Minum Galon", type: "OPERATIONAL" as const },
-];
 
-const SUPPLIERS = [
-  { id: "sup-1", name: "PT Surya Paperindo" },
-  { id: "sup-2", name: "Indo Printing Supply" },
-  { id: "sup-3", name: "Jaya Sparepartindo" },
-];
 
 let idCounter = 0;
 const generateUniqueId = (prefix: string): string => {
@@ -86,25 +79,64 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
   readOnly = false,
   onSave,
 }) => {
+  // Interface for saving/restoring metadata from localStorage
+  interface ExpenseFormMetadata {
+    date: string;
+    billNumber: string;
+    isManualSupplier: boolean;
+    supplierId: string;
+    supplierName: string;
+    description: string;
+    discount: string;
+    initialPayment: string;
+    paymentAccount: string;
+    isSplitPayment: boolean;
+    splitAmountCash: string;
+    splitAmountTransfer: string;
+  }
+
+  // Load draft metadata if creating new
+  const draftMetadata = useMemo<Partial<ExpenseFormMetadata>>(() => {
+    if (bill) return {};
+    const saved = localStorage.getItem("expense_active_metadata");
+    try {
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  }, [bill]);
+
   // Main form states (Right panel metadata)
-  const [date, setDate] = useState(() => (bill ? bill.date : toLocalDateString(new Date())) || "");
-  const [billNumber, setBillNumber] = useState(() => (bill ? bill.billNumber : `BILL-${Math.floor(1000 + Math.random() * 9000)}`));
+  const [date, setDate] = useState(
+    () => bill ? bill.date : (draftMetadata.date || toLocalDateString(new Date())) || "",
+  );
+  const [billNumber, setBillNumber] = useState(() =>
+    bill ? bill.billNumber : (draftMetadata.billNumber || `BILL-${Math.floor(1000 + Math.random() * 9000)}`),
+  );
   const [isManualSupplier, setIsManualSupplier] = useState(() => {
-    if (!bill) return false;
-    const isRegistered = SUPPLIERS.some((s) => s.id === bill.supplierId);
-    return !isRegistered;
+    if (bill) return !bill.supplierId;
+    return draftMetadata.isManualSupplier ?? false;
   });
-  const [supplierId, setSupplierId] = useState(() => bill?.supplierId || "");
-  const [supplierName, setSupplierName] = useState(() => bill?.supplierName || "");
-  const [description, setDescription] = useState(() => bill?.description || "");
-  const [discount, setDiscount] = useState(() => (bill?.discount || 0).toString());
+  const [supplierId, setSupplierId] = useState(() => bill?.supplierId || draftMetadata.supplierId || "");
+  const [supplierName, setSupplierName] = useState(
+    () => bill?.supplierName || draftMetadata.supplierName || "",
+  );
+  const [description, setDescription] = useState(() => bill?.description || draftMetadata.description || "");
+  const [discount, setDiscount] = useState(() =>
+    bill ? (bill.discount || 0).toString() : (draftMetadata.discount || "0"),
+  );
 
   // Added Items List
   const [items, setItems] = useState<ExpenseBillItem[]>(() => {
     if (bill) {
       return bill.items;
     }
-    return [];
+    const saved = localStorage.getItem("expense_active_items");
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   // States for the Left Panel (Active Item Spec Form)
@@ -114,32 +146,151 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   // Down Payment / Initial Payment states (only active when creating new)
-  const [initialPayment, setInitialPayment] = useState("0");
-  const [paymentAccount, setPaymentAccount] = useState("Cash");
-  const [isSplitPayment, setIsSplitPayment] = useState(false);
-  const [splitAmountCash, setSplitAmountCash] = useState("0");
-  const [splitAmountTransfer, setSplitAmountTransfer] = useState("0");
+  const [initialPayment, setInitialPayment] = useState(() => bill ? "0" : (draftMetadata.initialPayment || "0"));
+  const [paymentAccount, setPaymentAccount] = useState(() => bill ? "Cash" : (draftMetadata.paymentAccount || "Cash"));
+  const [isSplitPayment, setIsSplitPayment] = useState(() => bill ? false : (draftMetadata.isSplitPayment ?? false));
+  const [splitAmountCash, setSplitAmountCash] = useState(() => bill ? "0" : (draftMetadata.splitAmountCash || "0"));
+  const [splitAmountTransfer, setSplitAmountTransfer] = useState(() => bill ? "0" : (draftMetadata.splitAmountTransfer || "0"));
+
+  const { createExpenseUseCase } = useExpenseDI();
+
+  const createExpenseMutation = useMutation<ExpenseModel, Error, CreateExpenseInput>({
+    mutationFn: (input: CreateExpenseInput) => createExpenseUseCase.execute(input),
+    onSuccess: (data) => {
+      // Map back to local ExpenseBill schema for UI state update
+      const newBill: ExpenseBill = {
+        id: data.id,
+        billNumber: data.invoiceNumber,
+        date: (data.createdAt ? data.createdAt.split("T")[0] : null) ?? toLocalDateString(new Date()),
+        supplierName: data.vendorName,
+        discount: data.discount,
+        ...(data.supplierId ? { supplierId: data.supplierId } : {}),
+        totalAmount: data.totalAmount,
+        paidAmount: data.paidAmount,
+        paymentStatus: data.paymentStatus,
+        description: data.description,
+        items: data.items.map((item: ExpenseItemModel) => ({
+          id: item.id,
+          description: item.description,
+          amount: item.amount,
+          categoryId: item.expenseCategoryId,
+          categoryName: categories.find((c) => c.id === item.expenseCategoryId)?.name || "Kategori",
+          expenseType: categories.find((c) => c.id === item.expenseCategoryId)?.type || "OPERATIONAL",
+        })),
+        payments: data.payments.map((p: ExpensePaymentModel) => ({
+          id: p.id,
+          expenseBillId: data.id,
+          paymentDate: (p.paymentDate ? p.paymentDate.split("T")[0] : null) ?? toLocalDateString(new Date()),
+          paymentAccount: p.paymentMethod === "cash" ? "Cash" : "Transfer",
+          amountPaid: p.amount,
+        })),
+      };
+
+      if (!bill) {
+        localStorage.removeItem("expense_active_items");
+        localStorage.removeItem("expense_active_metadata");
+      }
+
+      toast.success("Berhasil", "Nota pengeluaran berhasil disimpan ke backend!");
+
+      if (onSave) {
+        onSave(newBill);
+      }
+      onClose();
+    },
+    onError: (error: Error) => {
+      toast.error("Gagal Menyimpan", error.message || "Terjadi kesalahan saat menyimpan ke backend");
+    },
+  });
+
+  // Sync items to localStorage
+  useEffect(() => {
+    if (!bill) {
+      localStorage.setItem("expense_active_items", JSON.stringify(items));
+    }
+  }, [items, bill]);
+
+  // Sync metadata to localStorage
+  useEffect(() => {
+    if (!bill) {
+      const metadata: ExpenseFormMetadata = {
+        date,
+        billNumber,
+        isManualSupplier,
+        supplierId,
+        supplierName,
+        description,
+        discount,
+        initialPayment,
+        paymentAccount,
+        isSplitPayment,
+        splitAmountCash,
+        splitAmountTransfer,
+      };
+      localStorage.setItem("expense_active_metadata", JSON.stringify(metadata));
+    }
+  }, [
+    bill,
+    date,
+    billNumber,
+    isManualSupplier,
+    supplierId,
+    supplierName,
+    description,
+    discount,
+    initialPayment,
+    paymentAccount,
+    isSplitPayment,
+    splitAmountCash,
+    splitAmountTransfer,
+  ]);
+
+  // Fetch real categories from API
+  const { getExpenseCategoriesUseCase } = useExpenseCategoryDI();
+  const { data: categoriesData } = useQuery({
+    queryKey: expenseCategoryKeys.list({ limit: 100 }),
+    queryFn: () => getExpenseCategoriesUseCase.execute({ limit: 100 }),
+    staleTime: 60_000,
+  });
+
+  const categories = categoriesData?.data
+    ? categoriesData.data.map((c) => ({
+        id: c.id,
+        name: c.name,
+        type: c.group,
+      }))
+    : [];
+
+  // Fetch real suppliers from API
+  const { getSuppliersUseCase } = useSupplierDI();
+  const { data: suppliersData } = useQuery({
+    queryKey: supplierKeys.list({ limit: 100 }),
+    queryFn: () => getSuppliersUseCase.execute({ limit: 100 }),
+    staleTime: 60_000,
+  });
+
+  const suppliers = suppliersData?.data ?? [];
 
   // Reset/sync Left Panel item form when entering edit mode or clearing
-  const activeCategory = CATEGORIES.find((c) => c.id === itemCategoryId);
+  const activeCategory = categories.find((c) => c.id === itemCategoryId);
 
   // Handler: Insert/Update Item from Left Panel into Right Panel Items List
   const handleAddOrUpdateItem = () => {
     if (!itemCategoryId) {
-      alert("Silakan pilih kategori biaya terlebih dahulu.");
+      toast.error("Validasi Gagal", "Silakan pilih kategori biaya terlebih dahulu.");
       return;
     }
     if (!itemDescription.trim()) {
-      alert("Silakan masukkan keterangan/deskripsi item.");
+      toast.error("Validasi Gagal", "Silakan masukkan keterangan/deskripsi item.");
       return;
     }
     const amountVal = parseFloat(itemAmount) || 0;
     if (amountVal <= 0) {
-      alert("Nominal biaya harus lebih besar dari Rp 0.");
+      toast.error("Validasi Gagal", "Nominal biaya harus lebih besar dari Rp 0.");
       return;
     }
 
-    const categoryObj = CATEGORIES.find((c) => c.id === itemCategoryId);
+    const categoryObj = categories.find((c) => c.id === itemCategoryId);
     if (!categoryObj) return;
 
     if (editingItemId) {
@@ -155,8 +306,8 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                 categoryName: categoryObj.name,
                 expenseType: categoryObj.type,
               }
-            : item
-        )
+            : item,
+        ),
       );
       setEditingItemId(null);
     } else {
@@ -201,25 +352,32 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
   const totalAmount = Math.max(0, subtotal - discountAmount);
 
   const livePaidAmount = isSplitPayment
-    ? (parseFloat(splitAmountCash) || 0) + (parseFloat(splitAmountTransfer) || 0)
-    : (parseFloat(initialPayment) || 0);
+    ? (parseFloat(splitAmountCash) || 0) +
+      (parseFloat(splitAmountTransfer) || 0)
+    : parseFloat(initialPayment) || 0;
 
   const liveRemaining = Math.max(0, totalAmount - livePaidAmount);
   const isLunas = liveRemaining <= 0;
-  const liveChange = livePaidAmount > totalAmount ? livePaidAmount - totalAmount : 0;
+  const liveChange =
+    livePaidAmount > totalAmount ? livePaidAmount - totalAmount : 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!onSave) return;
 
     if (items.length === 0) {
-      alert("Daftar item belanja masih kosong. Silakan tambah item di panel kiri terlebih dahulu.");
+      toast.error(
+        "Validasi Gagal",
+        "Daftar item belanja masih kosong. Silakan tambah item di panel kiri terlebih dahulu.",
+      );
       return;
     }
 
     const finalSupplierName = isManualSupplier
       ? supplierName
-      : SUPPLIERS.find((s) => s.id === supplierId)?.name || supplierName || "Cash Pihak Ketiga";
+      : suppliers.find((s) => s.id === supplierId)?.name ||
+        supplierName ||
+        "Cash Pihak Ketiga";
 
     let finalPaidAmount = 0;
     let finalPayments: ExpenseBill["payments"] = [];
@@ -295,8 +453,8 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
       finalPaidAmount >= totalAmount
         ? "PAID"
         : finalPaidAmount > 0
-        ? "PARTIAL_PAID"
-        : "UNPAID";
+          ? "PARTIAL_PAID"
+          : "UNPAID";
 
     const newBill: ExpenseBill = {
       id: bill?.id || generateUniqueId("bill"),
@@ -313,8 +471,31 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
       payments: finalPayments,
     };
 
-    onSave(newBill);
-    onClose();
+    // Clear draft states (handled in onSuccess for create, done locally here if editing)
+    if (bill) {
+      onSave(newBill);
+      onClose();
+    } else {
+      // Mapping to CreateExpenseInput
+      const payload: CreateExpenseInput = {
+        invoiceNumber: billNumber,
+        supplierId: isManualSupplier ? null : (supplierId || null),
+        vendorName: finalSupplierName,
+        description: description.trim(),
+        discount: discountAmount,
+        items: items.map((item) => ({
+          expenseCategoryId: item.categoryId,
+          description: item.description,
+          amount: item.amount,
+        })),
+        payments: finalPayments.map((p) => ({
+          amount: p.amountPaid,
+          paymentMethod: p.paymentAccount.toLowerCase() as "cash" | "transfer",
+        })),
+      };
+
+      createExpenseMutation.mutate(payload);
+    }
   };
 
   const formatCurrency = (val: number) => {
@@ -331,12 +512,16 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
         {/* Header */}
         <CardHeader className="px-6 py-5 border-b border-border/50 flex flex-row items-start justify-between gap-4 bg-card">
           <div className="space-y-0.5">
-            <CardTitle variant="h4" weight="semibold" className="text-lg tracking-tight">
+            <CardTitle
+              variant="h4"
+              weight="semibold"
+              className="text-lg tracking-tight"
+            >
               {readOnly
                 ? "Detail Rincian Nota Pengeluaran"
                 : bill
-                ? "Ubah Nota Pengeluaran"
-                : "Catat Nota Pengeluaran Baru"}
+                  ? "Ubah Nota Pengeluaran"
+                  : "Catat Nota Pengeluaran Baru"}
             </CardTitle>
             <CardDescription className="text-sm">
               {readOnly
@@ -358,7 +543,6 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
         {/* Content Body */}
         <CardContent className="p-0 max-h-[75vh] overflow-y-auto">
           <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch divide-y lg:divide-y-0 lg:divide-x divide-border/50">
-            
             {/* LEFT PANEL: Dynamic Item Spec Builder (Col span: 5/12) */}
             <div className="lg:col-span-5 p-6 space-y-5 bg-muted/5">
               <div className="flex items-center gap-2 pb-2 border-b border-border/30">
@@ -366,7 +550,9 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                   <LuBox size={16} />
                 </div>
                 <h3 className="text-sm font-bold text-foreground">
-                  {editingItemId ? "Ubah Item Belanja" : "Spesifikasi Item Belanja"}
+                  {editingItemId
+                    ? "Ubah Item Belanja"
+                    : "Spesifikasi Item Belanja"}
                 </h3>
               </div>
 
@@ -378,16 +564,23 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                 <div className="space-y-4">
                   {/* Category Selection */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-foreground/85">Kategori Biaya *</Label>
-                    <Combobox value={itemCategoryId} onValueChange={setItemCategoryId}>
+                    <Label className="text-xs font-bold text-foreground/85">
+                      Kategori Biaya *
+                    </Label>
+                    <Combobox
+                      value={itemCategoryId}
+                      onValueChange={setItemCategoryId}
+                    >
                       <ComboboxTrigger className="font-semibold w-full h-10 border rounded-xl px-3 border-border/50 text-xs bg-background text-left flex items-center justify-between">
-                        <span>{activeCategory?.name || "-- Pilih Kategori Biaya --"}</span>
+                        <span>
+                          {activeCategory?.name || "-- Pilih Kategori Biaya --"}
+                        </span>
                       </ComboboxTrigger>
                       <ComboboxContent className="w-[var(--radix-popover-trigger-width)] bg-background border border-border/85 shadow-lg rounded-xl overflow-hidden z-[10002]">
                         <ComboboxInput placeholder="Cari kategori..." />
                         <ComboboxEmpty>Kategori tidak ditemukan.</ComboboxEmpty>
                         <ComboboxList className="max-h-48 overflow-y-auto p-1">
-                          {CATEGORIES.map((c) => (
+                          {categories.map((c) => (
                             <ComboboxItem key={c.id} value={c.id}>
                               {c.name}
                             </ComboboxItem>
@@ -400,7 +593,9 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                   {/* Auto-fill Cost Type Badge */}
                   {activeCategory && (
                     <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/5 border border-primary/10 text-xs animate-in slide-in-from-top-2 duration-300">
-                      <span className="font-semibold text-muted-foreground">Tipe Klasifikasi:</span>
+                      <span className="font-semibold text-muted-foreground">
+                        Tipe Klasifikasi:
+                      </span>
                       <span
                         className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border ${
                           activeCategory.type === "PRODUCTION"
@@ -408,14 +603,18 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                             : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                         }`}
                       >
-                        {activeCategory.type === "PRODUCTION" ? "Produksi" : "Operasional"}
+                        {activeCategory.type === "PRODUCTION"
+                          ? "Produksi"
+                          : "Operasional"}
                       </span>
                     </div>
                   )}
 
                   {/* Item Description */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-foreground/85">Keterangan / Deskripsi Item *</Label>
+                    <Label className="text-xs font-bold text-foreground/85">
+                      Keterangan / Deskripsi Item *
+                    </Label>
                     <TextField
                       placeholder="Contoh: Pembelian Art Paper 150gr 20 rim"
                       className="h-10 border-border/50 focus:bg-background transition-all text-xs"
@@ -426,7 +625,9 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
 
                   {/* Nominal Amount */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-foreground/85">Nominal Biaya (Rp) *</Label>
+                    <Label className="text-xs font-bold text-foreground/85">
+                      Nominal Biaya (Rp) *
+                    </Label>
                     <TextField
                       type="number"
                       placeholder="Contoh: 12500000"
@@ -441,7 +642,9 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                     <Button
                       type="button"
                       className={`flex-1 h-10 rounded-xl font-bold text-white shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all text-xs ${
-                        editingItemId ? "bg-emerald-600 hover:bg-emerald-500" : "bg-primary hover:bg-primary/95"
+                        editingItemId
+                          ? "bg-emerald-600 hover:bg-emerald-500"
+                          : "bg-primary hover:bg-primary/95"
                       }`}
                       onClick={handleAddOrUpdateItem}
                     >
@@ -457,7 +660,7 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                         </>
                       )}
                     </Button>
-                    
+
                     {editingItemId && (
                       <Button
                         type="button"
@@ -480,21 +683,26 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
 
             {/* RIGHT PANEL: Bill Metadata, Item Table List, and Payments Summary (Col span: 7/12) */}
             <div className="lg:col-span-7 p-6 space-y-6 flex flex-col justify-between">
-              
               {/* Bill Metadata Grid */}
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-muted/20 p-4 rounded-2xl border border-border/40">
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-muted-foreground uppercase">Tanggal Nota</Label>
+                    <Label className="text-[11px] font-bold text-muted-foreground uppercase">
+                      Tanggal Nota
+                    </Label>
                     <DatePicker
                       disabled={readOnly}
                       className="h-9 border-border/40 text-xs bg-background"
                       value={date ? new Date(`${date}T00:00:00`) : undefined}
-                      onChange={(newVal) => setDate(newVal ? toLocalDateString(newVal) : "")}
+                      onChange={(newVal) =>
+                        setDate(newVal ? toLocalDateString(newVal) : "")
+                      }
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-muted-foreground uppercase">No. Nota / Faktur</Label>
+                    <Label className="text-[11px] font-bold text-muted-foreground uppercase">
+                      No. Nota / Faktur
+                    </Label>
                     <TextField
                       disabled={readOnly}
                       placeholder="Contoh: INV/2026/06/001"
@@ -505,7 +713,9 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-muted-foreground uppercase">Supplier / Vendor</Label>
+                    <Label className="text-[11px] font-bold text-muted-foreground uppercase">
+                      Supplier / Vendor
+                    </Label>
                     {readOnly ? (
                       <div className="h-9 flex items-center font-bold text-xs">
                         {supplierName}
@@ -559,17 +769,23 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                         required
                       />
                     ) : (
-                      <Combobox value={supplierId} onValueChange={setSupplierId}>
+                      <Combobox
+                        value={supplierId}
+                        onValueChange={setSupplierId}
+                      >
                         <ComboboxTrigger className="font-semibold w-full h-9 border rounded-xl px-3 border-border/50 text-xs bg-background text-left flex items-center justify-between">
                           <span>
-                            {SUPPLIERS.find((s) => s.id === supplierId)?.name || "-- Pilih Supplier Terdaftar --"}
+                            {suppliers.find((s) => s.id === supplierId)?.name ||
+                              "-- Pilih Supplier Terdaftar --"}
                           </span>
                         </ComboboxTrigger>
                         <ComboboxContent className="w-[var(--radix-popover-trigger-width)] bg-background border border-border/80 shadow-lg rounded-xl overflow-hidden z-[10000]">
                           <ComboboxInput placeholder="Cari Supplier..." />
-                          <ComboboxEmpty>Supplier tidak ditemukan.</ComboboxEmpty>
+                          <ComboboxEmpty>
+                            Supplier tidak ditemukan.
+                          </ComboboxEmpty>
                           <ComboboxList className="max-h-48 overflow-y-auto p-1">
-                            {SUPPLIERS.map((sup) => (
+                            {suppliers.map((sup) => (
                               <ComboboxItem key={sup.id} value={sup.id}>
                                 {sup.name}
                               </ComboboxItem>
@@ -584,34 +800,55 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                 {/* Items Table List */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center pb-1 border-b border-border/40">
-                    <span className="text-xs font-bold text-foreground">Daftar Item Belanja ({items.length})</span>
+                    <span className="text-xs font-bold text-foreground">
+                      Daftar Item Belanja ({items.length})
+                    </span>
                   </div>
-                  
+
                   <div className="border border-border/40 rounded-xl overflow-hidden max-h-[220px] overflow-y-auto bg-card">
                     <Table>
                       <TableHeader className="bg-muted/30 sticky top-0 z-10">
                         <TableRow>
-                          <TableHead className="font-bold text-[10px] py-2">Item</TableHead>
-                          <TableHead className="font-bold text-[10px] py-2">Kategori</TableHead>
-                          <TableHead className="font-bold text-[10px] py-2 text-right">Nominal</TableHead>
-                          {!readOnly && <TableHead className="text-right font-bold text-[10px] py-2 pr-4">Aksi</TableHead>}
+                          <TableHead className="font-bold text-[10px] py-2">
+                            Item
+                          </TableHead>
+                          <TableHead className="font-bold text-[10px] py-2">
+                            Kategori
+                          </TableHead>
+                          <TableHead className="font-bold text-[10px] py-2 text-right">
+                            Nominal
+                          </TableHead>
+                          {!readOnly && (
+                            <TableHead className="text-right font-bold text-[10px] py-2 pr-4">
+                              Aksi
+                            </TableHead>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {items.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={readOnly ? 3 : 4} className="text-center py-6 text-xs text-muted-foreground font-medium">
-                              Belum ada item belanja. Gunakan panel kiri untuk menambahkan.
+                            <TableCell
+                              colSpan={readOnly ? 3 : 4}
+                              className="text-center py-6 text-xs text-muted-foreground font-medium"
+                            >
+                              Belum ada item belanja. Gunakan panel kiri untuk
+                              menambahkan.
                             </TableCell>
                           </TableRow>
                         ) : (
                           items.map((item, idx) => (
-                            <TableRow key={item.id} className="hover:bg-muted/10 transition-colors">
+                            <TableRow
+                              key={item.id}
+                              className="hover:bg-muted/10 transition-colors"
+                            >
                               <TableCell className="py-2 text-xs font-semibold">
                                 <div className="flex flex-col">
                                   <span>{item.description}</span>
                                   <span className="text-[9px] text-muted-foreground font-normal tracking-wide uppercase">
-                                    {item.expenseType === "PRODUCTION" ? "Produksi" : "Operasional"}
+                                    {item.expenseType === "PRODUCTION"
+                                      ? "Produksi"
+                                      : "Operasional"}
                                   </span>
                                 </div>
                               </TableCell>
@@ -654,7 +891,9 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                 {/* General notes & Downpayment splits */}
                 <div className="space-y-4 pt-2 border-t border-border/30">
                   <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-foreground/80">Catatan Nota</Label>
+                    <Label className="text-xs font-semibold text-foreground/80">
+                      Catatan Nota
+                    </Label>
                     <TextField
                       placeholder="Catatan umum nota..."
                       disabled={readOnly}
@@ -669,16 +908,22 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                     <div className="space-y-3 text-xs">
                       <div className="flex justify-between items-center text-muted-foreground">
                         <span>Subtotal Belanja:</span>
-                        <span className="font-semibold text-foreground">{formatCurrency(subtotal)}</span>
+                        <span className="font-semibold text-foreground">
+                          {formatCurrency(subtotal)}
+                        </span>
                       </div>
 
                       <div className="flex justify-between items-center text-muted-foreground gap-4">
                         <span>Potongan / Diskon:</span>
                         {readOnly ? (
-                          <span className="font-semibold text-foreground">{formatCurrency(discountAmount)}</span>
+                          <span className="font-semibold text-foreground">
+                            {formatCurrency(discountAmount)}
+                          </span>
                         ) : (
                           <div className="flex items-center gap-1.5 w-32 justify-end">
-                            <span className="text-[10px] text-muted-foreground">Rp</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              Rp
+                            </span>
                             <TextField
                               type="number"
                               disabled={readOnly}
@@ -695,7 +940,9 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                         <div className="border-t border-border/20 pt-2 space-y-3">
                           {/* Toggle Split Payment */}
                           <div className="flex items-center justify-between py-1">
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase">Split Pembayaran</span>
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                              Split Pembayaran
+                            </span>
                             <button
                               type="button"
                               onClick={() => {
@@ -705,12 +952,16 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                                 setSplitAmountTransfer("0");
                               }}
                               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                isSplitPayment ? "bg-primary" : "bg-muted-foreground/30"
+                                isSplitPayment
+                                  ? "bg-primary"
+                                  : "bg-muted-foreground/30"
                               }`}
                             >
                               <span
                                 className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                  isSplitPayment ? "translate-x-4" : "translate-x-0"
+                                  isSplitPayment
+                                    ? "translate-x-4"
+                                    : "translate-x-0"
                                 }`}
                               />
                             </button>
@@ -719,51 +970,74 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                           {!isSplitPayment ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <div className="space-y-1">
-                                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Kas Uang Muka</Label>
-                                <Combobox value={paymentAccount} onValueChange={setPaymentAccount}>
+                                <Label className="text-[10px] font-bold text-muted-foreground uppercase">
+                                  Kas Uang Muka
+                                </Label>
+                                <Combobox
+                                  value={paymentAccount}
+                                  onValueChange={setPaymentAccount}
+                                >
                                   <ComboboxTrigger className="font-medium w-full h-8 border rounded-lg px-2 border-border/40 text-[11px] bg-background text-left flex items-center justify-between">
-                                    <span>{paymentAccount || "-- Pilih Kas --"}</span>
+                                    <span>
+                                      {paymentAccount || "-- Pilih Kas --"}
+                                    </span>
                                   </ComboboxTrigger>
                                   <ComboboxContent className="w-[180px] bg-background border border-border/80 shadow-lg rounded-xl overflow-hidden z-[10000]">
                                     <ComboboxList className="p-1">
-                                      <ComboboxItem value="Cash">Kas Tunai (Cash)</ComboboxItem>
-                                      <ComboboxItem value="Transfer">Bank Transfer</ComboboxItem>
+                                      <ComboboxItem value="Cash">
+                                        Kas Tunai (Cash)
+                                      </ComboboxItem>
+                                      <ComboboxItem value="Transfer">
+                                        Bank Transfer
+                                      </ComboboxItem>
                                     </ComboboxList>
                                   </ComboboxContent>
                                 </Combobox>
                               </div>
-                              
+
                               <div className="space-y-1">
-                                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Nominal Bayar Awal (Rp)</Label>
+                                <Label className="text-[10px] font-bold text-muted-foreground uppercase">
+                                  Nominal Bayar Awal (Rp)
+                                </Label>
                                 <TextField
                                   type="number"
                                   placeholder="0"
                                   className="border-border/40 text-right font-bold text-xs h-8"
                                   value={initialPayment}
-                                  onChange={(e) => setInitialPayment(e.target.value)}
+                                  onChange={(e) =>
+                                    setInitialPayment(e.target.value)
+                                  }
                                 />
                               </div>
                             </div>
                           ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in duration-300">
                               <div className="space-y-1">
-                                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Nominal Tunai (Cash)</Label>
+                                <Label className="text-[10px] font-bold text-muted-foreground uppercase">
+                                  Nominal Tunai (Cash)
+                                </Label>
                                 <TextField
                                   type="number"
                                   placeholder="0"
                                   className="border-border/40 text-right font-bold text-xs h-8"
                                   value={splitAmountCash}
-                                  onChange={(e) => setSplitAmountCash(e.target.value)}
+                                  onChange={(e) =>
+                                    setSplitAmountCash(e.target.value)
+                                  }
                                 />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Nominal Transfer (Bank)</Label>
+                                <Label className="text-[10px] font-bold text-muted-foreground uppercase">
+                                  Nominal Transfer (Bank)
+                                </Label>
                                 <TextField
                                   type="number"
                                   placeholder="0"
                                   className="border-border/40 text-right font-bold text-xs h-8"
                                   value={splitAmountTransfer}
-                                  onChange={(e) => setSplitAmountTransfer(e.target.value)}
+                                  onChange={(e) =>
+                                    setSplitAmountTransfer(e.target.value)
+                                  }
                                 />
                               </div>
                             </div>
@@ -772,25 +1046,37 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                           {/* Live balance indicator */}
                           <div className="border-t border-border/20 pt-2.5 space-y-2.5">
                             <div className="flex justify-between items-center text-xs">
-                              <span className="text-muted-foreground font-medium">Total Dibayar:</span>
-                              <span className="font-semibold text-foreground">{formatCurrency(livePaidAmount)}</span>
+                              <span className="text-muted-foreground font-medium">
+                                Total Dibayar:
+                              </span>
+                              <span className="font-semibold text-foreground">
+                                {formatCurrency(livePaidAmount)}
+                              </span>
                             </div>
                             <div className="flex justify-between items-center text-xs">
-                              <span className="text-muted-foreground font-medium">Sisa Pembayaran:</span>
-                              <span className={`font-bold ${isLunas ? "text-emerald-600" : "text-amber-600 font-extrabold"}`}>
+                              <span className="text-muted-foreground font-medium">
+                                Sisa Pembayaran:
+                              </span>
+                              <span
+                                className={`font-bold ${isLunas ? "text-emerald-600" : "text-amber-600 font-extrabold"}`}
+                              >
                                 {formatCurrency(liveRemaining)}
                               </span>
                             </div>
                             {liveChange > 0 && (
                               <div className="flex justify-between items-center text-xs animate-in slide-in-from-top-1 duration-200">
-                                <span className="text-emerald-600 font-medium">Uang Kembalian:</span>
+                                <span className="text-emerald-600 font-medium">
+                                  Uang Kembalian:
+                                </span>
                                 <span className="font-extrabold text-emerald-600">
                                   {formatCurrency(liveChange)}
                                 </span>
                               </div>
                             )}
                             <div className="flex items-center justify-between pt-1 border-t border-border/10">
-                              <span className="text-[10px] font-bold text-muted-foreground uppercase">Status Transaksi:</span>
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                                Status Transaksi:
+                              </span>
                               {isLunas ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
                                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -820,13 +1106,21 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                               {formatCurrency(
                                 bill?.paymentStatus === "VOID"
                                   ? 0
-                                  : Math.max(0, (bill?.totalAmount || 0) - (bill?.paidAmount || 0))
+                                  : Math.max(
+                                      0,
+                                      (bill?.totalAmount || 0) -
+                                        (bill?.paidAmount || 0),
+                                    ),
                               )}
                             </span>
                           </div>
                           <div className="flex items-center justify-between pt-1 border-t border-border/10">
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase">Status Transaksi:</span>
-                            {((bill?.totalAmount || 0) - (bill?.paidAmount || 0) <= 0) ? (
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                              Status Transaksi:
+                            </span>
+                            {(bill?.totalAmount || 0) -
+                              (bill?.paidAmount || 0) <=
+                            0 ? (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                 Lunas
@@ -843,16 +1137,17 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                     </div>
 
                     <div className="flex justify-between items-center bg-primary/10 border border-primary/20 p-2.5 rounded-xl mt-3">
-                      <span className="text-[10px] font-bold text-primary uppercase">Total Belanja</span>
-                      <span className="text-base font-black text-foreground">{formatCurrency(totalAmount)}</span>
+                      <span className="text-[10px] font-bold text-primary uppercase">
+                        Total Belanja
+                      </span>
+                      <span className="text-base font-black text-foreground">
+                        {formatCurrency(totalAmount)}
+                      </span>
                     </div>
                   </div>
                 </div>
-
               </div>
-
             </div>
-
           </div>
         </CardContent>
 
@@ -870,8 +1165,9 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
             <Button
               className="h-10 px-4 rounded-xl font-bold bg-primary hover:bg-primary/95 text-white active:scale-95 transition-all text-xs"
               type="submit"
+              disabled={createExpenseMutation.isPending}
             >
-              {bill ? "Perbarui Nota" : "Simpan Nota"}
+              {createExpenseMutation.isPending ? "Menyimpan..." : (bill ? "Perbarui Nota" : "Simpan Nota")}
             </Button>
           )}
         </div>

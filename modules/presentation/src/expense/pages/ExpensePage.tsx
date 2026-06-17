@@ -4,6 +4,11 @@ import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
 import { LuPlus, LuSearch, LuCreditCard } from "@erp-digital-printing/ui/icons";
 import { DateRangePicker, type DateRange } from "@erp-digital-printing/ui/DateRangePicker";
+import { toast } from "@erp-digital-printing/ui/Toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useExpenseDI } from "../hooks/useExpenseDI";
+import { expenseKeys } from "@infrastructure/expense/keys";
+import { useDebounce } from "../../shared/hooks/useDebounce";
 
 import { ExpenseSummaryCards } from "../components/ExpenseSummaryCards";
 import { ExpenseBillTable } from "../components/ExpenseBillTable";
@@ -18,11 +23,14 @@ const generateUniqueId = (prefix: string): string => {
 };
 
 const ExpensePage = () => {
-  // Bills List State
-  const [bills, setBills] = useState<ExpenseBill[]>(MOCK_EXPENSE_BILLS);
+  const queryClient = useQueryClient();
+  const { getExpensesUseCase } = useExpenseDI();
 
-  // Filters State
+  // Filters & Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 750);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(new Date().getFullYear(), new Date().getMonth(), 1), // Start of month
     to: new Date(),
@@ -33,6 +41,60 @@ const ExpensePage = () => {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState<ExpenseBill | null>(null);
   const [isReadOnly, setIsReadOnly] = useState(false);
+
+  const toLocalDateString = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const queryParams = useMemo(() => ({
+    page,
+    limit: pageSize,
+    search: debouncedSearch.trim() || undefined,
+    startDate: dateRange?.from ? toLocalDateString(dateRange.from) : undefined,
+    endDate: dateRange?.to ? toLocalDateString(dateRange.to) : undefined,
+  }), [page, pageSize, debouncedSearch, dateRange]);
+
+  const { data: response, isLoading } = useQuery({
+    queryKey: expenseKeys.list(queryParams),
+    queryFn: () => getExpensesUseCase.execute(queryParams),
+    staleTime: 30_000,
+  });
+
+  const bills = useMemo((): ExpenseBill[] => {
+    if (!response?.data) return [];
+    return response.data.map((item) => ({
+      id: item.id,
+      billNumber: item.invoiceNumber,
+      date: (item.createdAt ? item.createdAt.split("T")[0] : null) ?? toLocalDateString(new Date()),
+      supplierName: item.vendorName,
+      discount: item.discount,
+      ...(item.supplierId ? { supplierId: item.supplierId } : {}),
+      totalAmount: item.totalAmount,
+      paidAmount: item.paidAmount,
+      paymentStatus: item.paymentStatus,
+      description: item.description,
+      items: item.items.map((it) => ({
+        id: it.id,
+        description: it.description,
+        amount: it.amount,
+        categoryId: it.expenseCategoryId,
+        categoryName: "Kategori",
+        expenseType: "OPERATIONAL",
+      })),
+      payments: item.payments.map((p) => ({
+        id: p.id,
+        expenseBillId: item.id,
+        paymentDate: (p.paymentDate ? p.paymentDate.split("T")[0] : null) ?? toLocalDateString(new Date()),
+        paymentAccount: p.paymentMethod === "cash" ? "Cash" : "Transfer",
+        amountPaid: p.amount,
+      })),
+    }));
+  }, [response]);
+
+  const totalEntries = response?.total ?? 0;
 
   // Calculate Summary Metrics
   const summaryMetrics = useMemo(() => {
@@ -70,94 +132,19 @@ const ExpensePage = () => {
   };
 
   const handleCancelBill = (bill: ExpenseBill) => {
-    const confirm = window.confirm(
-      `Apakah Anda yakin ingin membatalkan nota pengeluaran ${bill.billNumber} dari ${
-        bill.supplierName
-      } senilai Rp ${bill.totalAmount.toLocaleString("id-ID")}? Status akan diubah menjadi Dibatalkan.`
-    );
-    if (confirm) {
-      setBills((prev) =>
-        prev.map((b) => (b.id === bill.id ? { ...b, paymentStatus: "VOID" } : b))
-      );
-      alert(`Nota ${bill.billNumber} telah berhasil dibatalkan.`);
-    }
+    toast.info("Info", `Fitur pembatalan untuk nota ${bill.billNumber} sedang disiapkan.`);
   };
 
-  const handleSaveBill = (savedBill: ExpenseBill) => {
-    setBills((prev) => {
-      const exists = prev.some((b) => b.id === savedBill.id);
-      if (exists) {
-        return prev.map((b) => (b.id === savedBill.id ? savedBill : b));
-      } else {
-        return [savedBill, ...prev];
-      }
-    });
+  const handleSaveBill = () => {
+    queryClient.invalidateQueries({ queryKey: expenseKeys.all });
   };
 
-  const handleSavePayment = (
-    billId: string,
-    paymentDetails: { paymentDate: string; paymentAccount: string; amountPaid: number }
-  ) => {
-    setBills((prev) =>
-      prev.map((b) => {
-        if (b.id === billId) {
-          const newPaidAmount = b.paidAmount + paymentDetails.amountPaid;
-          const newStatus: ExpenseBill["paymentStatus"] =
-            newPaidAmount >= b.totalAmount ? "PAID" : "PARTIAL_PAID";
-
-          const newPaymentRecord = {
-            id: generateUniqueId("pay"),
-            expenseBillId: billId,
-            ...paymentDetails,
-          };
-
-          return {
-            ...b,
-            paidAmount: newPaidAmount,
-            paymentStatus: newStatus,
-            payments: [...b.payments, newPaymentRecord],
-          };
-        }
-        return b;
-      })
-    );
-    alert("Pembayaran cicilan berhasil dicatat.");
+  const handleSavePayment = () => {
+    queryClient.invalidateQueries({ queryKey: expenseKeys.all });
+    toast.success("Berhasil", "Pembayaran cicilan berhasil dicatat.");
   };
 
-  // Filter bills list based on search and date range
-  const filteredBills = useMemo(() => {
-    return bills.filter((bill) => {
-      // 1. Search Query filter (matches bill number, supplier name or item description)
-      const matchesSearch =
-        bill.billNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        bill.supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        bill.items.some((item) =>
-          item.description.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-
-      // 2. Date filter
-      if (!matchesSearch) return false;
-
-      if (dateRange?.from || dateRange?.to) {
-        const billDate = new Date(bill.date);
-        billDate.setHours(0, 0, 0, 0);
-
-        if (dateRange.from) {
-          const fromDate = new Date(dateRange.from);
-          fromDate.setHours(0, 0, 0, 0);
-          if (billDate < fromDate) return false;
-        }
-
-        if (dateRange.to) {
-          const toDate = new Date(dateRange.to);
-          toDate.setHours(23, 59, 59, 999);
-          if (billDate > toDate) return false;
-        }
-      }
-
-      return true;
-    });
-  }, [bills, searchQuery, dateRange]);
+  // Removed client-side filteredBills logic since filtering is now handled server-side via React Query
 
   return (
     <div className="p-6 space-y-8 font-sans bg-background min-h-screen animate-in fade-in duration-700">
@@ -205,7 +192,10 @@ const ExpensePage = () => {
               placeholder="Cari nomor nota, supplier, atau deskripsi item..."
               prefixIcon={LuSearch}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="w-full h-10"
             />
           </div>
@@ -224,7 +214,13 @@ const ExpensePage = () => {
         {/* Dynamic Table Content */}
         <CardContent className="p-0">
           <ExpenseBillTable
-            bills={filteredBills}
+            bills={bills}
+            page={page}
+            pageSize={pageSize}
+            totalEntries={totalEntries}
+            isLoading={isLoading}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
             onDetail={handleOpenDetail}
             onPay={handleOpenPay}
             onCancel={handleCancelBill}
