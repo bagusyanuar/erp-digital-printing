@@ -236,7 +236,18 @@ export const NavSidebar = () => {
         </SidebarGroup>
 
         <SidebarGroup label="Laporan">
-          <SidebarItem icon={<LuFileText />} label="Laporan Penjualan" />
+          <NavLink to="/report/selling" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuFileText />}
+                label="Laporan Penjualan"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
           <SidebarItem icon={<LuCreditCard />} label="Laporan Laba Rugi" />
         </SidebarGroup>
       </SidebarContent>

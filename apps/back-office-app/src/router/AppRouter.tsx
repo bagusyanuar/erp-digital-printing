@@ -14,6 +14,7 @@ import { invoiceRoutes } from "./modules/invoice.routes";
 import { cashFlowRoutes } from "./modules/cash-flow.routes";
 import { expenseCategoryRoutes } from "./modules/expense-category.routes";
 import { expenseRoutes } from "./modules/expense.routes";
+import { reportRoutes } from "./modules/report.routes";
 import { PageLoader } from "../components/PageLoader";
 import MainLayout from "../layouts/MainLayout";
 
@@ -59,6 +60,7 @@ const router = createBrowserRouter([
               ...orderRoutes,
               ...invoiceRoutes,
               ...cashFlowRoutes,
+              ...reportRoutes,
             ],
           },
         ],
