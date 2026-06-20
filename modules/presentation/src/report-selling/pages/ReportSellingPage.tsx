@@ -3,7 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
-import { DateRangePicker, type DateRange } from "@erp-digital-printing/ui/DateRangePicker";
+import {
+  DateRangePicker,
+  type DateRange,
+} from "@erp-digital-printing/ui/DateRangePicker";
 import {
   Table,
   TableHeader,
@@ -212,38 +215,28 @@ const MOCK_REVENUE_TRENDS_YEARLY = [
   { name: "2026", omset: 850000000, cashflow: 810000000 },
 ];
 
-const MOCK_CATEGORIES = [
-  { name: "Banner/Spanduk", value: 12650000, count: 2 },
-  { name: "Brochure/Flyer", value: 4500000, count: 1 },
-  { name: "Sticker Vinyl", value: 2050000, count: 2 },
-  { name: "Merchandise", value: 320000, count: 1 },
-  { name: "Dokumen A4", value: 75000, count: 1 },
-  { name: "Kartu Nama", value: 45000, count: 1 },
+const COLORS = [
+  "var(--color-primary, #3b82f6)",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
 ];
-
-const MOCK_PAYMENTS = [
-  { name: "Transfer Bank", value: 14500000 },
-  { name: "QRIS", value: 1425000 },
-  { name: "Cash", value: 970000 },
-];
-
-const MOCK_CUSTOMER_TYPES = [
-  { name: "Corporate", value: 17000000 },
-  { name: "Reseller", value: 2050000 },
-  { name: "Retail / Walk-in", value: 590000 },
-];
-
-const COLORS = ["var(--color-primary, #3b82f6)", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
 const ReportSellingPage = () => {
-  const { getOrdersUseCase } = useOrderDI();
+  const { getOrdersUseCase, getOrderReportWidgetsUseCase } = useOrderDI();
   const [activeTab, setActiveTab] = useState<"data" | "analytic">("data");
-  const [trendPeriod, setTrendPeriod] = useState<"weekly" | "monthly" | "yearly">("monthly");
+  const [trendPeriod, setTrendPeriod] = useState<
+    "weekly" | "monthly" | "yearly"
+  >("monthly");
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 750);
   const [customerTypeFilter, setCustomerTypeFilter] = useState<string>("all");
   const [operatorFilter, setOperatorFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "PAID" | "UNPAID">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "PAID" | "UNPAID">(
+    "all",
+  );
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const [page, setPage] = useState(1);
@@ -289,8 +282,37 @@ const ReportSellingPage = () => {
     }
   }, [dateRange]);
 
+  // Fetch report widgets data from backend API
+  const { data: widgetsData, isLoading: isLoadingWidgets } = useQuery({
+    queryKey: orderKeys.reportWidgets({
+      status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
+      payment_status: mappedPaymentStatus,
+      search: debouncedSearch || undefined,
+      start_date: startDateStr,
+      end_date: endDateStr,
+      customer_type:
+        customerTypeFilter !== "all" ? customerTypeFilter : undefined,
+    }),
+    queryFn: () =>
+      getOrderReportWidgetsUseCase.execute({
+        status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
+        payment_status: mappedPaymentStatus,
+        search: debouncedSearch || undefined,
+        start_date: startDateStr,
+        end_date: endDateStr,
+        customer_type:
+          customerTypeFilter !== "all" ? customerTypeFilter : undefined,
+      }),
+    staleTime: 5000,
+    gcTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
   // Fetch real order data from backend API with dynamic pagination
-  const { data: response, isLoading } = useQuery<PaginatedResponse<OrderModel>, AppError>({
+  const { data: response, isLoading } = useQuery<
+    PaginatedResponse<OrderModel>,
+    AppError
+  >({
     queryKey: orderKeys.list({
       page,
       limit: pageSize,
@@ -318,10 +340,17 @@ const ReportSellingPage = () => {
   // Map response order list to SalesTransaction
   const sales = useMemo((): SalesTransaction[] => {
     return (response?.data ?? []).map((order): SalesTransaction => {
-      const quantity = (order.order_items ?? []).reduce((sum, item) => sum + item.quantity, 0);
-      const productCategory = order.order_items?.[0]?.product_name || "Lain-lain";
+      const quantity = (order.order_items ?? []).reduce(
+        (sum, item) => sum + item.quantity,
+        0,
+      );
+      const productCategory =
+        order.order_items?.[0]?.product_name || "Lain-lain";
       const paymentMethod = order.order_payments?.[0]?.payment_method || "CASH";
-      const operatorName = order.order_payments?.[0]?.cashier_name || order.designer_name || "Sistem";
+      const operatorName =
+        order.order_payments?.[0]?.cashier_name ||
+        order.designer_name ||
+        "Sistem";
 
       let status: "PAID" | "DOWN_PAYMENT" | "UNPAID" = "UNPAID";
       if (order.payment_status === "PAID") {
@@ -367,7 +396,8 @@ const ReportSellingPage = () => {
   const filteredSales = useMemo(() => {
     return sales.filter((sale) => {
       const matchesType =
-        customerTypeFilter === "all" || sale.customerType === customerTypeFilter;
+        customerTypeFilter === "all" ||
+        sale.customerType === customerTypeFilter;
 
       const matchesOperator =
         operatorFilter === "all" || sale.operatorName === operatorFilter;
@@ -376,8 +406,19 @@ const ReportSellingPage = () => {
     });
   }, [sales, customerTypeFilter, operatorFilter]);
 
-  // Statistics calculation based on filtered data
+  // Statistics calculation based on backend reports API (with client fallback)
   const stats = useMemo(() => {
+    if (widgetsData) {
+      return {
+        totalRevenue: widgetsData.omset_penjualan,
+        totalProductsSold: widgetsData.total_produk_terjual,
+        paidCount: widgetsData.status_nota.lunas,
+        unpaidCount: widgetsData.status_nota.belum_lunas,
+        transactionCount: widgetsData.volume_transaksi,
+      };
+    }
+
+    // Client-side fallback calculation when widgetsData is loading
     let totalRevenue = 0;
     let totalProductsSold = 0;
     let paidCount = 0;
@@ -400,11 +441,14 @@ const ReportSellingPage = () => {
       unpaidCount,
       transactionCount: filteredSales.length,
     };
-  }, [filteredSales]);
+  }, [widgetsData, filteredSales]);
 
   // Dynamic calculations for charts based on filtered sales
   const categoriesData = useMemo(() => {
-    const map = new Map<string, { name: string; value: number; count: number }>();
+    const map = new Map<
+      string,
+      { name: string; value: number; count: number }
+    >();
     filteredSales.forEach((sale) => {
       const cat = sale.productCategory;
       const current = map.get(cat) || { name: cat, value: 0, count: 0 };
@@ -429,7 +473,12 @@ const ReportSellingPage = () => {
   const customerTypesData = useMemo(() => {
     const map = new Map<string, { name: string; value: number }>();
     filteredSales.forEach((sale) => {
-      const type = sale.customerType === "reseller" ? "Biro / Reseller" : sale.customerType === "corporate" ? "Corporate" : "Retail / Walk-in";
+      const type =
+        sale.customerType === "reseller"
+          ? "Biro / Reseller"
+          : sale.customerType === "corporate"
+            ? "Corporate"
+            : "Retail / Walk-in";
       const current = map.get(type) || { name: type, value: 0 };
       current.value += sale.totalAmount;
       map.set(type, current);
@@ -462,7 +511,8 @@ const ReportSellingPage = () => {
             Laporan Penjualan
           </h1>
           <p className="text-muted-foreground font-medium">
-            Pantau performa penjualan cetakan, statistik omset, dan analisis produk terlaris secara real-time.
+            Pantau performa penjualan cetakan, statistik omset, dan analisis
+            produk terlaris secara real-time.
           </p>
         </div>
 
@@ -511,7 +561,9 @@ const ReportSellingPage = () => {
             <Card className="rounded-2xl border-border/50 shadow-sm relative overflow-hidden bg-card/40 backdrop-blur-md">
               <CardContent className="p-6 flex items-center justify-between">
                 <div className="space-y-1">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Omset Penjualan</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Omset Penjualan
+                  </span>
                   <div className="text-lg sm:text-xl font-black tracking-tight text-foreground">
                     {formatCurrency(stats.totalRevenue)}
                   </div>
@@ -525,7 +577,9 @@ const ReportSellingPage = () => {
             <Card className="rounded-2xl border-border/50 shadow-sm relative overflow-hidden bg-card/40 backdrop-blur-md">
               <CardContent className="p-6 flex items-center justify-between">
                 <div className="space-y-1">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Volume Transaksi</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Volume Transaksi
+                  </span>
                   <div className="text-lg sm:text-xl font-black tracking-tight text-foreground">
                     {stats.transactionCount} Nota
                   </div>
@@ -539,7 +593,9 @@ const ReportSellingPage = () => {
             <Card className="rounded-2xl border-border/50 shadow-sm relative overflow-hidden bg-card/40 backdrop-blur-md">
               <CardContent className="p-6 flex items-center justify-between">
                 <div className="space-y-1">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Produk Terjual</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Total Produk Terjual
+                  </span>
                   <div className="text-lg sm:text-xl font-black tracking-tight text-foreground">
                     {stats.totalProductsSold.toLocaleString("id-ID")} Items
                   </div>
@@ -553,7 +609,9 @@ const ReportSellingPage = () => {
             <Card className="rounded-2xl border-border/50 shadow-sm relative overflow-hidden bg-card/40 backdrop-blur-md">
               <CardContent className="p-6 flex items-center justify-between">
                 <div className="space-y-1">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status Nota</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Status Nota
+                  </span>
                   <div className="text-[11px] font-bold text-foreground mt-1 flex flex-col gap-0.5">
                     <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -615,18 +673,17 @@ const ReportSellingPage = () => {
                     {isFilterOpen && (
                       <>
                         {/* Overlay to close popover when clicked outside */}
-                        <div 
-                          className="fixed inset-0 z-40" 
-                          onClick={() => setIsFilterOpen(false)} 
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setIsFilterOpen(false)}
                         />
-                        
+
                         <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
                           className="absolute right-0 mt-2 w-72 bg-card border border-border/80 shadow-2xl rounded-2xl p-4 space-y-4 z-50 animate-in fade-in duration-200"
                         >
-
                           {/* Admin */}
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
@@ -656,7 +713,9 @@ const ReportSellingPage = () => {
                             <select
                               value={statusFilter}
                               onChange={(e) => {
-                                setStatusFilter(e.target.value as "all" | "PAID" | "UNPAID");
+                                setStatusFilter(
+                                  e.target.value as "all" | "PAID" | "UNPAID",
+                                );
                                 setPage(1);
                               }}
                               className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
@@ -722,24 +781,43 @@ const ReportSellingPage = () => {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table>
-                   <TableHeader>
+                  <TableHeader>
                     <TableRow className="bg-muted/40 border-b border-border/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      <TableHead className="py-4 px-5 w-[180px] min-w-[160px]">Tanggal</TableHead>
+                      <TableHead className="py-4 px-5 w-[180px] min-w-[160px]">
+                        Tanggal
+                      </TableHead>
                       <TableHead className="py-4 px-5">No. Nota</TableHead>
                       <TableHead className="py-4 px-5">Pelanggan</TableHead>
-                      <TableHead className="py-4 px-5 text-right">Total Tagihan</TableHead>
-                      <TableHead className="py-4 px-5 text-right">Telah Dibayar</TableHead>
-                      <TableHead className="py-4 px-5 text-right">Sisa Piutang</TableHead>
-                      <TableHead className="py-4 px-5 text-center">Metode</TableHead>
-                      <TableHead className="py-4 px-5 text-center">Status</TableHead>
-                      <TableHead className="py-4 px-5 w-[150px] min-w-[120px]">Admin</TableHead>
-                      <TableHead className="py-4 px-5 text-center">Aksi</TableHead>
+                      <TableHead className="py-4 px-5 text-right">
+                        Total Tagihan
+                      </TableHead>
+                      <TableHead className="py-4 px-5 text-right">
+                        Telah Dibayar
+                      </TableHead>
+                      <TableHead className="py-4 px-5 text-right">
+                        Sisa Piutang
+                      </TableHead>
+                      <TableHead className="py-4 px-5 text-center">
+                        Metode
+                      </TableHead>
+                      <TableHead className="py-4 px-5 text-center">
+                        Status
+                      </TableHead>
+                      <TableHead className="py-4 px-5 w-[150px] min-w-[120px]">
+                        Admin
+                      </TableHead>
+                      <TableHead className="py-4 px-5 text-center">
+                        Aksi
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody className="divide-y divide-border/20 text-xs font-semibold text-foreground">
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                        <TableCell
+                          colSpan={10}
+                          className="text-center py-12 text-muted-foreground"
+                        >
                           <div className="flex flex-col items-center justify-center space-y-2">
                             <div className="relative w-8 h-8">
                               <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
@@ -751,33 +829,56 @@ const ReportSellingPage = () => {
                       </TableRow>
                     ) : filteredSales.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                        <TableCell
+                          colSpan={10}
+                          className="text-center py-12 text-muted-foreground"
+                        >
                           Tidak ada transaksi penjualan ditemukan.
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredSales.map((sale) => {
                         const outstanding = sale.totalAmount - sale.paidAmount;
-                        
-                        let badgeColor = "bg-muted text-muted-foreground border-border/50";
-                        const normalizedMethod = sale.paymentMethod.toLowerCase();
+
+                        let badgeColor =
+                          "bg-muted text-muted-foreground border-border/50";
+                        const normalizedMethod =
+                          sale.paymentMethod.toLowerCase();
                         if (normalizedMethod === "qris") {
-                          badgeColor = "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
-                        } else if (normalizedMethod === "cash" || normalizedMethod === "tunai") {
-                          badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
-                        } else if (normalizedMethod === "transfer" || normalizedMethod === "transfer bank") {
-                          badgeColor = "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
+                          badgeColor =
+                            "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
+                        } else if (
+                          normalizedMethod === "cash" ||
+                          normalizedMethod === "tunai"
+                        ) {
+                          badgeColor =
+                            "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
+                        } else if (
+                          normalizedMethod === "transfer" ||
+                          normalizedMethod === "transfer bank"
+                        ) {
+                          badgeColor =
+                            "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
                         }
 
                         // Generate a mock job number from the invoice number
-                        const mockJobNumber = sale.invoiceNumber.replace("INV", "JOB");
+                        const mockJobNumber = sale.invoiceNumber.replace(
+                          "INV",
+                          "JOB",
+                        );
 
                         return (
-                          <TableRow key={sale.id} className="hover:bg-muted/20 transition-colors duration-150">
+                          <TableRow
+                            key={sale.id}
+                            className="hover:bg-muted/20 transition-colors duration-150"
+                          >
                             {/* Date */}
                             <TableCell className="py-4 px-5 w-[180px] min-w-[160px]">
                               <div className="text-foreground flex items-center gap-2 font-bold whitespace-nowrap">
-                                <LuCalendar size={14} className="text-muted-foreground/80 shrink-0" />
+                                <LuCalendar
+                                  size={14}
+                                  className="text-muted-foreground/80 shrink-0"
+                                />
                                 <span>{sale.createdAt}</span>
                               </div>
                             </TableCell>
@@ -798,14 +899,20 @@ const ReportSellingPage = () => {
                                 <LuUser size={13} className="text-primary/70" />
                                 {sale.customerName}
                               </div>
-                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${
-                                sale.customerType === "corporate"
-                                  ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-900/50"
-                                  : sale.customerType === "reseller"
-                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
-                                  : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
-                              }`}>
-                                {sale.customerType === "reseller" ? "Biro / Reseller" : sale.customerType === "corporate" ? "Corporate" : "Retail"}
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${
+                                  sale.customerType === "corporate"
+                                    ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-900/50"
+                                    : sale.customerType === "reseller"
+                                      ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
+                                      : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
+                                }`}
+                              >
+                                {sale.customerType === "reseller"
+                                  ? "Biro / Reseller"
+                                  : sale.customerType === "corporate"
+                                    ? "Corporate"
+                                    : "Retail"}
                               </span>
                             </TableCell>
 
@@ -834,19 +941,25 @@ const ReportSellingPage = () => {
 
                             {/* Payment Method */}
                             <TableCell className="py-4 px-5 text-center">
-                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${badgeColor}`}>
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${badgeColor}`}
+                              >
                                 {sale.paymentMethod}
                               </span>
                             </TableCell>
 
                             {/* Status */}
                             <TableCell className="py-4 px-5 text-center">
-                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none ${
-                                sale.status === "PAID"
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50"
-                                  : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50"
-                              }`}>
-                                {sale.status === "PAID" ? "Lunas" : "Belum Lunas"}
+                              <span
+                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none ${
+                                  sale.status === "PAID"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50"
+                                    : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50"
+                                }`}
+                              >
+                                {sale.status === "PAID"
+                                  ? "Lunas"
+                                  : "Belum Lunas"}
                               </span>
                             </TableCell>
 
@@ -871,17 +984,26 @@ const ReportSellingPage = () => {
                                     </Button>
                                   </DropdownTrigger>
                                   <DropdownContent align="end" className="w-44">
-                                    <DropdownItem onClick={() => {
-                                      const rawOrder = (response?.data ?? []).find((o) => o.id === sale.id) || null;
-                                      setSelectedSale(rawOrder);
-                                      setIsDetailOpen(true);
-                                    }}>
+                                    <DropdownItem
+                                      onClick={() => {
+                                        const rawOrder =
+                                          (response?.data ?? []).find(
+                                            (o) => o.id === sale.id,
+                                          ) || null;
+                                        setSelectedSale(rawOrder);
+                                        setIsDetailOpen(true);
+                                      }}
+                                    >
                                       <LuReceipt className="h-3.5 w-3.5 text-primary" />
                                       <span>Detail Rincian</span>
                                     </DropdownItem>
-                                    <DropdownItem onClick={() => {
-                                      alert(`Mencetak ulang struk untuk nota ${sale.invoiceNumber}...`);
-                                    }}>
+                                    <DropdownItem
+                                      onClick={() => {
+                                        alert(
+                                          `Mencetak ulang struk untuk nota ${sale.invoiceNumber}...`,
+                                        );
+                                      }}
+                                    >
                                       <LuPrinter className="h-3.5 w-3.5 text-muted-foreground" />
                                       <span>Cetak Ulang Struk</span>
                                     </DropdownItem>
@@ -921,7 +1043,8 @@ const ReportSellingPage = () => {
                   Tren Pendapatan & Kas Masuk
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Perbandingan total nilai pesanan (omset) dengan uang kas yang diterima.
+                  Perbandingan total nilai pesanan (omset) dengan uang kas yang
+                  diterima.
                 </p>
               </div>
 
@@ -937,7 +1060,11 @@ const ReportSellingPage = () => {
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {period === "weekly" ? "Mingguan" : period === "monthly" ? "Bulanan" : "Tahunan"}
+                    {period === "weekly"
+                      ? "Mingguan"
+                      : period === "monthly"
+                        ? "Bulanan"
+                        : "Tahunan"}
                   </button>
                 ))}
               </div>
@@ -948,16 +1075,33 @@ const ReportSellingPage = () => {
                 <AreaChart data={trendData}>
                   <defs>
                     <linearGradient id="colorOmset" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-primary, #3b82f6)" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="var(--color-primary, #3b82f6)" stopOpacity={0} />
+                      <stop
+                        offset="5%"
+                        stopColor="var(--color-primary, #3b82f6)"
+                        stopOpacity={0.2}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="var(--color-primary, #3b82f6)"
+                        stopOpacity={0}
+                      />
                     </linearGradient>
                     <linearGradient id="colorCash" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(156,163,175,0.15)" />
-                  <XAxis dataKey="name" stroke="currentColor" className="text-muted-foreground text-xs" tickLine={false} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="rgba(156,163,175,0.15)"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    stroke="currentColor"
+                    className="text-muted-foreground text-xs"
+                    tickLine={false}
+                  />
                   <YAxis
                     stroke="currentColor"
                     className="text-muted-foreground text-xs"
@@ -972,7 +1116,10 @@ const ReportSellingPage = () => {
                       borderRadius: "12px",
                       boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                     }}
-                    formatter={(value: unknown) => [formatCurrency(Number(value || 0)), ""]}
+                    formatter={(value: unknown) => [
+                      formatCurrency(Number(value || 0)),
+                      "",
+                    ]}
                   />
                   <Legend verticalAlign="top" height={36} iconType="circle" />
                   <Area
@@ -1014,7 +1161,11 @@ const ReportSellingPage = () => {
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={categoriesData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(156,163,175,0.15)" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      horizontal={false}
+                      stroke="rgba(156,163,175,0.15)"
+                    />
                     <XAxis
                       type="number"
                       stroke="currentColor"
@@ -1036,11 +1187,17 @@ const ReportSellingPage = () => {
                         borderColor: "rgba(156,163,175,0.2)",
                         borderRadius: "12px",
                       }}
-                      formatter={(value: unknown) => [formatCurrency(Number(value || 0)), "Omset"]}
+                      formatter={(value: unknown) => [
+                        formatCurrency(Number(value || 0)),
+                        "Omset",
+                      ]}
                     />
                     <Bar dataKey="value" radius={[0, 8, 8, 0]}>
                       {categoriesData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
                       ))}
                     </Bar>
                   </BarChart>
@@ -1053,8 +1210,12 @@ const ReportSellingPage = () => {
               {/* Payment Methods Chart */}
               <Card className="rounded-3xl border-border/50 shadow-sm p-6 bg-card flex flex-col justify-between">
                 <div className="space-y-1 mb-4">
-                  <h3 className="text-md font-bold text-foreground">Metode Pembayaran</h3>
-                  <p className="text-xs text-muted-foreground">Rasio penggunaan channel pembayaran.</p>
+                  <h3 className="text-md font-bold text-foreground">
+                    Metode Pembayaran
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Rasio penggunaan channel pembayaran.
+                  </p>
                 </div>
                 <div className="h-[200px] w-full relative flex items-center justify-center">
                   <ResponsiveContainer width="100%" height="100%">
@@ -1069,21 +1230,41 @@ const ReportSellingPage = () => {
                         dataKey="value"
                       >
                         {paymentsData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[index % COLORS.length]}
+                          />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: unknown) => [formatCurrency(Number(value || 0)), "Total"]} />
+                      <Tooltip
+                        formatter={(value: unknown) => [
+                          formatCurrency(Number(value || 0)),
+                          "Total",
+                        ]}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="space-y-2 mt-4">
                   {paymentsData.map((item, idx) => (
-                    <div key={item.name} className="flex items-center justify-between text-xs font-semibold">
+                    <div
+                      key={item.name}
+                      className="flex items-center justify-between text-xs font-semibold"
+                    >
                       <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                        <span className="text-muted-foreground">{item.name}</span>
+                        <span
+                          className="w-3 h-3 rounded-full"
+                          style={{
+                            backgroundColor: COLORS[idx % COLORS.length],
+                          }}
+                        />
+                        <span className="text-muted-foreground">
+                          {item.name}
+                        </span>
                       </div>
-                      <span className="text-foreground">{formatCurrency(item.value)}</span>
+                      <span className="text-foreground">
+                        {formatCurrency(item.value)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1092,8 +1273,12 @@ const ReportSellingPage = () => {
               {/* Customer Types Chart */}
               <Card className="rounded-3xl border-border/50 shadow-sm p-6 bg-card flex flex-col justify-between">
                 <div className="space-y-1 mb-4">
-                  <h3 className="text-md font-bold text-foreground">Segmentasi Pelanggan</h3>
-                  <p className="text-xs text-muted-foreground">Proporsi kontribusi omset dari tiap tipe pelanggan.</p>
+                  <h3 className="text-md font-bold text-foreground">
+                    Segmentasi Pelanggan
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Proporsi kontribusi omset dari tiap tipe pelanggan.
+                  </p>
                 </div>
                 <div className="h-[200px] w-full relative flex items-center justify-center">
                   <ResponsiveContainer width="100%" height="100%">
@@ -1108,21 +1293,41 @@ const ReportSellingPage = () => {
                         dataKey="value"
                       >
                         {customerTypesData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[(index + 3) % COLORS.length]} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[(index + 3) % COLORS.length]}
+                          />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: unknown) => [formatCurrency(Number(value || 0)), "Total"]} />
+                      <Tooltip
+                        formatter={(value: unknown) => [
+                          formatCurrency(Number(value || 0)),
+                          "Total",
+                        ]}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="space-y-2 mt-4">
                   {customerTypesData.map((item, idx) => (
-                    <div key={item.name} className="flex items-center justify-between text-xs font-semibold">
+                    <div
+                      key={item.name}
+                      className="flex items-center justify-between text-xs font-semibold"
+                    >
                       <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[(idx + 3) % COLORS.length] }} />
-                        <span className="text-muted-foreground">{item.name}</span>
+                        <span
+                          className="w-3 h-3 rounded-full"
+                          style={{
+                            backgroundColor: COLORS[(idx + 3) % COLORS.length],
+                          }}
+                        />
+                        <span className="text-muted-foreground">
+                          {item.name}
+                        </span>
                       </div>
-                      <span className="text-foreground">{formatCurrency(item.value)}</span>
+                      <span className="text-foreground">
+                        {formatCurrency(item.value)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1141,4 +1346,3 @@ const ReportSellingPage = () => {
 };
 
 export default ReportSellingPage;
-

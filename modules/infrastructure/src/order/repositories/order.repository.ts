@@ -1,11 +1,13 @@
 import type { DraftOrderModel, OrderModel, OrderSpkModel, OrderPaymentModel } from "@core/order/domains/models/order.model";
-import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput } from "@core/order/domains/repositories/order.repository";
+import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, OrderReportWidgetsParams, OrderReportWidgetsModel } from "@core/order/domains/repositories/order.repository";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import { safeApiCall } from "@infrastructure/libs/error";
 import type { HttpClient } from "@erp-digital-printing/http";
 import type { DraftOrderRequest } from "../schemas/order.request";
 import type { ApiResponse } from "@infrastructure/libs/api-response";
 import type { OrderResponse, OrderSpkResponse, OrderPaymentResponse } from "../schemas/order.response";
+
+
 
 export class ApiOrderRepository implements OrderRepository {
   constructor(private readonly http: HttpClient) {}
@@ -269,6 +271,47 @@ export class ApiOrderRepository implements OrderRepository {
         })),
       };
       await this.http.put(`/orders/${id}`, payload);
+    });
+  }
+
+  async getOrderReportWidgets(params: OrderReportWidgetsParams): Promise<OrderReportWidgetsModel> {
+    return safeApiCall(async () => {
+      const query: Record<string, string | number> = {};
+      if (params.status) {
+        query.status = params.status;
+      }
+      if (params.payment_status) {
+        query.payment_status = params.payment_status;
+      }
+      if (params.designer_id) {
+        query.designer_id = params.designer_id;
+      }
+      if (params.cashier_id) {
+        query.cashier_id = params.cashier_id;
+      }
+      if (params.search) {
+        query.search = params.search;
+      }
+      if (params.start_date) {
+        query.start_date = params.start_date;
+      }
+      if (params.end_date) {
+        query.end_date = params.end_date;
+      }
+      if (params.customer_type) {
+        query.customer_type = params.customer_type;
+      }
+
+      const response = await this.http.get<ApiResponse<OrderReportWidgetsModel>>(
+        "/orders/reports/widgets",
+        { params: query }
+      );
+
+      if (!response.data) {
+        throw new Error("Gagal memuat data widget laporan.");
+      }
+
+      return response.data;
     });
   }
 }

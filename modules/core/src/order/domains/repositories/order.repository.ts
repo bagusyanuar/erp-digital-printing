@@ -29,6 +29,27 @@ export interface RepayPaymentInput {
   payments: PaymentItemInput[];
 }
 
+export interface OrderReportWidgetsParams {
+  status?: string;
+  payment_status?: string;
+  designer_id?: string;
+  cashier_id?: string;
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  customer_type?: string;
+}
+
+export interface OrderReportWidgetsModel {
+  omset_penjualan: number;
+  volume_transaksi: number;
+  total_produk_terjual: number;
+  status_nota: {
+    lunas: number;
+    belum_lunas: number;
+  };
+}
+
 export interface OrderRepository {
   saveDraft(input: DraftOrderModel): Promise<void>;
   getOrders(params: OrderParams): Promise<PaginatedResponse<OrderModel>>;
@@ -40,5 +61,7 @@ export interface OrderRepository {
   updateOrderStatus(id: string, status: string): Promise<void>;
   getOrderById(id: string): Promise<OrderModel>;
   updateOrder(id: string, input: DraftOrderModel): Promise<void>;
+  getOrderReportWidgets(params: OrderReportWidgetsParams): Promise<OrderReportWidgetsModel>;
 }
+
 

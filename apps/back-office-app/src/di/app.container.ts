@@ -21,7 +21,7 @@ import {
 } from "@infrastructure/expense-category/containers/expense-category.container";
 import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, updateAttributeUseCase, deleteAttributeUseCase } from "@infrastructure/attribute/containers/attribute.container";
 import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase } from "@infrastructure/product/containers/product.container";
-import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase } from "@infrastructure/order/containers/order.container";
+import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase, getOrderReportWidgetsUseCase } from "@infrastructure/order/containers/order.container";
 import { getCashFlowReportUseCase, getCashFlowSummaryUseCase, createCashFlowAdjustmentUseCase, getCashAccountsUseCase } from "@infrastructure/cash-flow/containers/cash-flow.container";
 import { getUsersUseCase } from "@infrastructure/user/containers/user.container";
 
@@ -90,6 +90,7 @@ export function createAppContainer(): AppContainer {
       updateOrderStatusUseCase: updateOrderStatusUseCase(httpClient),
       getOrderByIdUseCase: getOrderByIdUseCase(httpClient),
       updateOrderUseCase: updateOrderUseCase(httpClient),
+      getOrderReportWidgetsUseCase: getOrderReportWidgetsUseCase(httpClient),
     },
     cashFlow: {
       getCashFlowReportUseCase: getCashFlowReportUseCase(httpClient),
