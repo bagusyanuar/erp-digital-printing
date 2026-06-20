@@ -33,6 +33,7 @@ import {
   LuEllipsisVertical,
   LuPrinter,
   LuFilter,
+  LuClock,
 } from "@erp-digital-printing/ui/icons";
 import DetailReportSelling from "../components/DetailReportSelling";
 import {
@@ -50,6 +51,13 @@ import {
   PieChart,
   Pie,
 } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
+import { orderKeys } from "@infrastructure/order/keys";
+import { useDebounce } from "../../shared/hooks/useDebounce";
+import type { AppError } from "@core/shared/errors/domain.error";
+import type { OrderModel } from "@core/order/domains/models/order.model";
+import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 interface SalesTransaction {
   id: string;
@@ -77,7 +85,7 @@ const MOCK_SALES: SalesTransaction[] = [
     paymentMethod: "QRIS",
     status: "PAID",
     productCategory: "Banner/Spanduk",
-    createdAt: "2026-06-12",
+    createdAt: "2026-06-12 10:15:44",
     operatorName: "Andi",
     quantity: 5,
   },
@@ -91,7 +99,7 @@ const MOCK_SALES: SalesTransaction[] = [
     paymentMethod: "Transfer Bank",
     status: "DOWN_PAYMENT",
     productCategory: "Brochure/Flyer",
-    createdAt: "2026-06-13",
+    createdAt: "2026-06-13 11:30:10",
     operatorName: "Siti",
     quantity: 1000,
   },
@@ -105,7 +113,7 @@ const MOCK_SALES: SalesTransaction[] = [
     paymentMethod: "Cash",
     status: "PAID",
     productCategory: "Sticker Vinyl",
-    createdAt: "2026-06-14",
+    createdAt: "2026-06-14 16:45:00",
     operatorName: "Budi",
     quantity: 250,
   },
@@ -119,7 +127,7 @@ const MOCK_SALES: SalesTransaction[] = [
     paymentMethod: "QRIS",
     status: "PAID",
     productCategory: "Dokumen A4",
-    createdAt: "2026-06-15",
+    createdAt: "2026-06-15 09:20:11",
     operatorName: "Andi",
     quantity: 150,
   },
@@ -133,7 +141,7 @@ const MOCK_SALES: SalesTransaction[] = [
     paymentMethod: "Cash",
     status: "UNPAID",
     productCategory: "Merchandise",
-    createdAt: "2026-06-16",
+    createdAt: "2026-06-16 11:00:23",
     operatorName: "Rian",
     quantity: 8,
   },
@@ -147,7 +155,7 @@ const MOCK_SALES: SalesTransaction[] = [
     paymentMethod: "Transfer Bank",
     status: "PAID",
     productCategory: "Banner/Spanduk",
-    createdAt: "2026-06-16",
+    createdAt: "2026-06-16 13:05:52",
     operatorName: "Siti",
     quantity: 40,
   },
@@ -161,7 +169,7 @@ const MOCK_SALES: SalesTransaction[] = [
     paymentMethod: "QRIS",
     status: "DOWN_PAYMENT",
     productCategory: "Sticker Vinyl",
-    createdAt: "2026-06-17",
+    createdAt: "2026-06-17 14:50:33",
     operatorName: "Budi",
     quantity: 350,
   },
@@ -175,7 +183,7 @@ const MOCK_SALES: SalesTransaction[] = [
     paymentMethod: "Cash",
     status: "PAID",
     productCategory: "Kartu Nama",
-    createdAt: "2026-06-18",
+    createdAt: "2026-06-18 10:10:00",
     operatorName: "Rian",
     quantity: 2,
   },
@@ -228,13 +236,14 @@ const MOCK_CUSTOMER_TYPES = [
 const COLORS = ["var(--color-primary, #3b82f6)", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
 const ReportSellingPage = () => {
+  const { getOrdersUseCase } = useOrderDI();
   const [activeTab, setActiveTab] = useState<"data" | "analytic">("data");
   const [trendPeriod, setTrendPeriod] = useState<"weekly" | "monthly" | "yearly">("monthly");
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 750);
   const [customerTypeFilter, setCustomerTypeFilter] = useState<string>("all");
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all");
   const [operatorFilter, setOperatorFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "PAID" | "UNPAID">("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const [page, setPage] = useState(1);
@@ -244,48 +253,134 @@ const ReportSellingPage = () => {
     to: new Date("2026-06-30"),
   });
 
-  const [selectedSale, setSelectedSale] = useState<SalesTransaction | null>(null);
+  const [selectedSale, setSelectedSale] = useState<OrderModel | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (customerTypeFilter !== "all") count++;
-    if (paymentMethodFilter !== "all") count++;
     if (operatorFilter !== "all") count++;
     if (statusFilter !== "all") count++;
     return count;
-  }, [customerTypeFilter, paymentMethodFilter, operatorFilter, statusFilter]);
+  }, [customerTypeFilter, operatorFilter, statusFilter]);
 
-  // Filtering Logic
+  // Map presentation statusFilter to API payment_status query parameter
+  const mappedPaymentStatus = useMemo(() => {
+    if (statusFilter === "PAID") return "PAID";
+    if (statusFilter === "UNPAID") return "PARTIAL_PAID,UNPAID";
+    return undefined; // ALL
+  }, [statusFilter]);
+
+  const startDateStr = useMemo(() => {
+    if (!dateRange?.from) return undefined;
+    try {
+      return dateRange.from.toISOString().split("T")[0];
+    } catch {
+      return undefined;
+    }
+  }, [dateRange]);
+
+  const endDateStr = useMemo(() => {
+    if (!dateRange?.to) return undefined;
+    try {
+      return dateRange.to.toISOString().split("T")[0];
+    } catch {
+      return undefined;
+    }
+  }, [dateRange]);
+
+  // Fetch real order data from backend API with dynamic pagination
+  const { data: response, isLoading } = useQuery<PaginatedResponse<OrderModel>, AppError>({
+    queryKey: orderKeys.list({
+      page,
+      limit: pageSize,
+      status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
+      payment_status: mappedPaymentStatus,
+      search: debouncedSearch || undefined,
+      start_date: startDateStr,
+      end_date: endDateStr,
+    }),
+    queryFn: () =>
+      getOrdersUseCase.execute({
+        page,
+        limit: pageSize,
+        status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
+        payment_status: mappedPaymentStatus,
+        search: debouncedSearch || undefined,
+        start_date: startDateStr,
+        end_date: endDateStr,
+      }),
+    staleTime: 5000,
+    gcTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Map response order list to SalesTransaction
+  const sales = useMemo((): SalesTransaction[] => {
+    return (response?.data ?? []).map((order): SalesTransaction => {
+      const quantity = (order.order_items ?? []).reduce((sum, item) => sum + item.quantity, 0);
+      const productCategory = order.order_items?.[0]?.product_name || "Lain-lain";
+      const paymentMethod = order.order_payments?.[0]?.payment_method || "CASH";
+      const operatorName = order.order_payments?.[0]?.cashier_name || order.designer_name || "Sistem";
+
+      let status: "PAID" | "DOWN_PAYMENT" | "UNPAID" = "UNPAID";
+      if (order.payment_status === "PAID") {
+        status = "PAID";
+      }
+
+      let customerType: "retail" | "reseller" | "corporate" = "retail";
+      if (order.reseller_id) {
+        customerType = "reseller";
+      }
+
+      let formattedDate = order.created_at;
+      try {
+        const dateObj = new Date(order.created_at);
+        const day = String(dateObj.getDate()).padStart(2, "0");
+        const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+        const year = dateObj.getFullYear();
+        const hours = String(dateObj.getHours()).padStart(2, "0");
+        const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+        formattedDate = `${day}/${month}/${year}, ${hours}.${minutes}`;
+      } catch (e) {
+        // Fallback
+      }
+
+      return {
+        id: order.id,
+        invoiceNumber: order.invoice_number || order.job_number,
+        customerName: order.customer_name || "Customer Walk In",
+        customerType,
+        totalAmount: order.grand_total,
+        paidAmount: order.amount_paid,
+        paymentMethod,
+        status,
+        productCategory,
+        createdAt: formattedDate,
+        operatorName,
+        quantity,
+      };
+    });
+  }, [response]);
+
+  // Client-side filtering fallback for filters not handled by server-side query
   const filteredSales = useMemo(() => {
-    return MOCK_SALES.filter((sale) => {
-      const matchesSearch =
-        sale.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        sale.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        sale.productCategory.toLowerCase().includes(searchQuery.toLowerCase());
-      
+    return sales.filter((sale) => {
       const matchesType =
         customerTypeFilter === "all" || sale.customerType === customerTypeFilter;
-
-      const matchesPaymentMethod =
-        paymentMethodFilter === "all" || sale.paymentMethod.toLowerCase() === paymentMethodFilter;
 
       const matchesOperator =
         operatorFilter === "all" || sale.operatorName === operatorFilter;
 
-      const matchesStatus =
-        statusFilter === "all" || sale.status === statusFilter;
-
-      return matchesSearch && matchesType && matchesPaymentMethod && matchesOperator && matchesStatus;
+      return matchesType && matchesOperator;
     });
-  }, [searchQuery, customerTypeFilter, paymentMethodFilter, operatorFilter, statusFilter]);
+  }, [sales, customerTypeFilter, operatorFilter]);
 
   // Statistics calculation based on filtered data
   const stats = useMemo(() => {
     let totalRevenue = 0;
     let totalProductsSold = 0;
     let paidCount = 0;
-    let dpCount = 0;
     let unpaidCount = 0;
 
     filteredSales.forEach((sale) => {
@@ -293,8 +388,6 @@ const ReportSellingPage = () => {
       totalProductsSold += sale.quantity || 0;
       if (sale.status === "PAID") {
         paidCount++;
-      } else if (sale.status === "DOWN_PAYMENT") {
-        dpCount++;
       } else {
         unpaidCount++;
       }
@@ -304,10 +397,44 @@ const ReportSellingPage = () => {
       totalRevenue,
       totalProductsSold,
       paidCount,
-      dpCount,
       unpaidCount,
       transactionCount: filteredSales.length,
     };
+  }, [filteredSales]);
+
+  // Dynamic calculations for charts based on filtered sales
+  const categoriesData = useMemo(() => {
+    const map = new Map<string, { name: string; value: number; count: number }>();
+    filteredSales.forEach((sale) => {
+      const cat = sale.productCategory;
+      const current = map.get(cat) || { name: cat, value: 0, count: 0 };
+      current.value += sale.totalAmount;
+      current.count += 1;
+      map.set(cat, current);
+    });
+    return Array.from(map.values()).sort((a, b) => b.value - a.value);
+  }, [filteredSales]);
+
+  const paymentsData = useMemo(() => {
+    const map = new Map<string, { name: string; value: number }>();
+    filteredSales.forEach((sale) => {
+      const method = sale.paymentMethod;
+      const current = map.get(method) || { name: method, value: 0 };
+      current.value += sale.paidAmount;
+      map.set(method, current);
+    });
+    return Array.from(map.values()).sort((a, b) => b.value - a.value);
+  }, [filteredSales]);
+
+  const customerTypesData = useMemo(() => {
+    const map = new Map<string, { name: string; value: number }>();
+    filteredSales.forEach((sale) => {
+      const type = sale.customerType === "reseller" ? "Biro / Reseller" : sale.customerType === "corporate" ? "Corporate" : "Retail / Walk-in";
+      const current = map.get(type) || { name: type, value: 0 };
+      current.value += sale.totalAmount;
+      map.set(type, current);
+    });
+    return Array.from(map.values()).sort((a, b) => b.value - a.value);
   }, [filteredSales]);
 
   // Active trend data based on selected period
@@ -432,10 +559,6 @@ const ReportSellingPage = () => {
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       {stats.paidCount} Lunas
                     </span>
-                    <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                      {stats.dpCount} DP
-                    </span>
                     <span className="flex items-center gap-1.5 text-rose-500">
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                       {stats.unpaidCount} Belum Lunas
@@ -503,30 +626,11 @@ const ReportSellingPage = () => {
                           exit={{ opacity: 0, y: 10 }}
                           className="absolute right-0 mt-2 w-72 bg-card border border-border/80 shadow-2xl rounded-2xl p-4 space-y-4 z-50 animate-in fade-in duration-200"
                         >
-                          {/* Metode Pembayaran */}
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
-                              Metode Pembayaran
-                            </label>
-                            <select
-                              value={paymentMethodFilter}
-                              onChange={(e) => {
-                                setPaymentMethodFilter(e.target.value);
-                                setPage(1);
-                              }}
-                              className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
-                            >
-                              <option value="all">Semua Metode</option>
-                              <option value="cash">Cash</option>
-                              <option value="transfer bank">Transfer Bank</option>
-                              <option value="qris">QRIS</option>
-                            </select>
-                          </div>
 
-                          {/* Operator */}
+                          {/* Admin */}
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
-                              Operator
+                              Admin
                             </label>
                             <select
                               value={operatorFilter}
@@ -536,7 +640,7 @@ const ReportSellingPage = () => {
                               }}
                               className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
                             >
-                              <option value="all">Semua Operator</option>
+                              <option value="all">Semua Admin</option>
                               <option value="Andi">Andi</option>
                               <option value="Siti">Siti</option>
                               <option value="Budi">Budi</option>
@@ -552,14 +656,13 @@ const ReportSellingPage = () => {
                             <select
                               value={statusFilter}
                               onChange={(e) => {
-                                setStatusFilter(e.target.value);
+                                setStatusFilter(e.target.value as "all" | "PAID" | "UNPAID");
                                 setPage(1);
                               }}
                               className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
                             >
                               <option value="all">Semua Status</option>
                               <option value="PAID">Lunas</option>
-                              <option value="DOWN_PAYMENT">DP</option>
                               <option value="UNPAID">Belum Lunas</option>
                             </select>
                           </div>
@@ -588,7 +691,6 @@ const ReportSellingPage = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                setPaymentMethodFilter("all");
                                 setOperatorFilter("all");
                                 setStatusFilter("all");
                                 setCustomerTypeFilter("all");
@@ -620,179 +722,190 @@ const ReportSellingPage = () => {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                   <TableHeader>
                     <TableRow className="bg-muted/40 border-b border-border/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      <TableHead className="py-4 px-5 w-[180px] min-w-[160px]">Tanggal</TableHead>
                       <TableHead className="py-4 px-5">No. Nota</TableHead>
                       <TableHead className="py-4 px-5">Pelanggan</TableHead>
-                      <TableHead className="py-4 px-5 w-[160px] min-w-[140px]">Tanggal</TableHead>
                       <TableHead className="py-4 px-5 text-right">Total Tagihan</TableHead>
                       <TableHead className="py-4 px-5 text-right">Telah Dibayar</TableHead>
                       <TableHead className="py-4 px-5 text-right">Sisa Piutang</TableHead>
                       <TableHead className="py-4 px-5 text-center">Metode</TableHead>
                       <TableHead className="py-4 px-5 text-center">Status</TableHead>
-                      <TableHead className="py-4 px-5">Operator</TableHead>
+                      <TableHead className="py-4 px-5 w-[150px] min-w-[120px]">Admin</TableHead>
                       <TableHead className="py-4 px-5 text-center">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody className="divide-y divide-border/20 text-xs font-semibold text-foreground">
-                    {filteredSales.map((sale) => {
-                      const outstanding = sale.totalAmount - sale.paidAmount;
-                      
-                      let badgeColor = "bg-muted text-muted-foreground border-border/50";
-                      const normalizedMethod = sale.paymentMethod.toLowerCase();
-                      if (normalizedMethod === "qris") {
-                        badgeColor = "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
-                      } else if (normalizedMethod === "cash" || normalizedMethod === "tunai") {
-                        badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
-                      } else if (normalizedMethod === "transfer" || normalizedMethod === "transfer bank") {
-                        badgeColor = "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
-                      }
-
-                      // Generate a mock job number from the invoice number
-                      const mockJobNumber = sale.invoiceNumber.replace("INV", "JOB");
-
-                      return (
-                        <TableRow key={sale.id} className="hover:bg-muted/20 transition-colors duration-150">
-                          {/* Invoice Number */}
-                          <TableCell className="py-4 px-5 space-y-1">
-                            <div className="font-mono font-bold text-foreground bg-muted px-2 py-0.5 rounded-lg border border-border/50 inline-block">
-                              {sale.invoiceNumber}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground font-semibold block">
-                              No. Tiket / Job: {mockJobNumber}
-                            </div>
-                          </TableCell>
-
-                          {/* Customer Info */}
-                          <TableCell className="py-4 px-5 space-y-1">
-                            <div className="font-bold flex items-center gap-1.5">
-                              <LuUser size={13} className="text-primary/70" />
-                              {sale.customerName}
-                            </div>
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${
-                              sale.customerType === "corporate"
-                                ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-900/50"
-                                : sale.customerType === "reseller"
-                                ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
-                                : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
-                            }`}>
-                              {sale.customerType === "reseller" ? "Biro / Reseller" : sale.customerType === "corporate" ? "Corporate" : "Retail"}
-                            </span>
-                          </TableCell>
-
-                          {/* Date */}
-                          <TableCell className="py-4 px-5 w-[160px] min-w-[140px]">
-                            <div className="text-muted-foreground flex items-center gap-1">
-                              <LuCalendar size={12} />
-                              {sale.createdAt}
-                            </div>
-                          </TableCell>
-
-                          {/* Total Transaction */}
-                          <TableCell className="py-4 px-5 text-right font-black text-foreground">
-                            {formatCurrency(sale.totalAmount)}
-                          </TableCell>
-
-                          {/* Paid Amount */}
-                          <TableCell className="py-4 px-5 text-right font-black text-emerald-600 dark:text-emerald-400">
-                            {formatCurrency(sale.paidAmount)}
-                          </TableCell>
-
-                          {/* Sisa Piutang */}
-                          <TableCell className="py-4 px-5 text-right font-black">
-                            {outstanding > 0 ? (
-                              <span className="text-rose-500">
-                                {formatCurrency(outstanding)}
-                              </span>
-                            ) : (
-                              <span className="text-emerald-600 dark:text-emerald-400">
-                                -
-                              </span>
-                            )}
-                          </TableCell>
-
-                          {/* Payment Method */}
-                          <TableCell className="py-4 px-5 text-center">
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${badgeColor}`}>
-                              {sale.paymentMethod}
-                            </span>
-                          </TableCell>
-
-                          {/* Status */}
-                          <TableCell className="py-4 px-5 text-center">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none ${
-                              sale.status === "PAID"
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50"
-                                : sale.status === "DOWN_PAYMENT"
-                                ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50"
-                                : "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/50"
-                            }`}>
-                              {sale.status === "PAID"
-                                ? "Lunas"
-                                : sale.status === "DOWN_PAYMENT"
-                                ? "DP"
-                                : "Belum Lunas"}
-                            </span>
-                          </TableCell>
-
-                          {/* Operator */}
-                          <TableCell className="py-4 px-5">
-                            <div className="font-semibold text-foreground">
-                              {sale.operatorName}
-                            </div>
-                          </TableCell>
-
-                          {/* Actions */}
-                          <TableCell className="py-4 px-5 text-center">
-                            <div className="flex items-center justify-center">
-                              <Dropdown>
-                                <DropdownTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 rounded-lg hover:bg-muted/70 active:scale-95 transition-all"
-                                  >
-                                    <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
-                                  </Button>
-                                </DropdownTrigger>
-                                <DropdownContent align="end" className="w-44">
-                                  <DropdownItem onClick={() => {
-                                    setSelectedSale(sale);
-                                    setIsDetailOpen(true);
-                                  }}>
-                                    <LuReceipt className="h-3.5 w-3.5 text-primary" />
-                                    <span>Detail Rincian</span>
-                                  </DropdownItem>
-                                  <DropdownItem onClick={() => {
-                                    alert(`Mencetak ulang struk untuk nota ${sale.invoiceNumber}...`);
-                                  }}>
-                                    <LuPrinter className="h-3.5 w-3.5 text-muted-foreground" />
-                                    <span>Cetak Ulang Struk</span>
-                                  </DropdownItem>
-                                </DropdownContent>
-                              </Dropdown>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {filteredSales.length === 0 && (
+                    {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                          <div className="flex flex-col items-center justify-center space-y-2">
+                            <div className="relative w-8 h-8">
+                              <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                              <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                            </div>
+                            <span>Memuat data laporan...</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredSales.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                           Tidak ada transaksi penjualan ditemukan.
                         </TableCell>
                       </TableRow>
+                    ) : (
+                      filteredSales.map((sale) => {
+                        const outstanding = sale.totalAmount - sale.paidAmount;
+                        
+                        let badgeColor = "bg-muted text-muted-foreground border-border/50";
+                        const normalizedMethod = sale.paymentMethod.toLowerCase();
+                        if (normalizedMethod === "qris") {
+                          badgeColor = "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
+                        } else if (normalizedMethod === "cash" || normalizedMethod === "tunai") {
+                          badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
+                        } else if (normalizedMethod === "transfer" || normalizedMethod === "transfer bank") {
+                          badgeColor = "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
+                        }
+
+                        // Generate a mock job number from the invoice number
+                        const mockJobNumber = sale.invoiceNumber.replace("INV", "JOB");
+
+                        return (
+                          <TableRow key={sale.id} className="hover:bg-muted/20 transition-colors duration-150">
+                            {/* Date */}
+                            <TableCell className="py-4 px-5 w-[180px] min-w-[160px]">
+                              <div className="text-foreground flex items-center gap-2 font-bold whitespace-nowrap">
+                                <LuCalendar size={14} className="text-muted-foreground/80 shrink-0" />
+                                <span>{sale.createdAt}</span>
+                              </div>
+                            </TableCell>
+
+                            {/* Invoice Number */}
+                            <TableCell className="py-4 px-5 space-y-1">
+                              <div className="font-mono font-bold text-foreground bg-muted px-2 py-0.5 rounded-lg border border-border/50 inline-block">
+                                {sale.invoiceNumber}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground font-semibold block">
+                                No. Tiket / Job: {mockJobNumber}
+                              </div>
+                            </TableCell>
+
+                            {/* Customer Info */}
+                            <TableCell className="py-4 px-5 space-y-1">
+                              <div className="font-bold flex items-center gap-1.5">
+                                <LuUser size={13} className="text-primary/70" />
+                                {sale.customerName}
+                              </div>
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${
+                                sale.customerType === "corporate"
+                                  ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-900/50"
+                                  : sale.customerType === "reseller"
+                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
+                                  : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
+                              }`}>
+                                {sale.customerType === "reseller" ? "Biro / Reseller" : sale.customerType === "corporate" ? "Corporate" : "Retail"}
+                              </span>
+                            </TableCell>
+
+                            {/* Total Transaction */}
+                            <TableCell className="py-4 px-5 text-right font-black text-foreground">
+                              {formatCurrency(sale.totalAmount)}
+                            </TableCell>
+
+                            {/* Paid Amount */}
+                            <TableCell className="py-4 px-5 text-right font-black text-emerald-600 dark:text-emerald-400">
+                              {formatCurrency(sale.paidAmount)}
+                            </TableCell>
+
+                            {/* Sisa Piutang */}
+                            <TableCell className="py-4 px-5 text-right font-black">
+                              {outstanding > 0 ? (
+                                <span className="text-rose-500">
+                                  {formatCurrency(outstanding)}
+                                </span>
+                              ) : (
+                                <span className="text-emerald-600 dark:text-emerald-400">
+                                  -
+                                </span>
+                              )}
+                            </TableCell>
+
+                            {/* Payment Method */}
+                            <TableCell className="py-4 px-5 text-center">
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${badgeColor}`}>
+                                {sale.paymentMethod}
+                              </span>
+                            </TableCell>
+
+                            {/* Status */}
+                            <TableCell className="py-4 px-5 text-center">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none ${
+                                sale.status === "PAID"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50"
+                                  : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50"
+                              }`}>
+                                {sale.status === "PAID" ? "Lunas" : "Belum Lunas"}
+                              </span>
+                            </TableCell>
+
+                            {/* Admin */}
+                            <TableCell className="py-4 px-5">
+                              <div className="font-semibold text-foreground">
+                                {sale.operatorName}
+                              </div>
+                            </TableCell>
+
+                            {/* Actions */}
+                            <TableCell className="py-4 px-5 text-center">
+                              <div className="flex items-center justify-center">
+                                <Dropdown>
+                                  <DropdownTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 rounded-lg hover:bg-muted/70 active:scale-95 transition-all"
+                                    >
+                                      <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                  </DropdownTrigger>
+                                  <DropdownContent align="end" className="w-44">
+                                    <DropdownItem onClick={() => {
+                                      const rawOrder = (response?.data ?? []).find((o) => o.id === sale.id) || null;
+                                      setSelectedSale(rawOrder);
+                                      setIsDetailOpen(true);
+                                    }}>
+                                      <LuReceipt className="h-3.5 w-3.5 text-primary" />
+                                      <span>Detail Rincian</span>
+                                    </DropdownItem>
+                                    <DropdownItem onClick={() => {
+                                      alert(`Mencetak ulang struk untuk nota ${sale.invoiceNumber}...`);
+                                    }}>
+                                      <LuPrinter className="h-3.5 w-3.5 text-muted-foreground" />
+                                      <span>Cetak Ulang Struk</span>
+                                    </DropdownItem>
+                                  </DropdownContent>
+                                </Dropdown>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
               </div>
               <TablePagination
                 currentPage={page}
-                totalPages={Math.ceil(filteredSales.length / pageSize) || 1}
+                totalPages={Math.ceil((response?.total ?? 0) / pageSize) || 1}
                 pageSize={pageSize}
-                totalEntries={filteredSales.length}
-                onPageChange={setPage}
-                onPageSizeChange={setPageSize}
+                totalEntries={response?.total ?? 0}
+                onPageChange={(p) => setPage(p)}
+                onPageSizeChange={(sz) => {
+                  setPageSize(sz);
+                  setPage(1);
+                }}
               />
             </CardContent>
           </Card>
@@ -900,7 +1013,7 @@ const ReportSellingPage = () => {
               </div>
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={MOCK_CATEGORIES} layout="vertical">
+                  <BarChart data={categoriesData} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(156,163,175,0.15)" />
                     <XAxis
                       type="number"
@@ -926,7 +1039,7 @@ const ReportSellingPage = () => {
                       formatter={(value: unknown) => [formatCurrency(Number(value || 0)), "Omset"]}
                     />
                     <Bar dataKey="value" radius={[0, 8, 8, 0]}>
-                      {MOCK_CATEGORIES.map((entry, index) => (
+                      {categoriesData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Bar>
@@ -947,7 +1060,7 @@ const ReportSellingPage = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={MOCK_PAYMENTS}
+                        data={paymentsData}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -955,7 +1068,7 @@ const ReportSellingPage = () => {
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        {MOCK_PAYMENTS.map((entry, index) => (
+                        {paymentsData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
@@ -964,7 +1077,7 @@ const ReportSellingPage = () => {
                   </ResponsiveContainer>
                 </div>
                 <div className="space-y-2 mt-4">
-                  {MOCK_PAYMENTS.map((item, idx) => (
+                  {paymentsData.map((item, idx) => (
                     <div key={item.name} className="flex items-center justify-between text-xs font-semibold">
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
@@ -986,7 +1099,7 @@ const ReportSellingPage = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={MOCK_CUSTOMER_TYPES}
+                        data={customerTypesData}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -994,7 +1107,7 @@ const ReportSellingPage = () => {
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        {MOCK_CUSTOMER_TYPES.map((entry, index) => (
+                        {customerTypesData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[(index + 3) % COLORS.length]} />
                         ))}
                       </Pie>
@@ -1003,7 +1116,7 @@ const ReportSellingPage = () => {
                   </ResponsiveContainer>
                 </div>
                 <div className="space-y-2 mt-4">
-                  {MOCK_CUSTOMER_TYPES.map((item, idx) => (
+                  {customerTypesData.map((item, idx) => (
                     <div key={item.name} className="flex items-center justify-between text-xs font-semibold">
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[(idx + 3) % COLORS.length] }} />

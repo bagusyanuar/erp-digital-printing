@@ -11,8 +11,8 @@ const lazyCreateJobEntryPage = lazy(
 
 export const jobEntryRoutes: RouteObject[] = [
   {
-    path: "/job-entry",
-    handle: { title: "Job Entry" },
+    path: "/ticket-order",
+    handle: { title: "Tiket Pesanan" },
     children: [
       {
         index: true,
@@ -20,7 +20,7 @@ export const jobEntryRoutes: RouteObject[] = [
           <Suspense
             fallback={
               <div className="h-full w-full flex items-center justify-center font-bold text-muted-foreground">
-                Loading Job Entry...
+                Loading Tiket Pesanan...
               </div>
             }
           >
@@ -30,12 +30,12 @@ export const jobEntryRoutes: RouteObject[] = [
       },
       {
         path: "create",
-        handle: { title: "Tambah Job Entry" },
+        handle: { title: "Tambah Tiket Pesanan" },
         element: (
           <Suspense
             fallback={
               <div className="h-full w-full flex items-center justify-center font-bold text-muted-foreground">
-                Loading Tambah Job Entry...
+                Loading Tambah Tiket Pesanan...
               </div>
             }
           >

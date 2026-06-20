@@ -7,7 +7,7 @@ const lazyCashFlowPage = lazy(
 
 export const cashFlowRoutes: RouteObject[] = [
   {
-    path: "/cash-flow",
+    path: "/report/cash-flow",
     handle: { title: "Cash Flow" },
     children: [
       {

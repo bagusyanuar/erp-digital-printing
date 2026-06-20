@@ -420,7 +420,7 @@ const CreateJobEntryPage = () => {
       localStorage.removeItem("job_entry_active_notes");
       localStorage.removeItem("job_entry_active_cart");
 
-      navigate("/job-entry");
+      navigate("/ticket-order");
     },
     onError: (error: AppError) => {
       toast.error(
@@ -475,10 +475,10 @@ const CreateJobEntryPage = () => {
           "Draf keranjang Anda tidak akan hilang (tersimpan otomatis). Apakah Anda yakin ingin kembali?",
         )
       ) {
-        navigate("/job-entry");
+        navigate("/ticket-order");
       }
     } else {
-      navigate("/job-entry");
+      navigate("/ticket-order");
     }
   };
 

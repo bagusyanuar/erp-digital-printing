@@ -334,7 +334,7 @@ const JobEntryPage = () => {
                       <DropdownItem
                         onClick={() =>
                           navigate(
-                            `/job-entry/create?edit=${info.row.original.id}`,
+                            `/ticket-order/create?edit=${info.row.original.id}`,
                           )
                         }
                       >
@@ -387,7 +387,7 @@ const JobEntryPage = () => {
         <div className="space-y-1">
           <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-3">
             <LuFileText className="text-primary" size={32} />
-            Job Entry (Desainer)
+            Tiket Pesanan
           </h1>
           <p className="text-muted-foreground font-medium">
             Kelola draf keranjang belanja aktif dan input spesifikasi teknis
@@ -415,10 +415,10 @@ const JobEntryPage = () => {
             <div className="flex items-center gap-3 w-full md:w-auto justify-end">
               <Button
                 className="h-10 px-4 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-                onClick={() => navigate("/job-entry/create")}
+                onClick={() => navigate("/ticket-order/create")}
               >
                 <LuPlus size={18} />
-                Tambah Job Entry
+                Tambah Tiket Pesanan
               </Button>
             </div>
           </div>

@@ -28,6 +28,7 @@ import {
   LuTags,
   LuBriefcase,
   LuReceipt,
+  LuArrowRightLeft,
 } from "@erp-digital-printing/ui/icons";
 
 export const NavSidebar = () => {
@@ -75,12 +76,12 @@ export const NavSidebar = () => {
         </SidebarGroup>
 
         <SidebarGroup label="Transaksi">
-          <NavLink to="/job-entry" className="contents">
+          <NavLink to="/ticket-order" className="contents">
             {({ isActive }) => (
               <SidebarItem
                 asChild
                 icon={<LuFileText />}
-                label="Job Entry (Desainer)"
+                label="Tiket Pesanan"
                 active={isActive}
               >
                 <button />
@@ -114,18 +115,6 @@ export const NavSidebar = () => {
         </SidebarGroup>
  
         <SidebarGroup label="Keuangan">
-          <NavLink to="/cash-flow" className="contents">
-            {({ isActive }) => (
-              <SidebarItem
-                asChild
-                icon={<LuBanknote />}
-                label="Arus Kas (Cash Flow)"
-                active={isActive}
-              >
-                <button />
-              </SidebarItem>
-            )}
-          </NavLink>
           <NavLink to="/expense" className="contents">
             {({ isActive }) => (
               <SidebarItem
@@ -138,6 +127,9 @@ export const NavSidebar = () => {
               </SidebarItem>
             )}
           </NavLink>
+          <SidebarItem icon={<LuBanknote />} label="Setoran Modal" />
+          <SidebarItem icon={<LuCreditCard />} label="Penarikan Modal (Prive)" />
+          <SidebarItem icon={<LuArrowRightLeft />} label="Pemindahan Dana" />
         </SidebarGroup>
 
         {/* <SidebarGroup label="Produksi">
@@ -242,6 +234,18 @@ export const NavSidebar = () => {
                 asChild
                 icon={<LuFileText />}
                 label="Laporan Penjualan"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
+          <NavLink to="/report/cash-flow" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuBanknote />}
+                label="Laporan Arus Kas"
                 active={isActive}
               >
                 <button />
