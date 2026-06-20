@@ -1,4 +1,4 @@
-import type { ExpenseRepository } from "../../domains/repositories/expense.repository";
+import type { ExpenseRepository, ExpenseReportWidgetsParams, ExpenseReportWidgetsModel } from "../../domains/repositories/expense.repository";
 import type { CreateExpenseInput, ExpenseQueryParams } from "../inputs/expense.input";
 import type { ExpenseModel } from "../../domains/models/expense.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
@@ -16,5 +16,13 @@ export class GetExpenses {
 
   async execute(params: ExpenseQueryParams): Promise<PaginatedResponse<ExpenseModel>> {
     return await this.expenseRepository.getExpenses(params);
+  }
+}
+
+export class GetExpenseReportWidgets {
+  constructor(private readonly expenseRepository: ExpenseRepository) {}
+
+  async execute(params: ExpenseReportWidgetsParams): Promise<ExpenseReportWidgetsModel> {
+    return await this.expenseRepository.getExpenseReportWidgets(params);
   }
 }

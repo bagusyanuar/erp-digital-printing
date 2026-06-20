@@ -1,6 +1,6 @@
 import type { CreateExpenseInput, ExpenseQueryParams } from "@core/expense/applications/inputs/expense.input";
 import type { ExpenseModel } from "@core/expense/domains/models/expense.model";
-import type { ExpenseRepository } from "@core/expense/domains/repositories/expense.repository";
+import type { ExpenseRepository, ExpenseReportWidgetsParams, ExpenseReportWidgetsModel } from "@core/expense/domains/repositories/expense.repository";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import { safeApiCall } from "@infrastructure/libs/error";
 import { mapCreateInputToRequest, mapResponseToModel, mapParamsToQuery } from "../mappers/expense.mapper";
@@ -36,6 +36,32 @@ export class ApiExpenseRepository implements ExpenseRepository {
         page: response.meta?.pagination.current_page ?? 1,
         total: response.meta?.pagination.total_items ?? 0,
         limit: response.meta?.pagination.limit ?? 10,
+      };
+    });
+  }
+
+  async getExpenseReportWidgets(
+    params: ExpenseReportWidgetsParams,
+  ): Promise<ExpenseReportWidgetsModel> {
+    return safeApiCall(async () => {
+      const query = {
+        start_date: params.startDate,
+        end_date: params.endDate,
+        group: params.group,
+        expense_category_id: params.expenseCategoryId,
+        search: params.search,
+        status: params.status,
+      };
+      const response = await this.http.get<ApiResponse<{
+        total_expense: number;
+        remaining_debt: number;
+        transaction_volume: number;
+      }>>("/expenses/reports/widgets", { params: query });
+      
+      return {
+        totalExpense: response.data.total_expense,
+        remainingDebt: response.data.remaining_debt,
+        transactionVolume: response.data.transaction_volume,
       };
     });
   }

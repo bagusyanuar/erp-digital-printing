@@ -29,6 +29,7 @@ import {
   LuBriefcase,
   LuReceipt,
   LuArrowRightLeft,
+  LuTrendingDown,
 } from "@erp-digital-printing/ui/icons";
 
 export const NavSidebar = () => {
@@ -234,6 +235,18 @@ export const NavSidebar = () => {
                 asChild
                 icon={<LuFileText />}
                 label="Laporan Penjualan"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
+          <NavLink to="/report/expense" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuTrendingDown />}
+                label="Laporan Pengeluaran"
                 active={isActive}
               >
                 <button />

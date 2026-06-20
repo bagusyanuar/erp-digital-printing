@@ -5,6 +5,10 @@ const lazyReportSellingPage = lazy(
   () => import("@presentation/report-selling/pages/ReportSellingPage"),
 );
 
+const lazyReportExpensePage = lazy(
+  () => import("@presentation/report-expense/pages/ReportExpensePage"),
+);
+
 export const reportRoutes: RouteObject[] = [
   {
     path: "/report/selling",
@@ -21,6 +25,26 @@ export const reportRoutes: RouteObject[] = [
             }
           >
             {React.createElement(lazyReportSellingPage)}
+          </Suspense>
+        ),
+      },
+    ],
+  },
+  {
+    path: "/report/expense",
+    handle: { title: "Laporan Pengeluaran" },
+    children: [
+      {
+        index: true,
+        element: (
+          <Suspense
+            fallback={
+              <div className="h-full w-full flex items-center justify-center font-bold text-muted-foreground">
+                Loading Laporan Pengeluaran...
+              </div>
+            }
+          >
+            {React.createElement(lazyReportExpensePage)}
           </Suspense>
         ),
       },
