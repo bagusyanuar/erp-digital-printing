@@ -21,6 +21,7 @@ export interface ExpenseBill {
   id: string;
   billNumber: string;
   date: string;
+  createdAt?: string;
   supplierId?: string;
   supplierName: string;
   discount?: number;

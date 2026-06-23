@@ -17,8 +17,20 @@ export interface ExpenseReportWidgetsModel {
   transactionVolume: number;
 }
 
+export interface ExpenseAnalyticsSummaryParams {
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface ExpenseAnalyticsSummaryModel {
+  totalProduction: number;
+  totalOperational: number;
+  totalExpense: number;
+}
+
 export interface ExpenseRepository {
   create(input: CreateExpenseInput): Promise<ExpenseModel>;
   getExpenses(params: ExpenseQueryParams): Promise<PaginatedResponse<ExpenseModel>>;
   getExpenseReportWidgets(params: ExpenseReportWidgetsParams): Promise<ExpenseReportWidgetsModel>;
+  getExpenseAnalyticsSummary(params: ExpenseAnalyticsSummaryParams): Promise<ExpenseAnalyticsSummaryModel>;
 }

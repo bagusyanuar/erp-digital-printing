@@ -8,7 +8,7 @@ import { useAuthStore } from "@presentation/auth/stores/auth.store";
 import type { AppContainer } from "@presentation/shared/di/DIContext";
 import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase, updateResellerUseCase, deleteResellerUseCase } from "@infrastructure/reseller/containers/reseller.container";
 import { getSupplierUseCase, createSupplierUseCase, getSupplierByIdUseCase, updateSupplierUseCase, deleteSupplierUseCase } from "@infrastructure/supplier/containers/supplier.container";
-import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCase } from "@infrastructure/expense/containers/expense.container";
+import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCase, getExpenseAnalyticsSummaryUseCase } from "@infrastructure/expense/containers/expense.container";
 
 
 import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, deleteCategoryUseCase } from "@infrastructure/category/containers/category.container";
@@ -112,6 +112,7 @@ export function createAppContainer(): AppContainer {
       createExpenseUseCase: createExpenseUseCase(httpClient),
       getExpensesUseCase: getExpensesUseCase(httpClient),
       getExpenseReportWidgetsUseCase: getExpenseReportWidgetsUseCase(httpClient),
+      getExpenseAnalyticsSummaryUseCase: getExpenseAnalyticsSummaryUseCase(httpClient),
     },
   };
 }

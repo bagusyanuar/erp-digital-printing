@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Button } from "@erp-digital-printing/ui/Button";
 import {
   Table,
@@ -15,8 +15,14 @@ import {
   DropdownContent,
   DropdownItem,
 } from "@erp-digital-printing/ui/Dropdown";
-import { FiMoreVertical, LuEye, LuBan, LuReceipt, LuInfo } from "@erp-digital-printing/ui/icons";
-import { ExpenseBill, MOCK_EXPENSE_BILLS } from "../types/expenseTypes";
+import {
+  FiMoreVertical,
+  LuEye,
+  LuBan,
+  LuReceipt,
+  LuInfo,
+} from "@erp-digital-printing/ui/icons";
+import type { ExpenseBill } from "../types/expenseTypes";
 
 interface ExpenseBillTableProps {
   bills: ExpenseBill[];
@@ -56,7 +62,6 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
       case "PAID":
         return "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20";
       case "PARTIAL_PAID":
-        return "bg-amber-500/10 text-amber-600 border border-amber-500/20";
       case "UNPAID":
         return "bg-rose-500/10 text-rose-600 border border-rose-500/20";
       case "VOID":
@@ -69,11 +74,33 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
       case "PAID":
         return "Lunas";
       case "PARTIAL_PAID":
-        return "Dicicil";
       case "UNPAID":
-        return "Hutang";
+        return "Belum Lunas";
       case "VOID":
         return "Dibatalkan";
+    }
+  };
+
+  const formatDateTime = (createdAt?: string, fallbackDate?: string) => {
+    const targetStr = createdAt || fallbackDate;
+    if (!targetStr) return "-";
+    try {
+      const dateObj = new Date(targetStr);
+      if (isNaN(dateObj.getTime())) return targetStr;
+
+      const day = String(dateObj.getDate()).padStart(2, "0");
+      const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+      const year = dateObj.getFullYear();
+
+      if (createdAt) {
+        const hours = String(dateObj.getHours()).padStart(2, "0");
+        const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+        const seconds = String(dateObj.getSeconds()).padStart(2, "0");
+        return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
+      }
+      return `${day}/${month}/${year}`;
+    } catch {
+      return targetStr;
     }
   };
 
@@ -83,7 +110,7 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tanggal</TableHead>
+              <TableHead className="text-center">Tanggal</TableHead>
               <TableHead>No. Nota</TableHead>
               <TableHead>Supplier / Vendor</TableHead>
               <TableHead className="text-right">Total Tagihan</TableHead>
@@ -114,39 +141,43 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
                 return (
                   <TableRow
                     key={bill.id}
-                    className={isVoid ? "opacity-60 line-through decoration-muted-foreground/50" : ""}
+                    className={
+                      isVoid
+                        ? "opacity-60 line-through decoration-muted-foreground/50"
+                        : ""
+                    }
                   >
-                    <TableCell className="font-medium">
-                      {new Date(bill.date).toLocaleDateString("id-ID", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                    <TableCell className="font-medium text-center text-xs text-muted-foreground">
+                      {formatDateTime(bill.createdAt, bill.date)}
                     </TableCell>
-                    <TableCell className="font-semibold">{bill.billNumber}</TableCell>
-                    <TableCell className="font-medium text-muted-foreground">
+                    <TableCell className="font-semibold text-xs">
+                      {bill.billNumber}
+                    </TableCell>
+                    <TableCell className="font-medium text-muted-foreground text-xs">
                       <div className="flex flex-col">
-                        <span className="font-semibold text-foreground">{bill.supplierName}</span>
+                        <span className="font-semibold text-foreground text-xs">
+                          {bill.supplierName}
+                        </span>
                         {bill.description && (
-                          <span className="text-xs text-muted-foreground line-clamp-1">
+                          <span className="text-[11px] text-muted-foreground line-clamp-1">
                             {bill.description}
                           </span>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right font-bold text-foreground">
+                    <TableCell className="text-right font-bold text-foreground text-xs">
                       {formatCurrency(bill.totalAmount)}
                     </TableCell>
-                    <TableCell className="text-right font-bold text-emerald-600">
+                    <TableCell className="text-right font-bold text-emerald-600 text-xs">
                       {formatCurrency(bill.paidAmount)}
                     </TableCell>
-                    <TableCell className="text-right font-bold text-rose-600">
+                    <TableCell className="text-right font-bold text-rose-600 text-xs">
                       {formatCurrency(isVoid ? 0 : remainingDebt)}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center text-xs">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-extrabold tracking-wide ${getStatusBadgeClass(
-                          bill.paymentStatus
+                          bill.paymentStatus,
                         )}`}
                       >
                         {getStatusLabel(bill.paymentStatus)}
@@ -166,7 +197,10 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
                           </DropdownTrigger>
                           <DropdownContent className="w-44 z-[50]">
                             <DropdownItem onClick={() => onDetail(bill)}>
-                              <LuEye size={14} className="text-muted-foreground" />
+                              <LuEye
+                                size={14}
+                                className="text-muted-foreground"
+                              />
                               Detail Rincian
                             </DropdownItem>
 
@@ -178,7 +212,10 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
                             )}
 
                             {!isVoid && (
-                              <DropdownItem variant="danger" onClick={() => onCancel(bill)}>
+                              <DropdownItem
+                                variant="danger"
+                                onClick={() => onCancel(bill)}
+                              >
                                 <LuBan size={14} className="text-rose-500" />
                                 Batalkan Nota
                               </DropdownItem>
@@ -192,7 +229,10 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="py-12 px-5 text-center space-y-3">
+                <TableCell
+                  colSpan={8}
+                  className="py-12 px-5 text-center space-y-3"
+                >
                   <LuInfo
                     size={36}
                     className="text-muted-foreground/60 mx-auto animate-pulse"
@@ -201,7 +241,8 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
                     Tidak Ada Data Pengeluaran
                   </h3>
                   <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                    Tidak ada transaksi pengeluaran yang cocok dengan kriteria filter pencarian atau tanggal saat ini.
+                    Tidak ada transaksi pengeluaran yang cocok dengan kriteria
+                    filter pencarian atau tanggal saat ini.
                   </p>
                 </TableCell>
               </TableRow>
