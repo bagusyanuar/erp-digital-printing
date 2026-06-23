@@ -8,7 +8,7 @@ const lazyInvoicePage = lazy(
 export const invoiceRoutes: RouteObject[] = [
   {
     path: "/invoice",
-    handle: { title: "Invoice & Piutang" },
+    handle: { title: "Invoice" },
     children: [
       {
         index: true,

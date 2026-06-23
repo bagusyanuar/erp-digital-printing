@@ -267,7 +267,8 @@ const ReportSellingPage = () => {
   const startDateStr = useMemo(() => {
     if (!dateRange?.from) return undefined;
     try {
-      return dateRange.from.toISOString().split("T")[0];
+      const d = dateRange.from;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     } catch {
       return undefined;
     }
@@ -276,7 +277,8 @@ const ReportSellingPage = () => {
   const endDateStr = useMemo(() => {
     if (!dateRange?.to) return undefined;
     try {
-      return dateRange.to.toISOString().split("T")[0];
+      const d = dateRange.to;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     } catch {
       return undefined;
     }

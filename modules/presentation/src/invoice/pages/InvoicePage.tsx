@@ -1,21 +1,25 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
-import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
+import { Card, CardContent } from "@erp-digital-printing/ui/Card";
 import { Dialog } from "@erp-digital-printing/ui/Dialog";
 import { TablePagination } from "@erp-digital-printing/ui/Table";
+import { Checkbox } from "@erp-digital-printing/ui/Checkbox";
 import {
   Dropdown,
   DropdownTrigger,
   DropdownContent,
   DropdownItem,
 } from "@erp-digital-printing/ui/Dropdown";
+import {
+  DateRangePicker,
+  type DateRange,
+} from "@erp-digital-printing/ui/DateRangePicker";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@erp-digital-printing/ui/Toast";
 import {
   LuSearch,
-  LuFilter,
   LuUser,
-  LuCalendar,
   LuShoppingBag,
   LuCreditCard,
   LuReceipt,
@@ -23,15 +27,16 @@ import {
   LuPrinter,
   LuClock,
   LuInfo,
-  LuSparkles,
   LuCoins,
-  LuArrowRight,
   LuTrendingUp,
-  LuChevronRight,
   LuDollarSign,
   LuEllipsisVertical,
   LuScissors,
   LuQrCode,
+  LuFilter,
+  LuRotateCcw,
+  LuCircleCheck,
+  LuCircleX,
 } from "@erp-digital-printing/ui/icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
@@ -44,7 +49,7 @@ import type {
   OrderPaymentModel,
 } from "@core/order/domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
-import type { ProcessPaymentInput, RepayPaymentInput } from "@core/order/domains/repositories/order.repository";
+import type { RepayPaymentInput } from "@core/order/domains/repositories/order.repository";
 
 // Interfaces for mapped presentation UI
 interface InvoiceItem {
@@ -69,14 +74,88 @@ interface Invoice {
   totalAmount: number;
   amountPaid: number;
   status: "PAID" | "PARTIAL" | "UNPAID";
+  orderStatus: string;
 }
 
 const InvoicePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 750);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const today = new Date();
+    return {
+      from: today,
+      to: today,
+    };
+  });
+
+  const startDateStr = useMemo(() => {
+    if (!dateRange?.from) return undefined;
+    try {
+      const d = dateRange.from;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    } catch {
+      return undefined;
+    }
+  }, [dateRange]);
+
+  const endDateStr = useMemo(() => {
+    if (!dateRange?.to) return undefined;
+    try {
+      const d = dateRange.to;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    } catch {
+      return undefined;
+    }
+  }, [dateRange]);
+
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PAID" | "UNPAID">(
     "ALL",
   );
+  const [customerTypeFilter, setCustomerTypeFilter] = useState<
+    "ALL" | "RESELLER" | "RETAIL"
+  >("ALL");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<
+    "ALL" | "SUCCESS" | "CANCELLED"
+  >("SUCCESS");
+  const [paymentMethodsFilter, setPaymentMethodsFilter] = useState<string[]>(
+    [],
+  );
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== "ALL") count++;
+    if (customerTypeFilter !== "ALL") count++;
+    if (orderStatusFilter !== "SUCCESS") count++;
+    if (paymentMethodsFilter.length > 0) count++;
+    return count;
+  }, [
+    statusFilter,
+    customerTypeFilter,
+    orderStatusFilter,
+    paymentMethodsFilter,
+  ]);
+
+  const mappedOrderStatus = useMemo(() => {
+    if (orderStatusFilter === "SUCCESS") {
+      return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED";
+    }
+    if (orderStatusFilter === "CANCELLED") {
+      return "CANCELLED";
+    }
+    return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED,CANCELLED";
+  }, [orderStatusFilter]);
+
+  const mappedPaymentStatus = useMemo(() => {
+    if (statusFilter === "PAID") return "PAID";
+    if (statusFilter === "UNPAID") return "PARTIAL_PAID,UNPAID";
+    return undefined; // ALL
+  }, [statusFilter]);
+
+  const mappedPaymentMethods = useMemo(() => {
+    if (paymentMethodsFilter.length === 0) return undefined;
+    return paymentMethodsFilter.join(",").toLowerCase();
+  }, [paymentMethodsFilter]);
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -85,6 +164,7 @@ const InvoicePage = () => {
   // Selection states for Dialogs
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isRefundOpen, setIsRefundOpen] = useState(false);
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [isSpkOpen, setIsSpkOpen] = useState(false);
   const [selectedSpkCategory, setSelectedSpkCategory] = useState<string | null>(
@@ -113,11 +193,18 @@ const InvoicePage = () => {
   }, [splitAmounts]);
 
   const remainingOutstanding = useMemo(() => {
-    return Math.max(0, outstandingAmount - (isSplitPayment ? totalSplitInput : payAmount));
+    return Math.max(
+      0,
+      outstandingAmount - (isSplitPayment ? totalSplitInput : payAmount),
+    );
   }, [outstandingAmount, isSplitPayment, totalSplitInput, payAmount]);
 
-  const { getOrdersUseCase, repayOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase } =
-    useOrderDI();
+  const {
+    getOrdersUseCase,
+    repayOrderUseCase,
+    getOrderPaymentsUseCase,
+    getOrderSpkUseCase,
+  } = useOrderDI();
 
   // Fetch SPK from backend when the modal is open
   const { data: spkResponse, isLoading: isLoadingSpk } = useQuery<
@@ -145,7 +232,7 @@ const InvoicePage = () => {
 
   const groupedPayments = useMemo(() => {
     if (!payments) return [];
-    
+
     // Group by payment_number
     const map = new Map<number, typeof payments>();
     payments.forEach((p) => {
@@ -163,8 +250,8 @@ const InvoicePage = () => {
         const created_at = pays[0]?.created_at;
         const cashier_name = pays[0]?.cashier_name;
         const methods = pays.map((p) => p.payment_method).join(", ");
-        const payment_type = pays[0]?.payment_type; 
-        
+        const payment_type = pays[0]?.payment_type;
+
         return {
           id: pays[0]?.id ?? "",
           payment_number,
@@ -187,12 +274,28 @@ const InvoicePage = () => {
     }).format(val);
   };
 
-  // Map presentation statusFilter to API payment_status query parameter
-  const mappedPaymentStatus = useMemo(() => {
-    if (statusFilter === "PAID") return "PAID";
-    if (statusFilter === "UNPAID") return "PARTIAL_PAID,UNPAID";
-    return undefined; // ALL
-  }, [statusFilter]);
+  const formatDateTime = (createdAt?: string, fallbackDate?: string) => {
+    const targetStr = createdAt || fallbackDate;
+    if (!targetStr) return "-";
+    try {
+      const dateObj = new Date(targetStr);
+      if (isNaN(dateObj.getTime())) return targetStr;
+
+      const day = String(dateObj.getDate()).padStart(2, "0");
+      const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+      const year = dateObj.getFullYear();
+
+      if (createdAt) {
+        const hours = String(dateObj.getHours()).padStart(2, "0");
+        const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+        const seconds = String(dateObj.getSeconds()).padStart(2, "0");
+        return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
+      }
+      return `${day}/${month}/${year}`;
+    } catch {
+      return targetStr;
+    }
+  };
 
   // Fetch real order data from backend API with dynamic pagination
   const {
@@ -203,17 +306,31 @@ const InvoicePage = () => {
     queryKey: orderKeys.list({
       page,
       limit: pageSize,
-      status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
+      status: mappedOrderStatus,
       payment_status: mappedPaymentStatus,
       search: debouncedSearch || undefined,
+      start_date: startDateStr,
+      end_date: endDateStr,
+      customer_type:
+        customerTypeFilter !== "ALL"
+          ? customerTypeFilter.toLowerCase()
+          : undefined,
+      payment_methods: mappedPaymentMethods,
     }),
     queryFn: () =>
       getOrdersUseCase.execute({
         page,
         limit: pageSize,
-        status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
+        status: mappedOrderStatus,
         payment_status: mappedPaymentStatus,
         search: debouncedSearch || undefined,
+        start_date: startDateStr,
+        end_date: endDateStr,
+        customer_type:
+          customerTypeFilter !== "ALL"
+            ? customerTypeFilter.toLowerCase()
+            : undefined,
+        payment_methods: mappedPaymentMethods,
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -224,18 +341,7 @@ const InvoicePage = () => {
   const invoices = useMemo((): Invoice[] => {
     return (response?.data ?? []).map((order): Invoice => {
       // Format backend date to localized Indonesian date
-      let formattedDate = order.created_at;
-      try {
-        formattedDate = new Date(order.created_at).toLocaleString("id-ID", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-      } catch (e) {
-        // Fallback
-      }
+      const formattedDate = formatDateTime(order.created_at);
 
       return {
         id: order.id,
@@ -261,8 +367,8 @@ const InvoicePage = () => {
           new Set(
             (order.order_payments ?? [])
               .map((pay) => pay.payment_method.toUpperCase())
-              .filter(Boolean)
-          )
+              .filter(Boolean),
+          ),
         ),
         status:
           order.payment_status === "PAID"
@@ -270,6 +376,7 @@ const InvoicePage = () => {
             : order.payment_status === "PARTIAL_PAID"
               ? "PARTIAL"
               : "UNPAID",
+        orderStatus: order.status,
       };
     });
   }, [response]);
@@ -288,20 +395,30 @@ const InvoicePage = () => {
 
   // Statistics Computations
   const stats = useMemo(() => {
-    const totalCount = invoices.length;
-    const paidCount = invoices.filter((i) => i.status === "PAID").length;
-    const unpaidCount = invoices.filter((i) => i.status !== "PAID").length;
-    const totalReceivable = invoices.reduce(
+    const totalCount = filteredInvoices.length;
+    const paidCount = filteredInvoices.filter(
+      (i) => i.status === "PAID",
+    ).length;
+    const unpaidCount = filteredInvoices.filter(
+      (i) => i.status !== "PAID",
+    ).length;
+    const totalReceivable = filteredInvoices.reduce(
       (sum, i) => sum + (i.totalAmount - i.amountPaid),
       0,
     );
-    const totalCollected = invoices.reduce((sum, i) => sum + i.amountPaid, 0);
+    const totalCollected = filteredInvoices.reduce(
+      (sum, i) => sum + i.amountPaid,
+      0,
+    );
 
     // Total Penjualan: Lunas + Piutang (Grand Total of all invoices)
-    const totalSales = invoices.reduce((sum, i) => sum + i.totalAmount, 0);
+    const totalSales = filteredInvoices.reduce(
+      (sum, i) => sum + i.totalAmount,
+      0,
+    );
 
     // Total Pendapatan: Hanya transaksi yang lunas saja
-    const totalRevenue = invoices
+    const totalRevenue = filteredInvoices
       .filter((i) => i.status === "PAID")
       .reduce((sum, i) => sum + i.totalAmount, 0);
 
@@ -314,7 +431,7 @@ const InvoicePage = () => {
       totalSales,
       totalRevenue,
     };
-  }, [invoices]);
+  }, [filteredInvoices]);
 
   const handleOpenPay = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
@@ -417,7 +534,7 @@ const InvoicePage = () => {
         <div className="space-y-1">
           <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-3">
             <LuReceipt className="text-primary animate-pulse" size={32} />
-            Kelola Invoice & Piutang
+            Kelola Invoice
           </h1>
           <p className="text-muted-foreground font-medium text-sm">
             Pantau pembayaran nota lunas/tempo, kelola pelunasan cicilan, dan
@@ -443,7 +560,7 @@ const InvoicePage = () => {
       </div>
 
       {/* Top Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Stat Total Sales (Lunas + Piutang) */}
         <Card className="rounded-2xl border border-border/40 bg-card overflow-hidden">
           <CardContent className="p-5 flex items-center gap-4">
@@ -452,27 +569,10 @@ const InvoicePage = () => {
             </div>
             <div>
               <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
-                Total Penjualan
+                Total Penjualan (Periode)
               </span>
               <span className="text-xl font-black text-foreground">
                 {formatCurrency(stats.totalSales)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stat Revenue (Lunas Only) */}
-        <Card className="rounded-2xl border border-border/40 bg-card overflow-hidden">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-2xl">
-              <LuTrendingUp size={22} />
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
-                Total Pendapatan (Lunas)
-              </span>
-              <span className="text-xl font-black text-foreground">
-                {formatCurrency(stats.totalRevenue)}
               </span>
             </div>
           </CardContent>
@@ -486,7 +586,7 @@ const InvoicePage = () => {
             </div>
             <div>
               <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
-                Total Piutang Belum Lunas
+                Total Piutang (Periode)
               </span>
               <span className="text-xl font-black text-rose-600 dark:text-rose-400">
                 {formatCurrency(stats.totalReceivable)}
@@ -530,34 +630,182 @@ const InvoicePage = () => {
             />
           </div>
 
-          {/* Quick Status Filters (Pills) */}
-          <div className="flex gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
-            {(
-              [
-                { id: "ALL", label: "Semua Invoice" },
-                { id: "PAID", label: "Lunas" },
-                { id: "UNPAID", label: "Belum Lunas" },
-              ] as const
-            ).map((tab) => {
-              const isActive = statusFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    setStatusFilter(tab.id);
-                    setPage(1);
-                  }}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 shrink-0 border ${
-                    isActive
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "bg-background text-muted-foreground border-border hover:bg-muted"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
+          {/* Date Range Picker & Filter Popover */}
+          <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
+            <DateRangePicker
+              value={dateRange}
+              onChange={(range) => {
+                setDateRange(range);
+                setPage(1);
+              }}
+              isClearable
+              className="w-full sm:w-[260px] h-10 rounded-xl"
+            />
+
+            {/* Popover Filter Dropdown */}
+            <div className="relative">
+              <Button
+                variant={activeFiltersCount > 0 ? "default" : "outline"}
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className="h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-2"
+              >
+                <LuFilter size={14} />
+                Filter
+                {activeFiltersCount > 0 && (
+                  <span className="ml-1 bg-primary-foreground text-primary text-[10px] px-1.5 py-0.5 rounded-full font-black leading-none">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </Button>
+
+              <AnimatePresence>
+                {isFilterOpen && (
+                  <>
+                    {/* Overlay to close popover when clicked outside */}
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setIsFilterOpen(false)}
+                    />
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute right-0 mt-2 w-72 bg-card border border-border/80 shadow-2xl rounded-2xl p-4 space-y-4 z-50 animate-in fade-in duration-200"
+                    >
+                      {/* Status Pembayaran */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
+                          Status Pembayaran
+                        </label>
+                        <select
+                          value={statusFilter}
+                          onChange={(e) => {
+                            setStatusFilter(
+                              e.target.value as "ALL" | "PAID" | "UNPAID",
+                            );
+                            setPage(1);
+                          }}
+                          className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="ALL">Semua Status</option>
+                          <option value="PAID">Lunas</option>
+                          <option value="UNPAID">Belum Lunas</option>
+                        </select>
+                      </div>
+
+                      {/* Tipe Pelanggan */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
+                          Tipe Pelanggan
+                        </label>
+                        <select
+                          value={customerTypeFilter}
+                          onChange={(e) => {
+                            setCustomerTypeFilter(
+                              e.target.value as "ALL" | "RESELLER" | "RETAIL",
+                            );
+                            setPage(1);
+                          }}
+                          className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="ALL">Semua Tipe</option>
+                          <option value="RETAIL">Retail</option>
+                          <option value="RESELLER">Biro / Reseller</option>
+                        </select>
+                      </div>
+
+                      {/* Status Pesanan */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
+                          Status Pesanan
+                        </label>
+                        <select
+                          value={orderStatusFilter}
+                          onChange={(e) => {
+                            setOrderStatusFilter(
+                              e.target.value as "ALL" | "SUCCESS" | "CANCELLED",
+                            );
+                            setPage(1);
+                          }}
+                          className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="ALL">Semua Pesanan</option>
+                          <option value="SUCCESS">Selesai</option>
+                          <option value="CANCELLED">Dibatalkan</option>
+                        </select>
+                      </div>
+
+                      {/* Metode Pembayaran */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
+                          Metode Pembayaran
+                        </label>
+                        <div className="flex flex-col gap-2">
+                          {(
+                            [
+                              { id: "CASH", label: "Tunai / Cash" },
+                              { id: "TRANSFER", label: "Transfer Bank" },
+                              { id: "QRIS", label: "QRIS" },
+                            ] as const
+                          ).map((method) => {
+                            const isChecked = paymentMethodsFilter.includes(
+                              method.id,
+                            );
+                            return (
+                              <label
+                                key={method.id}
+                                className="flex items-center gap-2 text-xs font-semibold cursor-pointer select-none"
+                              >
+                                <Checkbox
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setPaymentMethodsFilter((prev) =>
+                                      checked
+                                        ? [...prev, method.id]
+                                        : prev.filter((p) => p !== method.id),
+                                    );
+                                    setPage(1);
+                                  }}
+                                />
+                                <span className="text-foreground">
+                                  {method.label}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center justify-between pt-3 border-t border-border/40">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStatusFilter("ALL");
+                            setCustomerTypeFilter("ALL");
+                            setOrderStatusFilter("SUCCESS");
+                            setPaymentMethodsFilter([]);
+                            setPage(1);
+                          }}
+                          className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          Reset Filter
+                        </button>
+                        <Button
+                          size="sm"
+                          onClick={() => setIsFilterOpen(false)}
+                          className="h-8 px-4 rounded-xl text-[10px] font-bold"
+                        >
+                          Terapkan
+                        </Button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>
@@ -568,21 +816,26 @@ const InvoicePage = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-muted/40 border-b border-border/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                <th className="py-4 px-5">No. Nota</th>
-                <th className="py-4 px-5">Pelanggan</th>
-                <th className="py-4 px-5">Tanggal</th>
+                <th className="py-4 px-5 min-w-[120px] text-center">Tanggal</th>
+                <th className="py-4 px-5 min-w-[160px]">No. Nota</th>
+                <th className="py-4 px-5 min-w-[180px]">Pelanggan</th>
                 <th className="py-4 px-5 text-right">Total Tagihan</th>
                 <th className="py-4 px-5 text-right">Telah Dibayar</th>
                 <th className="py-4 px-5 text-right">Sisa Piutang</th>
                 <th className="py-4 px-5 text-center">Metode</th>
-                <th className="py-4 px-5 text-center">Status</th>
+                <th className="py-4 px-5 text-center min-w-[160px]">
+                  Status Pembayaran
+                </th>
+                <th className="py-4 px-5 text-center min-w-[140px]">
+                  Status Pesanan
+                </th>
                 <th className="py-4 px-5 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/20 text-xs font-semibold text-foreground">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center space-y-3">
+                  <td colSpan={10} className="py-12 text-center space-y-3">
                     <div className="relative w-8 h-8 mx-auto">
                       <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
                       <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -601,13 +854,20 @@ const InvoicePage = () => {
                       key={inv.id}
                       className="hover:bg-muted/20 transition-colors duration-150"
                     >
+                      {/* Date */}
+                      <td className="py-4 px-5 text-center">
+                        <div className="text-muted-foreground">
+                          {inv.createdAt}
+                        </div>
+                      </td>
+
                       {/* Invoice & Job No */}
                       <td className="py-4 px-5 space-y-1">
                         <div className="font-mono font-bold text-foreground bg-muted px-2 py-0.5 rounded-lg border border-border/50 inline-block">
                           {inv.invoiceNo}
                         </div>
                         <div className="text-[10px] text-muted-foreground font-semibold block">
-                          No. Tiket / Job: {inv.jobNumber}
+                          No. Tiket : {inv.jobNumber}
                         </div>
                       </td>
 
@@ -626,14 +886,6 @@ const InvoicePage = () => {
                         >
                           {inv.isReseller ? "Biro / Reseller" : "Retail"}
                         </span>
-                      </td>
-
-                      {/* Date */}
-                      <td className="py-4 px-5">
-                        <div className="text-muted-foreground flex items-center gap-1">
-                          <LuCalendar size={12} />
-                          {inv.createdAt}
-                        </div>
                       </td>
 
                       {/* Total Amount */}
@@ -664,14 +916,24 @@ const InvoicePage = () => {
                         <div className="flex flex-wrap gap-1 justify-center">
                           {inv.paymentMethods.length > 0 ? (
                             inv.paymentMethods.map((method) => {
-                              let badgeColor = "bg-muted text-muted-foreground border-border/50";
+                              let badgeColor =
+                                "bg-muted text-muted-foreground border-border/50";
                               const normalized = method.toLowerCase();
                               if (normalized === "qris") {
-                                badgeColor = "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
-                              } else if (normalized === "cash" || normalized === "tunai") {
-                                badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
-                              } else if (normalized === "transfer" || normalized === "bank") {
-                                badgeColor = "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
+                                badgeColor =
+                                  "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
+                              } else if (
+                                normalized === "cash" ||
+                                normalized === "tunai"
+                              ) {
+                                badgeColor =
+                                  "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
+                              } else if (
+                                normalized === "transfer" ||
+                                normalized === "bank"
+                              ) {
+                                badgeColor =
+                                  "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
                               }
                               return (
                                 <span
@@ -683,7 +945,9 @@ const InvoicePage = () => {
                               );
                             })
                           ) : (
-                            <span className="text-muted-foreground text-[10px]">-</span>
+                            <span className="text-muted-foreground text-[10px]">
+                              -
+                            </span>
                           )}
                         </div>
                       </td>
@@ -699,6 +963,21 @@ const InvoicePage = () => {
                         >
                           {inv.status === "PAID" ? "Lunas" : "Belum Lunas"}
                         </span>
+                      </td>
+
+                      {/* Order Status Badge */}
+                      <td className="py-4 px-5 text-center">
+                        {inv.orderStatus === "CANCELLED" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/50">
+                            <LuCircleX className="h-3 w-3" />
+                            Dibatalkan
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50">
+                            <LuCircleCheck className="h-3 w-3" />
+                            Selesai
+                          </span>
+                        )}
                       </td>
 
                       {/* Dropdown Popover Actions */}
@@ -725,9 +1004,7 @@ const InvoicePage = () => {
                                 <span>Detail Rincian</span>
                               </DropdownItem>
                               <DropdownItem
-                                onClick={() =>
-                                  handlePrintInvoice(inv)
-                                }
+                                onClick={() => handlePrintInvoice(inv)}
                               >
                                 <LuPrinter className="h-3.5 w-3.5 text-muted-foreground" />
                                 <span>Cetak Ulang Struk</span>
@@ -751,6 +1028,19 @@ const InvoicePage = () => {
                                   </span>
                                 </DropdownItem>
                               )}
+                              {inv.amountPaid > 0 && (
+                                <DropdownItem
+                                  onClick={() => {
+                                    setSelectedInvoice(inv);
+                                    setIsRefundOpen(true);
+                                  }}
+                                >
+                                  <LuRotateCcw className="h-3.5 w-3.5 text-rose-600" />
+                                  <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                                    Ajukan Refund
+                                  </span>
+                                </DropdownItem>
+                              )}
                             </DropdownContent>
                           </Dropdown>
                         </div>
@@ -760,7 +1050,7 @@ const InvoicePage = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={9} className="py-12 px-5 text-center space-y-3">
+                  <td colSpan={10} className="py-12 px-5 text-center space-y-3">
                     <LuInfo
                       size={36}
                       className="text-muted-foreground/60 mx-auto"
@@ -882,17 +1172,20 @@ const InvoicePage = () => {
                   ) : payments && payments.length > 0 ? (
                     <div className="relative border-l border-border pl-4 space-y-4">
                       {groupedPayments.map((pay, idx) => (
-                        <div key={pay.id} className="relative flex flex-col gap-2">
+                        <div
+                          key={pay.id}
+                          className="relative flex flex-col gap-2"
+                        >
                           {/* Circle Indicator */}
                           <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 dark:ring-emerald-950/40" />
                           <div className="flex justify-between items-start gap-4 text-xs font-semibold">
                             <div>
                               <span className="text-foreground font-black block">
-                                {pay.payment_type === "DOWN_PAYMENT" 
-                                  ? "Pembayaran Awal (DP)" 
+                                {pay.payment_type === "DOWN_PAYMENT"
+                                  ? "Pembayaran Awal (DP)"
                                   : pay.payment_type === "FULL_PAYMENT"
-                                  ? "Lunas / Pembayaran Langsung"
-                                  : `Pelunasan #${pay.payment_number > 1 ? pay.payment_number - 1 : idx}`}
+                                    ? "Lunas / Pembayaran Langsung"
+                                    : `Pelunasan #${pay.payment_number > 1 ? pay.payment_number - 1 : idx}`}
                               </span>
                               <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
                                 {pay.created_at} • Kasir: {pay.cashier_name}
@@ -906,9 +1199,16 @@ const InvoicePage = () => {
                           {/* Detail Rincian Metode Pembayaran */}
                           <div className="ml-0 mt-1 pl-3 border-l-2 border-border/40 space-y-1.5">
                             {pay.details.map((detail) => (
-                              <div key={detail.id} className="flex justify-between items-center text-[10px] font-semibold">
-                                <span className="text-muted-foreground uppercase tracking-wider">{detail.payment_method}</span>
-                                <span className="text-foreground">{formatCurrency(detail.amount)}</span>
+                              <div
+                                key={detail.id}
+                                className="flex justify-between items-center text-[10px] font-semibold"
+                              >
+                                <span className="text-muted-foreground uppercase tracking-wider">
+                                  {detail.payment_method}
+                                </span>
+                                <span className="text-foreground">
+                                  {formatCurrency(detail.amount)}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -916,7 +1216,9 @@ const InvoicePage = () => {
                       ))}
 
                       {/* If outstanding balance exists, show warning dot/installment step */}
-                      {selectedInvoice.totalAmount - selectedInvoice.amountPaid > 0 && (
+                      {selectedInvoice.totalAmount -
+                        selectedInvoice.amountPaid >
+                        0 && (
                         <div className="relative">
                           {/* Orange Indicator for unpaid remaining */}
                           <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-4 ring-amber-100 dark:ring-amber-950/40 animate-pulse" />
@@ -931,7 +1233,8 @@ const InvoicePage = () => {
                             </div>
                             <span className="font-black text-rose-500 shrink-0">
                               {formatCurrency(
-                                selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                                selectedInvoice.totalAmount -
+                                  selectedInvoice.amountPaid,
                               )}
                             </span>
                           </div>
@@ -1061,7 +1364,9 @@ const InvoicePage = () => {
                 type="button"
                 onClick={() => {
                   setIsSplitPayment(!isSplitPayment);
-                  setPayAmount(selectedInvoice.totalAmount - selectedInvoice.amountPaid);
+                  setPayAmount(
+                    selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                  );
                   setSplitAmounts({ cash: 0, transfer: 0, qris: 0 });
                 }}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
@@ -1090,12 +1395,15 @@ const InvoicePage = () => {
                     <input
                       type="number"
                       min="1"
-                      max={selectedInvoice.totalAmount - selectedInvoice.amountPaid}
+                      max={
+                        selectedInvoice.totalAmount - selectedInvoice.amountPaid
+                      }
                       value={payAmount || ""}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value) || 0;
                         const outstanding =
-                          selectedInvoice.totalAmount - selectedInvoice.amountPaid;
+                          selectedInvoice.totalAmount -
+                          selectedInvoice.amountPaid;
                         setPayAmount(Math.min(val, outstanding));
                       }}
                       placeholder="Masukkan nominal bayar..."
@@ -1107,7 +1415,8 @@ const InvoicePage = () => {
                       type="button"
                       onClick={() =>
                         setPayAmount(
-                          selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                          selectedInvoice.totalAmount -
+                            selectedInvoice.amountPaid,
                         )
                       }
                       className="text-[10px] font-black text-primary hover:underline"
@@ -1165,15 +1474,21 @@ const InvoicePage = () => {
                         <LuDollarSign size={13} className="text-primary/70" />
                         Tunai (Cash)
                       </span>
-                      {outstandingAmount - (splitAmounts.transfer + splitAmounts.qris) > 0 && (
+                      {outstandingAmount -
+                        (splitAmounts.transfer + splitAmounts.qris) >
+                        0 && (
                         <button
                           type="button"
                           onClick={() => {
                             const sisa = Math.max(
                               0,
-                              outstandingAmount - (splitAmounts.transfer + splitAmounts.qris),
+                              outstandingAmount -
+                                (splitAmounts.transfer + splitAmounts.qris),
                             );
-                            setSplitAmounts((prev) => ({ ...prev, cash: sisa }));
+                            setSplitAmounts((prev) => ({
+                              ...prev,
+                              cash: sisa,
+                            }));
                           }}
                           className="text-[9px] font-black text-primary hover:underline"
                         >
@@ -1214,15 +1529,21 @@ const InvoicePage = () => {
                         <LuCreditCard size={13} className="text-primary/70" />
                         Transfer Bank
                       </span>
-                      {outstandingAmount - (splitAmounts.cash + splitAmounts.qris) > 0 && (
+                      {outstandingAmount -
+                        (splitAmounts.cash + splitAmounts.qris) >
+                        0 && (
                         <button
                           type="button"
                           onClick={() => {
                             const sisa = Math.max(
                               0,
-                              outstandingAmount - (splitAmounts.cash + splitAmounts.qris),
+                              outstandingAmount -
+                                (splitAmounts.cash + splitAmounts.qris),
                             );
-                            setSplitAmounts((prev) => ({ ...prev, transfer: sisa }));
+                            setSplitAmounts((prev) => ({
+                              ...prev,
+                              transfer: sisa,
+                            }));
                           }}
                           className="text-[9px] font-black text-primary hover:underline"
                         >
@@ -1230,7 +1551,8 @@ const InvoicePage = () => {
                           {formatCurrency(
                             Math.max(
                               0,
-                              outstandingAmount - (splitAmounts.cash + splitAmounts.qris),
+                              outstandingAmount -
+                                (splitAmounts.cash + splitAmounts.qris),
                             ),
                           )}
                           )
@@ -1265,15 +1587,21 @@ const InvoicePage = () => {
                         <LuQrCode size={13} className="text-primary/70" />
                         QRIS
                       </span>
-                      {outstandingAmount - (splitAmounts.cash + splitAmounts.transfer) > 0 && (
+                      {outstandingAmount -
+                        (splitAmounts.cash + splitAmounts.transfer) >
+                        0 && (
                         <button
                           type="button"
                           onClick={() => {
                             const sisa = Math.max(
                               0,
-                              outstandingAmount - (splitAmounts.cash + splitAmounts.transfer),
+                              outstandingAmount -
+                                (splitAmounts.cash + splitAmounts.transfer),
                             );
-                            setSplitAmounts((prev) => ({ ...prev, qris: sisa }));
+                            setSplitAmounts((prev) => ({
+                              ...prev,
+                              qris: sisa,
+                            }));
                           }}
                           className="text-[9px] font-black text-primary hover:underline"
                         >
@@ -1310,13 +1638,17 @@ const InvoicePage = () => {
                   {/* Split Summary */}
                   <div className="bg-primary/[0.02] border border-border/40 p-3.5 rounded-2xl text-[11px] font-semibold space-y-1.5">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Sisa Piutang:</span>
+                      <span className="text-muted-foreground">
+                        Sisa Piutang:
+                      </span>
                       <span className="text-foreground font-bold">
                         {formatCurrency(outstandingAmount)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Diinput:</span>
+                      <span className="text-muted-foreground">
+                        Total Diinput:
+                      </span>
                       <span className="text-foreground font-bold">
                         {formatCurrency(totalSplitInput)}
                       </span>
@@ -1358,7 +1690,8 @@ const InvoicePage = () => {
                 disabled={
                   processPaymentMutation.isPending ||
                   (isSplitPayment
-                    ? totalSplitInput <= 0 || totalSplitInput > outstandingAmount
+                    ? totalSplitInput <= 0 ||
+                      totalSplitInput > outstandingAmount
                     : payAmount <= 0 || payAmount > outstandingAmount)
                 }
               >
@@ -1606,7 +1939,7 @@ const InvoicePage = () => {
           </div>
         )}
       </Dialog>
-      
+
       {/* DIALOG 5: Simulated Thermal Receipt Dialog */}
       <Dialog
         isOpen={isReceiptOpen}
@@ -1646,15 +1979,11 @@ const InvoicePage = () => {
               <div className="py-3 space-y-1 border-b border-dashed border-slate-300 dark:border-slate-700">
                 <div className="flex justify-between">
                   <span>No. Nota:</span>
-                  <span className="font-bold">
-                    {selectedInvoice.invoiceNo}
-                  </span>
+                  <span className="font-bold">{selectedInvoice.invoiceNo}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>No. Tiket / Job:</span>
-                  <span className="font-bold">
-                    {selectedInvoice.jobNumber}
-                  </span>
+                  <span className="font-bold">{selectedInvoice.jobNumber}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Tanggal:</span>
@@ -1697,38 +2026,36 @@ const InvoicePage = () => {
                   <span>Subtotal:</span>
                   <span>
                     {formatCurrency(
-                      selectedInvoice.items.reduce(
-                        (s, i) => s + i.subtotal,
-                        0,
-                      ),
+                      selectedInvoice.items.reduce((s, i) => s + i.subtotal, 0),
                     )}
                   </span>
                 </div>
 
                 <div className="flex justify-between font-bold text-xs border-t border-dotted border-slate-300 dark:border-slate-700 pt-2 text-foreground">
                   <span>TOTAL BELANJA:</span>
-                  <span>
-                    {formatCurrency(selectedInvoice.totalAmount)}
-                  </span>
+                  <span>{formatCurrency(selectedInvoice.totalAmount)}</span>
                 </div>
 
                 <div className="flex justify-between">
                   <span>Jumlah Bayar:</span>
-                  <span>
-                    {formatCurrency(selectedInvoice.amountPaid)}
-                  </span>
+                  <span>{formatCurrency(selectedInvoice.amountPaid)}</span>
                 </div>
 
-                {selectedInvoice.totalAmount - selectedInvoice.amountPaid > 0 && (
+                {selectedInvoice.totalAmount - selectedInvoice.amountPaid >
+                  0 && (
                   <div className="flex justify-between font-bold text-rose-600 dark:text-rose-400">
                     <span>SISA TAGIHAN (UTANG):</span>
                     <span>
-                      {formatCurrency(selectedInvoice.totalAmount - selectedInvoice.amountPaid)}
+                      {formatCurrency(
+                        selectedInvoice.totalAmount -
+                          selectedInvoice.amountPaid,
+                      )}
                     </span>
                   </div>
                 )}
 
-                {selectedInvoice.totalAmount - selectedInvoice.amountPaid === 0 && (
+                {selectedInvoice.totalAmount - selectedInvoice.amountPaid ===
+                  0 && (
                   <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
                     <span>Status:</span>
                     <span>LUNAS</span>
@@ -1770,6 +2097,58 @@ const InvoicePage = () => {
             </div>
           </div>
         )}
+      </Dialog>
+
+      <Dialog
+        isOpen={isRefundOpen}
+        onClose={() => setIsRefundOpen(false)}
+        className="rounded-3xl p-6 bg-card border border-border/50 text-foreground max-w-md w-full"
+        showCloseButton={true}
+      >
+        <div className="space-y-4">
+          <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
+            <LuRotateCcw className="text-rose-500" size={20} />
+            Konfirmasi Refund
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Apakah Anda yakin ingin mengajukan refund untuk nota{" "}
+            <span className="font-mono font-bold text-foreground bg-muted px-1.5 py-0.5 rounded border border-border">
+              {selectedInvoice?.invoiceNo}
+            </span>{" "}
+            sebesar{" "}
+            <span className="font-bold text-rose-500">
+              {selectedInvoice
+                ? formatCurrency(selectedInvoice.amountPaid)
+                : ""}
+            </span>
+            ?
+          </p>
+          <div className="bg-destructive/10 text-destructive text-xs p-3 rounded-xl border border-destructive/20 font-medium">
+            <strong>Peringatan:</strong> Proses refund ini akan mempengaruhi
+            cash flow dan dicatat sebagai pengeluaran.
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-border/30">
+            <Button
+              variant="outline"
+              onClick={() => setIsRefundOpen(false)}
+              className="rounded-xl font-bold"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                toast.success(
+                  "Refund Diajukan",
+                  `Permintaan refund untuk nota ${selectedInvoice?.invoiceNo} telah diajukan.`,
+                );
+                setIsRefundOpen(false);
+              }}
+              className="rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Ya, Refund
+            </Button>
+          </div>
+        </div>
       </Dialog>
     </div>
   );

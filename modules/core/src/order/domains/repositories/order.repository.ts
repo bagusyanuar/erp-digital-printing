@@ -11,6 +11,8 @@ export interface OrderParams {
   search?: string;
   start_date?: string;
   end_date?: string;
+  customer_type?: string;
+  payment_methods?: string;
 }
 
 export interface PaymentItemInput {
