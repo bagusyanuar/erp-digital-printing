@@ -128,7 +128,18 @@ export const NavSidebar = () => {
               </SidebarItem>
             )}
           </NavLink>
-          <SidebarItem icon={<LuBanknote />} label="Setoran Modal" />
+          <NavLink to="/capital-injection" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuBanknote />}
+                label="Setoran Modal"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
           <SidebarItem icon={<LuCreditCard />} label="Penarikan Modal (Prive)" />
           <SidebarItem icon={<LuArrowRightLeft />} label="Pemindahan Dana" />
         </SidebarGroup>
