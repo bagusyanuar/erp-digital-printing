@@ -66,7 +66,7 @@ export class ApiOrderRepository implements OrderRepository {
         query.customer_type = params.customer_type;
       }
       if (params.payment_methods) {
-        query.payment_methods = params.payment_methods;
+        query.payment_method = params.payment_methods;
       }
 
       const response = await this.http.get<ApiResponse<OrderResponse[]>>(

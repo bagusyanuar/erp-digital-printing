@@ -112,14 +112,29 @@ const InvoicePage = () => {
     "ALL",
   );
   const [customerTypeFilter, setCustomerTypeFilter] = useState<
-    "ALL" | "RESELLER" | "RETAIL"
+    "ALL" | "RESELLER" | "END_USER"
   >("ALL");
   const [orderStatusFilter, setOrderStatusFilter] = useState<
-    "ALL" | "SUCCESS" | "CANCELLED"
+    "ALL" | "SUCCESS" | "REFUND"
   >("SUCCESS");
   const [paymentMethodsFilter, setPaymentMethodsFilter] = useState<string[]>(
     [],
   );
+
+  // Temporary filter states for draft selections before clicking 'Terapkan'
+  const [tempStatusFilter, setTempStatusFilter] = useState<"ALL" | "PAID" | "UNPAID">(
+    "ALL",
+  );
+  const [tempCustomerTypeFilter, setTempCustomerTypeFilter] = useState<
+    "ALL" | "RESELLER" | "END_USER"
+  >("ALL");
+  const [tempOrderStatusFilter, setTempOrderStatusFilter] = useState<
+    "ALL" | "SUCCESS" | "REFUND"
+  >("SUCCESS");
+  const [tempPaymentMethodsFilter, setTempPaymentMethodsFilter] = useState<string[]>(
+    [],
+  );
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const activeFiltersCount = useMemo(() => {
@@ -140,10 +155,10 @@ const InvoicePage = () => {
     if (orderStatusFilter === "SUCCESS") {
       return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED";
     }
-    if (orderStatusFilter === "CANCELLED") {
-      return "CANCELLED";
+    if (orderStatusFilter === "REFUND") {
+      return "REFUND";
     }
-    return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED,CANCELLED";
+    return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED,REFUND";
   }, [orderStatusFilter]);
 
   const mappedPaymentStatus = useMemo(() => {
@@ -646,7 +661,16 @@ const InvoicePage = () => {
             <div className="relative">
               <Button
                 variant={activeFiltersCount > 0 ? "default" : "outline"}
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                onClick={() => {
+                  if (!isFilterOpen) {
+                    // Sync temporary states with currently applied filter states on open
+                    setTempStatusFilter(statusFilter);
+                    setTempCustomerTypeFilter(customerTypeFilter);
+                    setTempOrderStatusFilter(orderStatusFilter);
+                    setTempPaymentMethodsFilter(paymentMethodsFilter);
+                  }
+                  setIsFilterOpen(!isFilterOpen);
+                }}
                 className="h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-2"
               >
                 <LuFilter size={14} />
@@ -679,12 +703,11 @@ const InvoicePage = () => {
                           Status Pembayaran
                         </label>
                         <select
-                          value={statusFilter}
+                          value={tempStatusFilter}
                           onChange={(e) => {
-                            setStatusFilter(
+                            setTempStatusFilter(
                               e.target.value as "ALL" | "PAID" | "UNPAID",
                             );
-                            setPage(1);
                           }}
                           className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
                         >
@@ -700,17 +723,16 @@ const InvoicePage = () => {
                           Tipe Pelanggan
                         </label>
                         <select
-                          value={customerTypeFilter}
+                          value={tempCustomerTypeFilter}
                           onChange={(e) => {
-                            setCustomerTypeFilter(
-                              e.target.value as "ALL" | "RESELLER" | "RETAIL",
+                            setTempCustomerTypeFilter(
+                              e.target.value as "ALL" | "RESELLER" | "END_USER",
                             );
-                            setPage(1);
                           }}
                           className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
                         >
                           <option value="ALL">Semua Tipe</option>
-                          <option value="RETAIL">Retail</option>
+                          <option value="END_USER">End User</option>
                           <option value="RESELLER">Biro / Reseller</option>
                         </select>
                       </div>
@@ -721,18 +743,17 @@ const InvoicePage = () => {
                           Status Pesanan
                         </label>
                         <select
-                          value={orderStatusFilter}
+                          value={tempOrderStatusFilter}
                           onChange={(e) => {
-                            setOrderStatusFilter(
-                              e.target.value as "ALL" | "SUCCESS" | "CANCELLED",
+                            setTempOrderStatusFilter(
+                              e.target.value as "ALL" | "SUCCESS" | "REFUND",
                             );
-                            setPage(1);
                           }}
                           className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
                         >
                           <option value="ALL">Semua Pesanan</option>
                           <option value="SUCCESS">Selesai</option>
-                          <option value="CANCELLED">Dibatalkan</option>
+                          <option value="REFUND">Refund</option>
                         </select>
                       </div>
 
@@ -749,7 +770,7 @@ const InvoicePage = () => {
                               { id: "QRIS", label: "QRIS" },
                             ] as const
                           ).map((method) => {
-                            const isChecked = paymentMethodsFilter.includes(
+                            const isChecked = tempPaymentMethodsFilter.includes(
                               method.id,
                             );
                             return (
@@ -761,12 +782,11 @@ const InvoicePage = () => {
                                   checked={isChecked}
                                   onChange={(e) => {
                                     const checked = e.target.checked;
-                                    setPaymentMethodsFilter((prev) =>
+                                    setTempPaymentMethodsFilter((prev) =>
                                       checked
                                         ? [...prev, method.id]
                                         : prev.filter((p) => p !== method.id),
                                     );
-                                    setPage(1);
                                   }}
                                 />
                                 <span className="text-foreground">
@@ -783,11 +803,17 @@ const InvoicePage = () => {
                         <button
                           type="button"
                           onClick={() => {
+                            setTempStatusFilter("ALL");
+                            setTempCustomerTypeFilter("ALL");
+                            setTempOrderStatusFilter("SUCCESS");
+                            setTempPaymentMethodsFilter([]);
+
                             setStatusFilter("ALL");
                             setCustomerTypeFilter("ALL");
                             setOrderStatusFilter("SUCCESS");
                             setPaymentMethodsFilter([]);
                             setPage(1);
+                            setIsFilterOpen(false);
                           }}
                           className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors"
                         >
@@ -795,7 +821,14 @@ const InvoicePage = () => {
                         </button>
                         <Button
                           size="sm"
-                          onClick={() => setIsFilterOpen(false)}
+                          onClick={() => {
+                            setStatusFilter(tempStatusFilter);
+                            setCustomerTypeFilter(tempCustomerTypeFilter);
+                            setOrderStatusFilter(tempOrderStatusFilter);
+                            setPaymentMethodsFilter(tempPaymentMethodsFilter);
+                            setPage(1);
+                            setIsFilterOpen(false);
+                          }}
                           className="h-8 px-4 rounded-xl text-[10px] font-bold"
                         >
                           Terapkan
@@ -971,6 +1004,11 @@ const InvoicePage = () => {
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/50">
                             <LuCircleX className="h-3 w-3" />
                             Dibatalkan
+                          </span>
+                        ) : inv.orderStatus === "REFUND" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-850 dark:text-gray-300 dark:border-gray-700">
+                            <LuRotateCcw className="h-3 w-3" />
+                            Refund
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50">
