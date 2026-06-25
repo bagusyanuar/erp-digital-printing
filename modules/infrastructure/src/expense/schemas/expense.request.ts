@@ -29,3 +29,7 @@ export interface ExpenseQuery extends PaginationQuery {
   end_date?: string;
   search?: string;
 }
+
+export interface PayExpenseRequest {
+  payments: CreateExpensePaymentRequest[];
+}

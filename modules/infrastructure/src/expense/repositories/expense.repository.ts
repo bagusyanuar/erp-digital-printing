@@ -1,9 +1,9 @@
-import type { CreateExpenseInput, ExpenseQueryParams } from "@core/expense/applications/inputs/expense.input";
+import type { CreateExpenseInput, ExpenseQueryParams, PayExpenseInput } from "@core/expense/applications/inputs/expense.input";
 import type { ExpenseModel } from "@core/expense/domains/models/expense.model";
 import type { ExpenseRepository, ExpenseReportWidgetsParams, ExpenseReportWidgetsModel, ExpenseAnalyticsSummaryParams, ExpenseAnalyticsSummaryModel } from "@core/expense/domains/repositories/expense.repository";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import { safeApiCall } from "@infrastructure/libs/error";
-import { mapCreateInputToRequest, mapResponseToModel, mapParamsToQuery } from "../mappers/expense.mapper";
+import { mapCreateInputToRequest, mapResponseToModel, mapParamsToQuery, mapPayInputToRequest } from "../mappers/expense.mapper";
 import type { HttpClient } from "@erp-digital-printing/http";
 import type { ApiResponse } from "@infrastructure/libs/api-response";
 import type { ExpenseResponse } from "../schemas/expense.response";
@@ -85,6 +85,13 @@ export class ApiExpenseRepository implements ExpenseRepository {
         totalOperational: response.data.total_operational,
         totalExpense: response.data.total_expense,
       };
+    });
+  }
+
+  async pay(id: string, input: PayExpenseInput): Promise<void> {
+    return safeApiCall(async () => {
+      const payload = mapPayInputToRequest(input);
+      await this.http.post(`/expenses/${id}/payments`, payload);
     });
   }
 }

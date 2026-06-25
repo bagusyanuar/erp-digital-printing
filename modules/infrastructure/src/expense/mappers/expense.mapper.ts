@@ -1,6 +1,12 @@
-import type { CreateExpenseInput, CreateExpenseItemInput, CreateExpensePaymentInput, ExpenseQueryParams } from "@core/expense/applications/inputs/expense.input";
+import type { CreateExpenseInput, CreateExpenseItemInput, CreateExpensePaymentInput, ExpenseQueryParams, PayExpenseInput } from "@core/expense/applications/inputs/expense.input";
 import type { ExpenseModel, ExpenseItemModel, ExpensePaymentModel } from "@core/expense/domains/models/expense.model";
-import type { CreateExpenseRequest, CreateExpenseItemRequest, CreateExpensePaymentRequest, ExpenseResponse, ExpenseItemResponse, ExpensePaymentResponse, ExpenseQuery } from "../schemas";
+import type { CreateExpenseRequest, CreateExpenseItemRequest, CreateExpensePaymentRequest, ExpenseResponse, ExpenseItemResponse, ExpensePaymentResponse, ExpenseQuery, PayExpenseRequest } from "../schemas";
+
+export function mapPayInputToRequest(input: PayExpenseInput): PayExpenseRequest {
+  return {
+    payments: input.payments.map(mapCreatePaymentInputToRequest),
+  };
+}
 
 export function mapParamsToQuery(params: ExpenseQueryParams): ExpenseQuery {
   return {

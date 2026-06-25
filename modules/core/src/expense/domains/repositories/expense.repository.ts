@@ -1,4 +1,4 @@
-import type { CreateExpenseInput, ExpenseQueryParams } from "../../applications/inputs/expense.input";
+import type { CreateExpenseInput, ExpenseQueryParams, PayExpenseInput } from "../../applications/inputs/expense.input";
 import type { ExpenseModel } from "../models/expense.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
@@ -33,4 +33,5 @@ export interface ExpenseRepository {
   getExpenses(params: ExpenseQueryParams): Promise<PaginatedResponse<ExpenseModel>>;
   getExpenseReportWidgets(params: ExpenseReportWidgetsParams): Promise<ExpenseReportWidgetsModel>;
   getExpenseAnalyticsSummary(params: ExpenseAnalyticsSummaryParams): Promise<ExpenseAnalyticsSummaryModel>;
+  pay(id: string, input: PayExpenseInput): Promise<void>;
 }

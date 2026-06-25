@@ -41,10 +41,11 @@ import {
 
 // Backend category mappings
 const CATEGORY_LABELS: Record<string, string> = {
-  ORDER_PAYMENT: "Pembayaran Pesanan",
+  ORDER_PAYMENT: "Penjualan",
   CAPITAL_INJECTION: "Setoran Modal",
   EXPENSE: "Pengeluaran / Biaya",
-  REFUND: "Pengembalian Dana (Refund)",
+  EXPENSE_PAYMENT: "Pengeluaran",
+  REFUND: "Refund",
   ADJUSTMENT: "Penyesuaian Kas",
   CAPITAL_WITHDRAWAL: "Penarikan Owner (Prive)",
   CAPITAL: "Modal",

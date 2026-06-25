@@ -8,7 +8,8 @@ import {
   type DateRange,
 } from "@erp-digital-printing/ui/DateRangePicker";
 import { toast } from "@erp-digital-printing/ui/Toast";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import type { AppError } from "@core/shared/errors/domain.error";
 import { useExpenseDI } from "../hooks/useExpenseDI";
 import { expenseKeys } from "@infrastructure/expense/keys";
 import { useDebounce } from "../../shared/hooks/useDebounce";
@@ -20,7 +21,7 @@ import type { ExpenseBill } from "../types/expenseTypes";
 
 const ExpensePage = () => {
   const queryClient = useQueryClient();
-  const { getExpensesUseCase, getExpenseAnalyticsSummaryUseCase } =
+  const { getExpensesUseCase, getExpenseAnalyticsSummaryUseCase, payExpenseUseCase } =
     useExpenseDI();
 
   // Filters & Pagination State
@@ -28,9 +29,12 @@ const ExpensePage = () => {
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 750);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1), // Start of month
-    to: new Date(),
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const today = new Date();
+    return {
+      from: today,
+      to: today,
+    };
   });
 
   // Dialog States
@@ -144,13 +148,39 @@ const ExpensePage = () => {
     );
   };
 
+  const payMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: { payments: { amount: number; paymentMethod: "cash" | "transfer" }[] } }) =>
+      payExpenseUseCase.execute(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: expenseKeys.all });
+      toast.success("Berhasil", "Pembayaran cicilan berhasil dicatat.");
+      setIsPaymentOpen(false);
+    },
+    onError: (error: AppError) => {
+      toast.error("Gagal", error.message || "Gagal mencatat pembayaran.");
+    },
+  });
+
   const handleSaveBill = () => {
     queryClient.invalidateQueries({ queryKey: expenseKeys.all });
   };
 
-  const handleSavePayment = () => {
-    queryClient.invalidateQueries({ queryKey: expenseKeys.all });
-    toast.success("Berhasil", "Pembayaran cicilan berhasil dicatat.");
+  const handleSavePayment = (
+    billId: string,
+    payment: { paymentDate: string; paymentAccount: string; amountPaid: number }
+  ) => {
+    const paymentMethod = payment.paymentAccount.toLowerCase() === "cash" ? "cash" : "transfer";
+    payMutation.mutate({
+      id: billId,
+      payload: {
+        payments: [
+          {
+            amount: payment.amountPaid,
+            paymentMethod,
+          },
+        ],
+      },
+    });
   };
 
   // Removed client-side filteredBills logic since filtering is now handled server-side via React Query
