@@ -140,8 +140,30 @@ export const NavSidebar = () => {
               </SidebarItem>
             )}
           </NavLink>
-          <SidebarItem icon={<LuCreditCard />} label="Penarikan Modal (Prive)" />
-          <SidebarItem icon={<LuArrowRightLeft />} label="Pemindahan Dana" />
+          <NavLink to="/capital-withdrawal" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuCreditCard />}
+                label="Penarikan Modal (Prive)"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
+          <NavLink to="/fund-transfer" className="contents">
+            {({ isActive }) => (
+              <SidebarItem
+                asChild
+                icon={<LuArrowRightLeft />}
+                label="Pemindahan Dana"
+                active={isActive}
+              >
+                <button />
+              </SidebarItem>
+            )}
+          </NavLink>
         </SidebarGroup>
 
         {/* <SidebarGroup label="Produksi">

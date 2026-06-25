@@ -15,6 +15,8 @@ import { cashFlowRoutes } from "./modules/cash-flow.routes";
 import { expenseCategoryRoutes } from "./modules/expense-category.routes";
 import { expenseRoutes } from "./modules/expense.routes";
 import { capitalInjectionRoutes } from "./modules/capital-injection.routes";
+import { capitalWithdrawalRoutes } from "./modules/capital-withdrawal.routes";
+import { fundTransferRoutes } from "./modules/fund-transfer.routes";
 import { reportRoutes } from "./modules/report.routes";
 import { PageLoader } from "../components/PageLoader";
 import MainLayout from "../layouts/MainLayout";
@@ -53,6 +55,8 @@ const router = createBrowserRouter([
               ...expenseCategoryRoutes,
               ...expenseRoutes,
               ...capitalInjectionRoutes,
+              ...capitalWithdrawalRoutes,
+              ...fundTransferRoutes,
               ...productRoutes,
               ...attributeRoutes,
               ...customerRoutes,
