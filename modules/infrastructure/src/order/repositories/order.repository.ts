@@ -1,5 +1,5 @@
 import type { DraftOrderModel, OrderModel, OrderSpkModel, OrderPaymentModel } from "@core/order/domains/models/order.model";
-import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, OrderReportWidgetsParams, OrderReportWidgetsModel } from "@core/order/domains/repositories/order.repository";
+import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel } from "@core/order/domains/repositories/order.repository";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import { safeApiCall } from "@infrastructure/libs/error";
 import type { HttpClient } from "@erp-digital-printing/http";
@@ -141,6 +141,12 @@ export class ApiOrderRepository implements OrderRepository {
   async repayOrder(id: string, input: RepayPaymentInput): Promise<void> {
     return safeApiCall(async () => {
       await this.http.post(`/orders/${id}/repay`, input);
+    });
+  }
+
+  async refundOrder(id: string, input: RefundOrderInput): Promise<void> {
+    return safeApiCall(async () => {
+      await this.http.post(`/orders/${id}/refund`, input);
     });
   }
 

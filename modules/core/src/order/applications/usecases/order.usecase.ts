@@ -1,4 +1,4 @@
-import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, OrderReportWidgetsParams, OrderReportWidgetsModel } from "../../domains/repositories/order.repository";
+import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel } from "../../domains/repositories/order.repository";
 import type { SaveDraftOrderInput } from "../inputs/order.input";
 import type { OrderModel, OrderSpkModel, OrderPaymentModel } from "../../domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
@@ -88,6 +88,14 @@ export class GetOrderReportWidgets {
 
   async execute(params: OrderReportWidgetsParams): Promise<OrderReportWidgetsModel> {
     return await this.orderRepository.getOrderReportWidgets(params);
+  }
+}
+
+export class RefundOrder {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(id: string, input: RefundOrderInput): Promise<void> {
+    await this.orderRepository.refundOrder(id, input);
   }
 }
 

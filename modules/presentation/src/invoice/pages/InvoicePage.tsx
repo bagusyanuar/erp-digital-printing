@@ -49,7 +49,7 @@ import type {
   OrderPaymentModel,
 } from "@core/order/domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
-import type { RepayPaymentInput } from "@core/order/domains/repositories/order.repository";
+import type { RepayPaymentInput, RefundOrderInput } from "@core/order/domains/repositories/order.repository";
 
 // Interfaces for mapped presentation UI
 interface InvoiceItem {
@@ -198,6 +198,11 @@ const InvoicePage = () => {
     qris: number;
   }>({ cash: 0, transfer: 0, qris: 0 });
 
+  // Refund form states
+  const [refundAmount, setRefundAmount] = useState<number>(0);
+  const [refundMethod, setRefundMethod] = useState<string>("cash");
+  const [refundReason, setRefundReason] = useState<string>("");
+
   const outstandingAmount = useMemo(() => {
     if (!selectedInvoice) return 0;
     return selectedInvoice.totalAmount - selectedInvoice.amountPaid;
@@ -217,6 +222,7 @@ const InvoicePage = () => {
   const {
     getOrdersUseCase,
     repayOrderUseCase,
+    refundOrderUseCase,
     getOrderPaymentsUseCase,
     getOrderSpkUseCase,
   } = useOrderDI();
@@ -480,6 +486,63 @@ const InvoicePage = () => {
       );
     },
   });
+
+  // Mutation to process refund in backend
+  const processRefundMutation = useMutation<
+    void,
+    AppError,
+    { id: string; payload: RefundOrderInput }
+  >({
+    mutationFn: ({ id, payload }) => refundOrderUseCase.execute(id, payload),
+    onSuccess: () => {
+      refetch();
+      setIsRefundOpen(false);
+      toast.success(
+        "Refund Berhasil",
+        `Pengajuan refund untuk nota ${selectedInvoice?.invoiceNo} berhasil disimpan.`,
+      );
+    },
+    onError: (error) => {
+      toast.error(
+        "Refund Gagal",
+        error.message ||
+          "Terjadi kesalahan saat memproses refund di server.",
+      );
+    },
+  });
+
+  const handleProcessRefund = () => {
+    if (!selectedInvoice) return;
+
+    if (refundAmount <= 0) {
+      toast.error("Refund Gagal", "Nominal refund harus lebih dari 0.");
+      return;
+    }
+
+    if (refundAmount > selectedInvoice.amountPaid) {
+      toast.error(
+        "Refund Gagal",
+        `Nominal refund tidak boleh melebihi jumlah yang sudah dibayar (${formatCurrency(selectedInvoice.amountPaid)}).`,
+      );
+      return;
+    }
+
+    if (!refundReason.trim()) {
+      toast.error("Refund Gagal", "Alasan refund wajib diisi.");
+      return;
+    }
+
+    const payload: RefundOrderInput = {
+      payment_method: refundMethod.toLowerCase(),
+      amount: refundAmount,
+      reason: refundReason.trim(),
+    };
+
+    processRefundMutation.mutate({
+      id: selectedInvoice.id,
+      payload,
+    });
+  };
 
   const handleProcessPayment = () => {
     if (!selectedInvoice) return;
@@ -1006,7 +1069,7 @@ const InvoicePage = () => {
                             Dibatalkan
                           </span>
                         ) : inv.orderStatus === "REFUND" ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-850 dark:text-gray-300 dark:border-gray-700">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/20 dark:text-violet-400 dark:border-violet-900/50">
                             <LuRotateCcw className="h-3 w-3" />
                             Refund
                           </span>
@@ -1041,43 +1104,50 @@ const InvoicePage = () => {
                                 <LuReceipt className="h-3.5 w-3.5 text-primary" />
                                 <span>Detail Rincian</span>
                               </DropdownItem>
-                              <DropdownItem
-                                onClick={() => handlePrintInvoice(inv)}
-                              >
-                                <LuPrinter className="h-3.5 w-3.5 text-muted-foreground" />
-                                <span>Cetak Ulang Struk</span>
-                              </DropdownItem>
-                              <DropdownItem
-                                onClick={() => {
-                                  setSelectedInvoice(inv);
-                                  setIsSpkOpen(true);
-                                }}
-                              >
-                                <LuScissors className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                                <span>Cetak SPK (Kerja)</span>
-                              </DropdownItem>
-                              {inv.status !== "PAID" && (
-                                <DropdownItem
-                                  onClick={() => handleOpenPay(inv)}
-                                >
-                                  <LuCoins className="h-3.5 w-3.5 text-emerald-600" />
-                                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                                    Bayar Pelunasan
-                                  </span>
-                                </DropdownItem>
-                              )}
-                              {inv.amountPaid > 0 && (
-                                <DropdownItem
-                                  onClick={() => {
-                                    setSelectedInvoice(inv);
-                                    setIsRefundOpen(true);
-                                  }}
-                                >
-                                  <LuRotateCcw className="h-3.5 w-3.5 text-rose-600" />
-                                  <span className="text-rose-600 dark:text-rose-400 font-semibold">
-                                    Ajukan Refund
-                                  </span>
-                                </DropdownItem>
+                              {inv.orderStatus !== "REFUND" && (
+                                <>
+                                  <DropdownItem
+                                    onClick={() => handlePrintInvoice(inv)}
+                                  >
+                                    <LuPrinter className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span>Cetak Ulang Struk</span>
+                                  </DropdownItem>
+                                  <DropdownItem
+                                    onClick={() => {
+                                      setSelectedInvoice(inv);
+                                      setIsSpkOpen(true);
+                                    }}
+                                  >
+                                    <LuScissors className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                                    <span>Cetak SPK (Kerja)</span>
+                                  </DropdownItem>
+                                  {inv.status !== "PAID" && (
+                                    <DropdownItem
+                                      onClick={() => handleOpenPay(inv)}
+                                    >
+                                      <LuCoins className="h-3.5 w-3.5 text-emerald-600" />
+                                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                        Bayar Pelunasan
+                                      </span>
+                                    </DropdownItem>
+                                  )}
+                                  {inv.amountPaid > 0 && (
+                                    <DropdownItem
+                                      onClick={() => {
+                                        setSelectedInvoice(inv);
+                                        setRefundAmount(inv.amountPaid);
+                                        setRefundMethod("cash");
+                                        setRefundReason("");
+                                        setIsRefundOpen(true);
+                                      }}
+                                    >
+                                      <LuRotateCcw className="h-3.5 w-3.5 text-rose-600" />
+                                      <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                                        Ajukan Refund
+                                      </span>
+                                    </DropdownItem>
+                                  )}
+                                </>
                               )}
                             </DropdownContent>
                           </Dropdown>
@@ -2143,50 +2213,128 @@ const InvoicePage = () => {
         className="rounded-3xl p-6 bg-card border border-border/50 text-foreground max-w-md w-full"
         showCloseButton={true}
       >
-        <div className="space-y-4">
-          <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
-            <LuRotateCcw className="text-rose-500" size={20} />
-            Konfirmasi Refund
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Apakah Anda yakin ingin mengajukan refund untuk nota{" "}
-            <span className="font-mono font-bold text-foreground bg-muted px-1.5 py-0.5 rounded border border-border">
-              {selectedInvoice?.invoiceNo}
-            </span>{" "}
-            sebesar{" "}
-            <span className="font-bold text-rose-500">
-              {selectedInvoice
-                ? formatCurrency(selectedInvoice.amountPaid)
-                : ""}
-            </span>
-            ?
-          </p>
-          <div className="bg-destructive/10 text-destructive text-xs p-3 rounded-xl border border-destructive/20 font-medium">
-            <strong>Peringatan:</strong> Proses refund ini akan mempengaruhi
-            cash flow dan dicatat sebagai pengeluaran.
+        {selectedInvoice && (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex flex-col gap-1 border-b border-border/30 pb-4">
+              <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
+                <LuRotateCcw className="text-rose-500" size={20} />
+                Ajukan Refund Invoice
+              </h2>
+            </div>
+
+            {/* Info Box */}
+            <div className="bg-rose-500/5 dark:bg-rose-500/10 p-4 rounded-2xl border border-rose-500/10 space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase text-muted-foreground">
+                  Nomor Nota
+                </span>
+                <span className="font-mono font-black text-xs text-foreground">
+                  {selectedInvoice.invoiceNo}
+                </span>
+              </div>
+              <div className="flex justify-between items-center font-bold text-xs">
+                <span className="text-muted-foreground">Pelanggan:</span>
+                <span className="text-foreground">
+                  {selectedInvoice.customerName}
+                </span>
+              </div>
+              <div className="flex justify-between items-center font-black text-xs pt-1.5 border-t border-rose-500/10">
+                <span className="text-rose-600 dark:text-rose-400">
+                  Total Terbayar:
+                </span>
+                <span className="text-rose-600 dark:text-rose-400">
+                  {formatCurrency(selectedInvoice.amountPaid)}
+                </span>
+              </div>
+            </div>
+
+            {/* Form Fields */}
+            <div className="space-y-4">
+              {/* Metode Refund */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                  Metode Refund
+                </label>
+                <select
+                  value={refundMethod}
+                  onChange={(e) => setRefundMethod(e.target.value)}
+                  className="w-full h-11 px-3 rounded-2xl border border-border/80 bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                >
+                  <option value="cash">Tunai / Cash</option>
+                  <option value="transfer">Transfer Bank</option>
+                  <option value="qris">QRIS</option>
+                </select>
+              </div>
+
+              {/* Jumlah Refund */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                  Jumlah Refund
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
+                    Rp
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={selectedInvoice.amountPaid}
+                    value={refundAmount || ""}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setRefundAmount(Math.min(val, selectedInvoice.amountPaid));
+                    }}
+                    placeholder="Masukkan nominal refund..."
+                    className="w-full h-11 pl-9 pr-3 text-sm font-mono font-bold bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                  />
+                </div>
+                <div className="flex justify-end gap-1 px-1">
+                  <button
+                    type="button"
+                    onClick={() => setRefundAmount(selectedInvoice.amountPaid)}
+                    className="text-[10px] font-black text-rose-600 hover:underline"
+                  >
+                    Refund Semua ({formatCurrency(selectedInvoice.amountPaid)})
+                  </button>
+                </div>
+              </div>
+
+              {/* Alasan Refund */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                  Alasan Refund
+                </label>
+                <textarea
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  placeholder="Tulis alasan refund..."
+                  rows={3}
+                  className="w-full p-3 text-sm bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground resize-none"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-border/30">
+              <Button
+                variant="outline"
+                onClick={() => setIsRefundOpen(false)}
+                className="rounded-xl font-bold"
+                disabled={processRefundMutation.isPending}
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={handleProcessRefund}
+                className="rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white"
+                disabled={processRefundMutation.isPending}
+              >
+                {processRefundMutation.isPending ? "Memproses..." : "Ya, Proses Refund"}
+              </Button>
+            </div>
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t border-border/30">
-            <Button
-              variant="outline"
-              onClick={() => setIsRefundOpen(false)}
-              className="rounded-xl font-bold"
-            >
-              Batal
-            </Button>
-            <Button
-              onClick={() => {
-                toast.success(
-                  "Refund Diajukan",
-                  `Permintaan refund untuk nota ${selectedInvoice?.invoiceNo} telah diajukan.`,
-                );
-                setIsRefundOpen(false);
-              }}
-              className="rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white"
-            >
-              Ya, Refund
-            </Button>
-          </div>
-        </div>
+        )}
       </Dialog>
     </div>
   );

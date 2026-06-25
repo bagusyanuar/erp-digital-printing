@@ -31,6 +31,12 @@ export interface RepayPaymentInput {
   payments: PaymentItemInput[];
 }
 
+export interface RefundOrderInput {
+  payment_method: string;
+  amount: number;
+  reason: string;
+}
+
 export interface OrderReportWidgetsParams {
   status?: string;
   payment_status?: string;
@@ -58,6 +64,7 @@ export interface OrderRepository {
   submitOrder(id: string): Promise<void>;
   payOrder(id: string, input: ProcessPaymentInput): Promise<void>;
   repayOrder(id: string, input: RepayPaymentInput): Promise<void>;
+  refundOrder(id: string, input: RefundOrderInput): Promise<void>;
   getOrderSpk(id: string): Promise<OrderSpkModel>;
   getOrderPayments(id: string): Promise<OrderPaymentModel[]>;
   updateOrderStatus(id: string, status: string): Promise<void>;
