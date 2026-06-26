@@ -9,6 +9,8 @@ import type { AppContainer } from "@presentation/shared/di/DIContext";
 import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase, updateResellerUseCase, deleteResellerUseCase } from "@infrastructure/reseller/containers/reseller.container";
 import { getSupplierUseCase, createSupplierUseCase, getSupplierByIdUseCase, updateSupplierUseCase, deleteSupplierUseCase } from "@infrastructure/supplier/containers/supplier.container";
 import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCase, getExpenseAnalyticsSummaryUseCase, payExpenseUseCase } from "@infrastructure/expense/containers/expense.container";
+import { getCapitalTransactionsUseCase, createCapitalTransactionUseCase, deleteCapitalTransactionUseCase } from "@infrastructure/capital/containers/capital.container";
+
 
 
 import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, deleteCategoryUseCase } from "@infrastructure/category/containers/category.container";
@@ -115,6 +117,11 @@ export function createAppContainer(): AppContainer {
       getExpenseReportWidgetsUseCase: getExpenseReportWidgetsUseCase(httpClient),
       getExpenseAnalyticsSummaryUseCase: getExpenseAnalyticsSummaryUseCase(httpClient),
       payExpenseUseCase: payExpenseUseCase(httpClient),
+    },
+    capital: {
+      getCapitalTransactionsUseCase: getCapitalTransactionsUseCase(httpClient),
+      createCapitalTransactionUseCase: createCapitalTransactionUseCase(httpClient),
+      deleteCapitalTransactionUseCase: deleteCapitalTransactionUseCase(httpClient),
     },
   };
 }

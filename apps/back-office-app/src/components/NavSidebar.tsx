@@ -6,23 +6,16 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarItem,
-  SidebarItemTree,
   SidebarFooter,
 } from "@erp-digital-printing/ui/Sidebar";
 import {
   LuLayoutDashboard,
-  LuPackage,
   LuDatabase,
-  LuHistory,
   LuTruck,
   LuFileText,
   LuCreditCard,
-  LuSettings,
   LuBox,
   LuPrinter,
-  LuUsers,
-  LuScissors,
-  LuGauge,
   LuBanknote,
   LuSignature,
   LuTags,
@@ -114,7 +107,7 @@ export const NavSidebar = () => {
             )}
           </NavLink>
         </SidebarGroup>
- 
+
         <SidebarGroup label="Keuangan">
           <NavLink to="/expense" className="contents">
             {({ isActive }) => (

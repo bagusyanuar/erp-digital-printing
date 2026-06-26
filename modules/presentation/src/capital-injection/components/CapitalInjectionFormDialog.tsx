@@ -3,6 +3,7 @@ import { Dialog } from "@erp-digital-printing/ui/Dialog";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Label } from "@erp-digital-printing/ui/Label";
+import { DatePicker } from "@erp-digital-printing/ui/DatePicker";
 import {
   CardHeader,
   CardTitle,
@@ -23,30 +24,34 @@ interface CapitalInjectionFormDialogProps {
   onClose: () => void;
   onSubmit: (data: {
     date: string;
-    investorName: string;
     amount: number;
     paymentMethod: string;
     description: string;
   }) => void;
 }
 
+const toLocalDateString = (d: Date): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 export const CapitalInjectionFormDialog: React.FC<CapitalInjectionFormDialogProps> = ({
   open,
   onClose,
   onSubmit,
 }) => {
-  const [date, setDate] = useState<string>(() => new Date().toISOString().split("T")[0] ?? "");
-  const [investorName, setInvestorName] = useState("");
+  const [date, setDate] = useState<string>(() => toLocalDateString(new Date()));
   const [amount, setAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("Bank BCA");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
   const [description, setDescription] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
   const resetForm = () => {
-    setDate(new Date().toISOString().split("T")[0] ?? "");
-    setInvestorName("");
+    setDate(toLocalDateString(new Date()));
     setAmount("");
-    setPaymentMethod("Bank BCA");
+    setPaymentMethod("cash");
     setDescription("");
     setErrorMsg("");
   };
@@ -60,10 +65,6 @@ export const CapitalInjectionFormDialog: React.FC<CapitalInjectionFormDialogProp
     e.preventDefault();
 
     const numericAmount = parseFloat(amount) || 0;
-    if (!investorName.trim()) {
-      setErrorMsg("Nama penyetor/investor harus diisi.");
-      return;
-    }
     if (numericAmount <= 0) {
       setErrorMsg("Nominal setoran modal harus lebih besar dari Rp 0.");
       return;
@@ -75,13 +76,18 @@ export const CapitalInjectionFormDialog: React.FC<CapitalInjectionFormDialogProp
 
     onSubmit({
       date,
-      investorName: investorName.trim(),
       amount: numericAmount,
       paymentMethod,
       description: description.trim(),
     });
     
     resetForm();
+  };
+
+  const getPaymentMethodLabel = (val: string) => {
+    if (val === "cash") return "Kas Kecil";
+    if (val === "transfer") return "Bank";
+    return val || "-- Kas Penerima --";
   };
 
   return (
@@ -118,65 +124,46 @@ export const CapitalInjectionFormDialog: React.FC<CapitalInjectionFormDialogProp
             {/* Tanggal Setoran */}
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Tanggal Setoran</Label>
-              <TextField
-                type="date"
-                className="border-border/50 focus:bg-background transition-all"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
+              <DatePicker
+                className="w-full h-11 border-border/50 bg-background"
+                value={date ? new Date(`${date}T00:00:00`) : undefined}
+                onChange={(newVal) =>
+                  setDate(newVal ? toLocalDateString(newVal) : "")
+                }
               />
             </div>
 
-            {/* Nama Penyetor */}
+            {/* Kas Penerima */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Penyetor / Investor</Label>
-              <TextField
-                placeholder="Contoh: Hendra Wijaya"
-                className="border-border/50 focus:bg-background transition-all"
-                value={investorName}
-                onChange={(e) => {
-                  setInvestorName(e.target.value);
-                  setErrorMsg("");
-                }}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Nominal Setoran */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Nominal Setoran (Rp)</Label>
-              <TextField
-                type="number"
-                placeholder="Contoh: 50000000"
-                className="border-border/50 focus:bg-background transition-all font-bold text-primary"
-                value={amount}
-                onChange={(e) => {
-                  setAmount(e.target.value);
-                  setErrorMsg("");
-                }}
-                required
-              />
-            </div>
-
-            {/* Kas/Bank Penerima */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Kas / Bank Penerima</Label>
+              <Label className="text-sm font-semibold">Kas Penerima</Label>
               <Combobox value={paymentMethod} onValueChange={setPaymentMethod}>
                 <ComboboxTrigger className="font-semibold w-full h-11 border rounded-xl px-3 border-border/50 text-sm bg-background text-left flex items-center justify-between">
-                  <span>{paymentMethod || "-- Kas/Bank --"}</span>
+                  <span>{getPaymentMethodLabel(paymentMethod)}</span>
                 </ComboboxTrigger>
                 <ComboboxContent className="w-[var(--radix-popover-trigger-width)] bg-background border border-border/80 shadow-lg rounded-xl overflow-hidden z-[10000]">
                   <ComboboxList className="max-h-48 p-1">
-                    <ComboboxItem value="Kas Besar">Kas Besar (Tunai)</ComboboxItem>
-                    <ComboboxItem value="Bank BCA">Bank BCA</ComboboxItem>
-                    <ComboboxItem value="Bank Mandiri">Bank Mandiri</ComboboxItem>
-                    <ComboboxItem value="Bank BRI">Bank BRI</ComboboxItem>
+                    <ComboboxItem value="cash">Kas Kecil</ComboboxItem>
+                    <ComboboxItem value="transfer">Bank</ComboboxItem>
                   </ComboboxList>
                 </ComboboxContent>
               </Combobox>
             </div>
+          </div>
+
+          {/* Nominal Setoran */}
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Nominal Setoran (Rp)</Label>
+            <TextField
+              type="number"
+              placeholder="Contoh: 50000000"
+              className="w-full border-border/50 focus:bg-background transition-all font-bold text-primary h-11"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setErrorMsg("");
+              }}
+              required
+            />
           </div>
 
           {/* Keterangan */}
