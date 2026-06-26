@@ -28,6 +28,7 @@ interface CapitalInjectionFormDialogProps {
     paymentMethod: string;
     description: string;
   }) => void;
+  isLoading?: boolean;
 }
 
 const toLocalDateString = (d: Date): string => {
@@ -41,6 +42,7 @@ export const CapitalInjectionFormDialog: React.FC<CapitalInjectionFormDialogProp
   open,
   onClose,
   onSubmit,
+  isLoading = false,
 }) => {
   const [date, setDate] = useState<string>(() => toLocalDateString(new Date()));
   const [amount, setAmount] = useState("");
@@ -108,6 +110,7 @@ export const CapitalInjectionFormDialog: React.FC<CapitalInjectionFormDialogProp
             className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted active:scale-90 transition-all -mr-2 -mt-0.5"
             type="button"
             onClick={handleClose}
+            disabled={isLoading}
           >
             <LuX className="h-4 w-4" />
           </Button>
@@ -130,6 +133,7 @@ export const CapitalInjectionFormDialog: React.FC<CapitalInjectionFormDialogProp
                 onChange={(newVal) =>
                   setDate(newVal ? toLocalDateString(newVal) : "")
                 }
+                disabled={isLoading}
               />
             </div>
 
@@ -137,7 +141,7 @@ export const CapitalInjectionFormDialog: React.FC<CapitalInjectionFormDialogProp
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Kas Penerima</Label>
               <Combobox value={paymentMethod} onValueChange={setPaymentMethod}>
-                <ComboboxTrigger className="font-semibold w-full h-11 border rounded-xl px-3 border-border/50 text-sm bg-background text-left flex items-center justify-between">
+                <ComboboxTrigger className="font-semibold w-full h-11 border rounded-xl px-3 border-border/50 text-sm bg-background text-left flex items-center justify-between" disabled={isLoading}>
                   <span>{getPaymentMethodLabel(paymentMethod)}</span>
                 </ComboboxTrigger>
                 <ComboboxContent className="w-[var(--radix-popover-trigger-width)] bg-background border border-border/80 shadow-lg rounded-xl overflow-hidden z-[10000]">
@@ -163,6 +167,7 @@ export const CapitalInjectionFormDialog: React.FC<CapitalInjectionFormDialogProp
                 setErrorMsg("");
               }}
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -174,6 +179,7 @@ export const CapitalInjectionFormDialog: React.FC<CapitalInjectionFormDialogProp
               className="w-full min-h-[80px] rounded-xl border border-border/50 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all resize-none"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              disabled={isLoading}
             />
           </div>
         </CardContent>
@@ -184,14 +190,16 @@ export const CapitalInjectionFormDialog: React.FC<CapitalInjectionFormDialogProp
             className="h-10 px-4 rounded-xl font-medium border-border/50 hover:bg-muted active:scale-95 transition-all"
             type="button"
             onClick={handleClose}
+            disabled={isLoading}
           >
             Batal
           </Button>
           <Button
-            className="h-10 px-4 rounded-xl font-bold bg-primary hover:bg-primary/95 text-white active:scale-95 transition-all"
+            className="h-10 px-4 rounded-xl font-bold bg-primary hover:bg-primary/95 text-white active:scale-95 transition-all flex items-center justify-center"
             type="submit"
+            disabled={isLoading}
           >
-            Simpan Setoran
+            {isLoading ? "Menyimpan..." : "Simpan Setoran"}
           </Button>
         </div>
       </form>

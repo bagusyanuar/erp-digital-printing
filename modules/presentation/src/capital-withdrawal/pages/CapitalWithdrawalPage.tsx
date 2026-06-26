@@ -1,9 +1,14 @@
 import React, { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
-import { Card, CardContent } from "@erp-digital-printing/ui/Card";
+import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
 import { DateRangePicker, type DateRange } from "@erp-digital-printing/ui/DateRangePicker";
 import { toast } from "@erp-digital-printing/ui/Toast";
+import { useCapitalDI } from "../../capital-injection/hooks/useCapitalDI";
+import { capitalKeys } from "@infrastructure/capital/keys/capital.key";
+import { useDebounce } from "../../shared/hooks/useDebounce";
+import type { AppError } from "@core/shared/errors/domain.error";
 import {
   Table,
   TableHeader,
@@ -17,48 +22,32 @@ import {
   LuPlus,
   LuSearch,
   LuBanknote,
-  LuCalendar,
   LuWallet,
-  LuTrash2,
   LuRefreshCw,
   LuFilter,
-  LuArrowDownLeft,
+  LuBuilding,
 } from "@erp-digital-printing/ui/icons";
 import { CapitalWithdrawalFormDialog } from "../components/CapitalWithdrawalFormDialog";
 
-interface CapitalWithdrawal {
-  id: string;
-  date: string;
-  investorName: string;
-  amount: number;
-  paymentMethod: string;
-  description: string;
-}
-
-const MOCK_WITHDRAWALS: CapitalWithdrawal[] = [
-  {
-    id: "PRV-001",
-    date: "2026-06-25",
-    investorName: "Hendra Wijaya",
-    amount: 25000000,
-    paymentMethod: "Bank BCA",
-    description: "Kebutuhan mendesak pribadi",
-  },
-  {
-    id: "PRV-002",
-    date: "2026-06-18",
-    investorName: "Bagus Yanuar",
-    amount: 15000000,
-    paymentMethod: "Bank Mandiri",
-    description: "Prive bulanan rutin",
-  },
-];
+const formatDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export default function CapitalWithdrawalPage() {
-  const [data, setData] = useState<CapitalWithdrawal[]>(MOCK_WITHDRAWALS);
+  const queryClient = useQueryClient();
+  const {
+    getCapitalTransactionsUseCase,
+    createCapitalTransactionUseCase,
+  } = useCapitalDI();
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 500);
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const today = new Date();
     return {
@@ -76,46 +65,92 @@ export default function CapitalWithdrawalPage() {
     }).format(val);
   };
 
-  const filteredData = useMemo(() => {
-    return data.filter((item) => {
-      const matchesSearch =
-        item.investorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
-    });
-  }, [data, searchQuery]);
+  const startDateStr = dateRange?.from ? formatDate(dateRange.from) : undefined;
+  const endDateStr = dateRange?.to ? formatDate(dateRange.to) : undefined;
 
-  const paginatedData = useMemo(() => {
-    const startIndex = (page - 1) * pageSize;
-    return filteredData.slice(startIndex, startIndex + pageSize);
-  }, [filteredData, page, pageSize]);
+  // Fetch transactions using useQuery
+  const { data: responseData, isLoading, isFetching } = useQuery({
+    queryKey: capitalKeys.list({
+      page,
+      limit: pageSize,
+      type: "WITHDRAWAL",
+      search: debouncedSearch,
+      startDate: startDateStr,
+      endDate: endDateStr,
+    }),
+    queryFn: () =>
+      getCapitalTransactionsUseCase.execute({
+        page,
+        limit: pageSize,
+        type: "WITHDRAWAL",
+        search: debouncedSearch,
+        startDate: startDateStr,
+        endDate: endDateStr,
+      }),
+  });
+
+  const transactionList = useMemo(
+    () => responseData?.data ?? [],
+    [responseData?.data],
+  );
+  const totalEntries = responseData?.total ?? 0;
+  const totalPages = responseData?.limit
+    ? Math.ceil(totalEntries / responseData.limit)
+    : 1;
 
   const totalAmount = useMemo(() => {
-    return filteredData.reduce((acc, curr) => acc + curr.amount, 0);
-  }, [filteredData]);
+    return transactionList.reduce((acc, curr) => acc + curr.amount, 0);
+  }, [transactionList]);
 
-  const handleCreate = (newData: Omit<CapitalWithdrawal, "id">) => {
-    const newRecord: CapitalWithdrawal = {
-      ...newData,
-      id: `PRV-00${data.length + 1}`,
-    };
-    setData([newRecord, ...data]);
-    toast.success(
-      "Sukses",
-      "Penarikan modal (Prive) berhasil ditambahkan (Mock State)"
+  const totalCash = useMemo(() => {
+    return transactionList.reduce(
+      (acc, curr) => (curr.paymentMethod.toLowerCase().includes("kas") ? acc + curr.amount : acc),
+      0,
     );
-    setIsFormOpen(false);
-  };
+  }, [transactionList]);
 
-  const handleDelete = (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data prive ini?")) {
-      setData(data.filter((item) => item.id !== id));
-      toast.success(
-        "Sukses",
-        "Penarikan modal berhasil dihapus (Mock State)"
-      );
-    }
+  const totalTransfer = useMemo(() => {
+    return transactionList.reduce(
+      (acc, curr) =>
+        curr.paymentMethod.toLowerCase().includes("bank") || curr.paymentMethod.toLowerCase().includes("transfer") ? acc + curr.amount : acc,
+      0,
+    );
+  }, [transactionList]);
+
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: (input: {
+      amount: number;
+      paymentMethod: string;
+      description: string;
+    }) =>
+      createCapitalTransactionUseCase.execute({
+        type: "WITHDRAWAL",
+        amount: input.amount,
+        paymentMethod: input.paymentMethod,
+        description: input.description,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: capitalKeys.all });
+      toast.success("Sukses", "Penarikan modal berhasil ditambahkan.");
+      setIsFormOpen(false);
+    },
+    onError: (err: AppError) => {
+      toast.error("Gagal", err.message || "Gagal menambahkan penarikan modal.");
+    },
+  });
+
+  const handleCreate = (newData: {
+    date: string;
+    amount: number;
+    paymentMethod: string;
+    description: string;
+  }) => {
+    createMutation.mutate({
+      amount: newData.amount,
+      paymentMethod: newData.paymentMethod,
+      description: newData.description,
+    });
   };
 
   return (
@@ -134,166 +169,177 @@ export default function CapitalWithdrawalPage() {
           onClick={() => {
             setIsFormOpen(true);
           }}
-          className="flex items-center gap-2"
+          className="h-10 px-5 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 shrink-0 self-end md:self-auto"
         >
-          <LuPlus className="h-4 w-4" />
-          Tambah Penarikan
+          <LuPlus size={18} />
+          Tambah Penarikan Modal
         </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="relative overflow-hidden border-border/50 shadow-sm">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="p-3 bg-amber-500/10 text-amber-500 rounded-xl">
-              <LuArrowDownLeft className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="rounded-3xl border-border/50 overflow-hidden relative shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-card via-card to-primary/5">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                 Total Penarikan Modal
-              </p>
-              <h3 className="text-2xl font-bold mt-1 text-foreground">
+              </span>
+              <h3 className="text-2xl font-black text-foreground tracking-tight">
                 {formatCurrency(totalAmount)}
               </h3>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
+                Akumulasi penarikan modal (prive) periode ini
+              </p>
+            </div>
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
+              <LuBanknote size={24} />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-border/50 shadow-sm">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="p-3 bg-primary/10 text-primary rounded-xl">
-              <LuWallet className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Jumlah Transaksi
-              </p>
-              <h3 className="text-2xl font-bold mt-1 text-foreground">
-                {filteredData.length} Transaksi
-              </h3>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden border-border/50 shadow-sm">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl">
-              <LuCalendar className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Metode Sumber Terbanyak
-              </p>
-              <h3 className="text-2xl font-bold mt-1 text-foreground">
-                Bank BCA
-              </h3>
+        <Card className="rounded-3xl border-border/50 overflow-hidden relative shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-card via-card to-emerald-500/5">
+          <CardContent className="p-6">
+            <div className="space-y-4 w-full">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">
+                Metode Sumber
+              </span>
+              <div className="grid grid-cols-2 gap-4 divide-x divide-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 shrink-0">
+                    <LuWallet size={20} />
+                  </div>
+                  <div className="space-y-0.5 min-w-0">
+                    <span className="text-[10px] font-semibold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full inline-block">
+                      Kas Kecil
+                    </span>
+                    <h4 className="text-base font-black text-foreground tracking-tight truncate">
+                      {formatCurrency(totalCash)}
+                    </h4>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 pl-4">
+                  <div className="h-10 w-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 shrink-0">
+                    <LuBuilding size={20} />
+                  </div>
+                  <div className="space-y-0.5 min-w-0">
+                    <span className="text-[10px] font-semibold text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded-full inline-block">
+                      Bank
+                    </span>
+                    <h4 className="text-base font-black text-foreground tracking-tight truncate">
+                      {formatCurrency(totalTransfer)}
+                    </h4>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filter and Table */}
-      <Card className="border-border/50 shadow-sm">
-        <CardContent className="p-6 space-y-4">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-sm">
-              <LuSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <TextField
-                placeholder="Cari investor, keterangan, atau bank..."
-                className="pl-10 h-10 border-border/50 bg-muted/20 focus:bg-background transition-all"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            {/* Filter Date Range & Refresh */}
-            <div className="flex flex-wrap items-center gap-3">
-              <DateRangePicker
-                value={dateRange}
-                onChange={setDateRange}
-              />
-              <Button variant="outline" size="icon" className="h-10 w-10 border-border/50">
-                <LuFilter className="h-4 w-4 text-muted-foreground" />
-              </Button>
-              <Button variant="outline" size="icon" className="h-10 w-10 border-border/50">
-                <LuRefreshCw className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            </div>
+      {/* Main Content Card */}
+      <Card className="rounded-3xl overflow-hidden shadow-sm border-border/50">
+        <CardHeader className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-border/30 p-6 bg-card">
+          {/* Search Input */}
+          <div className="relative flex-1 max-w-md w-full">
+            <TextField
+              placeholder="Cari investor, kas/bank atau keterangan..."
+              prefixIcon={LuSearch}
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
+              className="w-full h-10"
+            />
           </div>
 
-          {/* Table */}
-          <div className="border border-border/50 rounded-xl overflow-hidden">
+          {/* Date Range Picker */}
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <DateRangePicker
+              value={dateRange}
+              onChange={setDateRange}
+              isClearable
+              className="w-full sm:w-[260px] h-10 rounded-xl"
+            />
+          </div>
+        </CardHeader>
+
+        {/* Dynamic Table Content */}
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/30">
-                  <TableHead className="w-[120px] font-semibold text-xs uppercase tracking-wider">ID Transaksi</TableHead>
-                  <TableHead className="w-[120px] font-semibold text-xs uppercase tracking-wider">Tanggal</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider">Pemilik / Investor</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider">Kas / Bank Sumber</TableHead>
-                  <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">Nominal</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider">Keterangan</TableHead>
-                  <TableHead className="w-[80px] text-center font-semibold text-xs uppercase tracking-wider">Aksi</TableHead>
+                <TableRow>
+                  <TableHead className="w-[180px] text-center">
+                    Tanggal
+                  </TableHead>
+                  <TableHead>Metode Sumber</TableHead>
+                  <TableHead className="text-right">Nominal</TableHead>
+                  <TableHead>Keterangan</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedData.length === 0 ? (
+                {isLoading || isFetching ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                      Tidak ada data penarikan modal ditemukan.
+                    <TableCell
+                      colSpan={4}
+                      className="h-24 text-center text-muted-foreground text-xs"
+                    >
+                      Loading data penarikan modal...
+                    </TableCell>
+                  </TableRow>
+                ) : transactionList.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="h-24 text-center text-muted-foreground text-xs"
+                    >
+                      Tidak ada data penarikan modal.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedData.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-muted/10 transition-colors">
-                      <TableCell className="font-mono font-bold text-xs text-foreground/80">{item.id}</TableCell>
-                      <TableCell className="text-sm">{item.date}</TableCell>
-                      <TableCell className="font-semibold text-sm">{item.investorName}</TableCell>
-                      <TableCell className="text-sm">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
-                          <LuBanknote className="h-3 w-3" />
-                          {item.paymentMethod}
-                        </span>
+                  transactionList.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="text-xs font-medium text-center text-muted-foreground">
+                        {item.transactionDate}
                       </TableCell>
-                      <TableCell className="text-right font-bold text-sm text-amber-600">
+                      <TableCell className="text-xs text-foreground">
+                        {item.paymentMethod === "cash"
+                          ? "Kas Kecil"
+                          : item.paymentMethod === "transfer"
+                            ? "Bank"
+                            : item.paymentMethod}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-amber-600 text-xs">
                         {formatCurrency(item.amount)}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                        {item.description || "-"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg"
-                          onClick={() => handleDelete(item.id)}
-                        >
-                          <LuTrash2 className="h-4 w-4" />
-                        </Button>
+                      <TableCell className="text-muted-foreground text-xs max-w-xs truncate">
+                        {item.description}
                       </TableCell>
                     </TableRow>
                   ))
                 )}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={page}
+              pageSize={pageSize}
+              totalEntries={totalEntries}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
           </div>
-
-          <TablePagination
-            currentPage={page}
-            pageSize={pageSize}
-            totalEntries={filteredData.length}
-            totalPages={Math.max(1, Math.ceil(filteredData.length / pageSize))}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-          />
         </CardContent>
       </Card>
 
       {/* Form Dialog */}
       <CapitalWithdrawalFormDialog
+        key={isFormOpen ? "open" : "closed"}
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleCreate}
+        isLoading={createMutation.isPending}
       />
     </div>
   );

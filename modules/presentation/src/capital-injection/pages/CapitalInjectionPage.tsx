@@ -70,7 +70,7 @@ export default function CapitalInjectionPage() {
   const endDateStr = dateRange?.to ? formatDate(dateRange.to) : undefined;
 
   // Fetch transactions using useQuery
-  const { data: responseData, isLoading } = useQuery({
+  const { data: responseData, isLoading, isFetching } = useQuery({
     queryKey: capitalKeys.list({
       page,
       limit: pageSize,
@@ -283,7 +283,7 @@ export default function CapitalInjectionPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
+                {isLoading || isFetching ? (
                   <TableRow>
                     <TableCell
                       colSpan={4}
@@ -337,10 +337,13 @@ export default function CapitalInjectionPage() {
         </CardContent>
       </Card>
 
+      {/* Form Dialog */}
       <CapitalInjectionFormDialog
+        key={isFormOpen ? "open" : "closed"}
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleCreate}
+        isLoading={createMutation.isPending}
       />
     </div>
   );
