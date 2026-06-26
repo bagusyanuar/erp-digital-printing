@@ -3,7 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
-import { DateRangePicker, type DateRange } from "@erp-digital-printing/ui/DateRangePicker";
+import {
+  DateRangePicker,
+  type DateRange,
+} from "@erp-digital-printing/ui/DateRangePicker";
 import { toast } from "@erp-digital-printing/ui/Toast";
 import { useCapitalDI } from "../../capital-injection/hooks/useCapitalDI";
 import { capitalKeys } from "@infrastructure/capital/keys/capital.key";
@@ -23,8 +26,6 @@ import {
   LuSearch,
   LuBanknote,
   LuWallet,
-  LuRefreshCw,
-  LuFilter,
   LuBuilding,
 } from "@erp-digital-printing/ui/icons";
 import { CapitalWithdrawalFormDialog } from "../components/CapitalWithdrawalFormDialog";
@@ -38,10 +39,8 @@ const formatDate = (date: Date): string => {
 
 export default function CapitalWithdrawalPage() {
   const queryClient = useQueryClient();
-  const {
-    getCapitalTransactionsUseCase,
-    createCapitalTransactionUseCase,
-  } = useCapitalDI();
+  const { getCapitalTransactionsUseCase, createCapitalTransactionUseCase } =
+    useCapitalDI();
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -69,7 +68,11 @@ export default function CapitalWithdrawalPage() {
   const endDateStr = dateRange?.to ? formatDate(dateRange.to) : undefined;
 
   // Fetch transactions using useQuery
-  const { data: responseData, isLoading, isFetching } = useQuery({
+  const {
+    data: responseData,
+    isLoading,
+    isFetching,
+  } = useQuery({
     queryKey: capitalKeys.list({
       page,
       limit: pageSize,
@@ -104,7 +107,10 @@ export default function CapitalWithdrawalPage() {
 
   const totalCash = useMemo(() => {
     return transactionList.reduce(
-      (acc, curr) => (curr.paymentMethod.toLowerCase().includes("kas") ? acc + curr.amount : acc),
+      (acc, curr) =>
+        curr.paymentMethod.toLowerCase().includes("kas")
+          ? acc + curr.amount
+          : acc,
       0,
     );
   }, [transactionList]);
@@ -112,7 +118,10 @@ export default function CapitalWithdrawalPage() {
   const totalTransfer = useMemo(() => {
     return transactionList.reduce(
       (acc, curr) =>
-        curr.paymentMethod.toLowerCase().includes("bank") || curr.paymentMethod.toLowerCase().includes("transfer") ? acc + curr.amount : acc,
+        curr.paymentMethod.toLowerCase().includes("bank") ||
+        curr.paymentMethod.toLowerCase().includes("transfer")
+          ? acc + curr.amount
+          : acc,
       0,
     );
   }, [transactionList]);
