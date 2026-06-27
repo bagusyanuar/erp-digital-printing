@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
+import { Card, CardContent } from "@erp-digital-printing/ui/Card";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import {
@@ -22,6 +22,16 @@ import {
   DropdownContent,
   DropdownItem,
 } from "@erp-digital-printing/ui/Dropdown";
+import { Checkbox } from "@erp-digital-printing/ui/Checkbox";
+import {
+  Combobox,
+  ComboboxTrigger,
+  ComboboxContent,
+  ComboboxInput,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@erp-digital-printing/ui/Combobox";
 import {
   LuTrendingUp,
   LuSearch,
@@ -29,14 +39,14 @@ import {
   LuReceipt,
   LuDollarSign,
   LuPercent,
-  LuUsers,
   LuShoppingBag,
   LuUser,
-  LuCalendar,
   LuEllipsisVertical,
   LuPrinter,
   LuFilter,
-  LuClock,
+  LuCircleCheck,
+  LuCircleX,
+  LuRotateCcw,
 } from "@erp-digital-printing/ui/icons";
 import DetailReportSelling from "../components/DetailReportSelling";
 import {
@@ -57,6 +67,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
 import { orderKeys } from "@infrastructure/order/keys";
+import { useUserDI } from "../../user/hooks/useUserDI";
+import { userKeys } from "@infrastructure/user/keys/user.key";
 import { useDebounce } from "../../shared/hooks/useDebounce";
 import type { AppError } from "@core/shared/errors/domain.error";
 import type { OrderModel } from "@core/order/domains/models/order.model";
@@ -71,126 +83,12 @@ interface SalesTransaction {
   paidAmount: number;
   paymentMethod: string;
   status: "PAID" | "DOWN_PAYMENT" | "UNPAID";
+  orderStatus: string;
   productCategory: string;
   createdAt: string;
   operatorName: string;
   quantity: number;
 }
-
-const MOCK_SALES: SalesTransaction[] = [
-  {
-    id: "1",
-    invoiceNumber: "INV/2026/06/001",
-    customerName: "Budi Santoso",
-    customerType: "retail",
-    totalAmount: 150000,
-    paidAmount: 150000,
-    paymentMethod: "QRIS",
-    status: "PAID",
-    productCategory: "Banner/Spanduk",
-    createdAt: "2026-06-12 10:15:44",
-    operatorName: "Andi",
-    quantity: 5,
-  },
-  {
-    id: "2",
-    invoiceNumber: "INV/2026/06/002",
-    customerName: "CV. Makmur Jaya",
-    customerType: "corporate",
-    totalAmount: 4500000,
-    paidAmount: 2000000,
-    paymentMethod: "Transfer Bank",
-    status: "DOWN_PAYMENT",
-    productCategory: "Brochure/Flyer",
-    createdAt: "2026-06-13 11:30:10",
-    operatorName: "Siti",
-    quantity: 1000,
-  },
-  {
-    id: "3",
-    invoiceNumber: "INV/2026/06/003",
-    customerName: "Rian Printing (Reseller)",
-    customerType: "reseller",
-    totalAmount: 850000,
-    paidAmount: 850000,
-    paymentMethod: "Cash",
-    status: "PAID",
-    productCategory: "Sticker Vinyl",
-    createdAt: "2026-06-14 16:45:00",
-    operatorName: "Budi",
-    quantity: 250,
-  },
-  {
-    id: "4",
-    invoiceNumber: "INV/2026/06/004",
-    customerName: "Siti Rahma",
-    customerType: "retail",
-    totalAmount: 75000,
-    paidAmount: 75000,
-    paymentMethod: "QRIS",
-    status: "PAID",
-    productCategory: "Dokumen A4",
-    createdAt: "2026-06-15 09:20:11",
-    operatorName: "Andi",
-    quantity: 150,
-  },
-  {
-    id: "5",
-    invoiceNumber: "INV/2026/06/005",
-    customerName: "Anto Wijaya",
-    customerType: "retail",
-    totalAmount: 320000,
-    paidAmount: 0,
-    paymentMethod: "Cash",
-    status: "UNPAID",
-    productCategory: "Merchandise",
-    createdAt: "2026-06-16 11:00:23",
-    operatorName: "Rian",
-    quantity: 8,
-  },
-  {
-    id: "6",
-    invoiceNumber: "INV/2026/06/006",
-    customerName: "Indo Media Perkasa",
-    customerType: "corporate",
-    totalAmount: 12500000,
-    paidAmount: 12500000,
-    paymentMethod: "Transfer Bank",
-    status: "PAID",
-    productCategory: "Banner/Spanduk",
-    createdAt: "2026-06-16 13:05:52",
-    operatorName: "Siti",
-    quantity: 40,
-  },
-  {
-    id: "7",
-    invoiceNumber: "INV/2026/06/007",
-    customerName: "Dewi Lestari",
-    customerType: "reseller",
-    totalAmount: 1200000,
-    paidAmount: 600000,
-    paymentMethod: "QRIS",
-    status: "DOWN_PAYMENT",
-    productCategory: "Sticker Vinyl",
-    createdAt: "2026-06-17 14:50:33",
-    operatorName: "Budi",
-    quantity: 350,
-  },
-  {
-    id: "8",
-    invoiceNumber: "INV/2026/06/008",
-    customerName: "Rahmat Hidayat",
-    customerType: "retail",
-    totalAmount: 45000,
-    paidAmount: 45000,
-    paymentMethod: "Cash",
-    status: "PAID",
-    productCategory: "Kartu Nama",
-    createdAt: "2026-06-18 10:10:00",
-    operatorName: "Rian",
-    quantity: 2,
-  },
-];
 
 // Mock data for trends
 const MOCK_REVENUE_TRENDS_WEEKLY = [
@@ -224,8 +122,32 @@ const COLORS = [
   "#ec4899",
 ];
 
+const formatDateTime = (createdAt?: string, fallbackDate?: string) => {
+  const targetStr = createdAt || fallbackDate;
+  if (!targetStr) return "-";
+  try {
+    const dateObj = new Date(targetStr);
+    if (isNaN(dateObj.getTime())) return targetStr;
+
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const year = dateObj.getFullYear();
+
+    if (createdAt) {
+      const hours = String(dateObj.getHours()).padStart(2, "0");
+      const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+      const seconds = String(dateObj.getSeconds()).padStart(2, "0");
+      return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
+    }
+    return `${day}/${month}/${year}`;
+  } catch {
+    return targetStr;
+  }
+};
+
 const ReportSellingPage = () => {
   const { getOrdersUseCase, getOrderReportWidgetsUseCase } = useOrderDI();
+  const { getUsersUseCase } = useUserDI();
   const [activeTab, setActiveTab] = useState<"data" | "analytic">("data");
   const [trendPeriod, setTrendPeriod] = useState<
     "weekly" | "monthly" | "yearly"
@@ -237,13 +159,35 @@ const ReportSellingPage = () => {
   const [statusFilter, setStatusFilter] = useState<"all" | "PAID" | "UNPAID">(
     "all",
   );
+  const [orderStatusFilter, setOrderStatusFilter] = useState<
+    "all" | "SUCCESS" | "REFUND"
+  >("all");
+  const [tempCustomerTypeFilter, setTempCustomerTypeFilter] =
+    useState<string>("all");
+  const [tempOperatorFilter, setTempOperatorFilter] = useState<string>("all");
+  const [tempStatusFilter, setTempStatusFilter] = useState<
+    "all" | "PAID" | "UNPAID"
+  >("all");
+  const [tempOrderStatusFilter, setTempOrderStatusFilter] = useState<
+    "all" | "SUCCESS" | "REFUND"
+  >("all");
+  const [paymentMethodsFilter, setPaymentMethodsFilter] = useState<string[]>([]);
+  const [tempPaymentMethodsFilter, setTempPaymentMethodsFilter] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const mappedPaymentMethods = useMemo(() => {
+    if (paymentMethodsFilter.length === 0) return undefined;
+    return paymentMethodsFilter.join(",").toLowerCase();
+  }, [paymentMethodsFilter]);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date("2026-06-01"),
-    to: new Date("2026-06-30"),
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const today = new Date();
+    return {
+      from: today,
+      to: today,
+    };
   });
 
   const [selectedSale, setSelectedSale] = useState<OrderModel | null>(null);
@@ -254,8 +198,10 @@ const ReportSellingPage = () => {
     if (customerTypeFilter !== "all") count++;
     if (operatorFilter !== "all") count++;
     if (statusFilter !== "all") count++;
+    if (orderStatusFilter !== "all") count++;
+    if (paymentMethodsFilter.length > 0) count++;
     return count;
-  }, [customerTypeFilter, operatorFilter, statusFilter]);
+  }, [customerTypeFilter, operatorFilter, statusFilter, orderStatusFilter, paymentMethodsFilter]);
 
   // Map presentation statusFilter to API payment_status query parameter
   const mappedPaymentStatus = useMemo(() => {
@@ -263,6 +209,16 @@ const ReportSellingPage = () => {
     if (statusFilter === "UNPAID") return "PARTIAL_PAID,UNPAID";
     return undefined; // ALL
   }, [statusFilter]);
+
+  const mappedOrderStatus = useMemo(() => {
+    if (orderStatusFilter === "SUCCESS") {
+      return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED";
+    }
+    if (orderStatusFilter === "REFUND") {
+      return "REFUND";
+    }
+    return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED,REFUND";
+  }, [orderStatusFilter]);
 
   const startDateStr = useMemo(() => {
     if (!dateRange?.from) return undefined;
@@ -285,25 +241,37 @@ const ReportSellingPage = () => {
   }, [dateRange]);
 
   // Fetch report widgets data from backend API
-  const { data: widgetsData, isLoading: isLoadingWidgets } = useQuery({
+  const { data: widgetsData } = useQuery({
     queryKey: orderKeys.reportWidgets({
-      status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
+      status: mappedOrderStatus,
       payment_status: mappedPaymentStatus,
       search: debouncedSearch || undefined,
       start_date: startDateStr,
       end_date: endDateStr,
       customer_type:
-        customerTypeFilter !== "all" ? customerTypeFilter : undefined,
+        customerTypeFilter !== "all"
+          ? customerTypeFilter === "retail"
+            ? "end_user"
+            : "reseller"
+          : undefined,
+      cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
+      payment_method: mappedPaymentMethods,
     }),
     queryFn: () =>
       getOrderReportWidgetsUseCase.execute({
-        status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
+        status: mappedOrderStatus,
         payment_status: mappedPaymentStatus,
         search: debouncedSearch || undefined,
         start_date: startDateStr,
         end_date: endDateStr,
         customer_type:
-          customerTypeFilter !== "all" ? customerTypeFilter : undefined,
+          customerTypeFilter !== "all"
+            ? customerTypeFilter === "retail"
+              ? "end_user"
+              : "reseller"
+            : undefined,
+        cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
+        payment_method: mappedPaymentMethods,
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -318,24 +286,46 @@ const ReportSellingPage = () => {
     queryKey: orderKeys.list({
       page,
       limit: pageSize,
-      status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
+      status: mappedOrderStatus,
       payment_status: mappedPaymentStatus,
       search: debouncedSearch || undefined,
       start_date: startDateStr,
       end_date: endDateStr,
+      customer_type:
+        customerTypeFilter !== "all"
+          ? customerTypeFilter === "retail"
+            ? "end_user"
+            : "reseller"
+          : undefined,
+      cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
+      payment_methods: mappedPaymentMethods,
     }),
     queryFn: () =>
       getOrdersUseCase.execute({
         page,
         limit: pageSize,
-        status: "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED",
+        status: mappedOrderStatus,
         payment_status: mappedPaymentStatus,
         search: debouncedSearch || undefined,
         start_date: startDateStr,
         end_date: endDateStr,
+        customer_type:
+          customerTypeFilter !== "all"
+            ? customerTypeFilter === "retail"
+              ? "end_user"
+              : "reseller"
+            : undefined,
+        cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
+        payment_methods: mappedPaymentMethods,
       }),
     staleTime: 5000,
     gcTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: usersData } = useQuery({
+    queryKey: userKeys.lists(),
+    queryFn: () => getUsersUseCase.execute(),
     refetchOnWindowFocus: false,
   });
 
@@ -348,7 +338,14 @@ const ReportSellingPage = () => {
       );
       const productCategory =
         order.order_items?.[0]?.product_name || "Lain-lain";
-      const paymentMethod = order.order_payments?.[0]?.payment_method || "CASH";
+      const uniqueMethods = Array.from(
+        new Set(
+          (order.order_payments ?? [])
+            .map((p) => p.payment_method)
+            .filter(Boolean)
+        )
+      );
+      const paymentMethod = uniqueMethods.length > 0 ? uniqueMethods.join(", ") : "CASH";
       const operatorName =
         order.order_payments?.[0]?.cashier_name ||
         order.designer_name ||
@@ -364,18 +361,7 @@ const ReportSellingPage = () => {
         customerType = "reseller";
       }
 
-      let formattedDate = order.created_at;
-      try {
-        const dateObj = new Date(order.created_at);
-        const day = String(dateObj.getDate()).padStart(2, "0");
-        const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-        const year = dateObj.getFullYear();
-        const hours = String(dateObj.getHours()).padStart(2, "0");
-        const minutes = String(dateObj.getMinutes()).padStart(2, "0");
-        formattedDate = `${day}/${month}/${year}, ${hours}.${minutes}`;
-      } catch (e) {
-        // Fallback
-      }
+      const formattedDate = formatDateTime(order.created_at);
 
       return {
         id: order.id,
@@ -386,6 +372,7 @@ const ReportSellingPage = () => {
         paidAmount: order.amount_paid,
         paymentMethod,
         status,
+        orderStatus: order.status,
         productCategory,
         createdAt: formattedDate,
         operatorName,
@@ -396,17 +383,8 @@ const ReportSellingPage = () => {
 
   // Client-side filtering fallback for filters not handled by server-side query
   const filteredSales = useMemo(() => {
-    return sales.filter((sale) => {
-      const matchesType =
-        customerTypeFilter === "all" ||
-        sale.customerType === customerTypeFilter;
-
-      const matchesOperator =
-        operatorFilter === "all" || sale.operatorName === operatorFilter;
-
-      return matchesType && matchesOperator;
-    });
-  }, [sales, customerTypeFilter, operatorFilter]);
+    return sales;
+  }, [sales]);
 
   // Statistics calculation based on backend reports API (with client fallback)
   const stats = useMemo(() => {
@@ -553,7 +531,7 @@ const ReportSellingPage = () => {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Analitik & Grafik
+            Analisis & Grafik
           </button>
         </div>
       </div>
@@ -662,7 +640,16 @@ const ReportSellingPage = () => {
                 <div className="relative">
                   <Button
                     variant={activeFiltersCount > 0 ? "default" : "outline"}
-                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                    onClick={() => {
+                      if (!isFilterOpen) {
+                        setTempOperatorFilter(operatorFilter);
+                        setTempStatusFilter(statusFilter);
+                        setTempCustomerTypeFilter(customerTypeFilter);
+                        setTempOrderStatusFilter(orderStatusFilter);
+                        setTempPaymentMethodsFilter(paymentMethodsFilter);
+                      }
+                      setIsFilterOpen(!isFilterOpen);
+                    }}
                     className="h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-2"
                   >
                     <LuFilter size={14} />
@@ -694,41 +681,129 @@ const ReportSellingPage = () => {
                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
                               Admin
                             </label>
-                            <select
-                              value={operatorFilter}
-                              onChange={(e) => {
-                                setOperatorFilter(e.target.value);
-                                setPage(1);
-                              }}
-                              className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
-                            >
-                              <option value="all">Semua Admin</option>
-                              <option value="Andi">Andi</option>
-                              <option value="Siti">Siti</option>
-                              <option value="Budi">Budi</option>
-                              <option value="Rian">Rian</option>
-                            </select>
+                             <Combobox
+                               value={tempOperatorFilter}
+                               onValueChange={(val) => {
+                                 setTempOperatorFilter(val);
+                               }}
+                             >
+                               <ComboboxTrigger className="w-full text-left font-semibold">
+                                 <span>
+                                   {tempOperatorFilter === "all"
+                                     ? "Semua Admin"
+                                     : (usersData ?? []).find((u) => u.id === tempOperatorFilter)?.username || "Pilih Admin"}
+                                 </span>
+                               </ComboboxTrigger>
+                               <ComboboxContent
+                                 align="start"
+                                 className="w-[var(--radix-popover-trigger-width)]"
+                               >
+                                 <ComboboxInput placeholder="Cari admin..." />
+                                 <ComboboxEmpty>
+                                   Admin tidak ditemukan.
+                                 </ComboboxEmpty>
+                                 <ComboboxList>
+                                   <ComboboxItem value="all">
+                                     Semua Admin
+                                   </ComboboxItem>
+                                   {(usersData ?? []).map((u) => (
+                                     <ComboboxItem key={u.id} value={u.id}>
+                                       {u.username}
+                                     </ComboboxItem>
+                                   ))}
+                                 </ComboboxList>
+                               </ComboboxContent>
+                             </Combobox>
                           </div>
 
                           {/* Status Penjualan */}
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
-                              Status Penjualan
+                              Status Pembayaran
                             </label>
-                            <select
-                              value={statusFilter}
-                              onChange={(e) => {
-                                setStatusFilter(
-                                  e.target.value as "all" | "PAID" | "UNPAID",
+                            <Combobox
+                              value={tempStatusFilter}
+                              onValueChange={(val) => {
+                                setTempStatusFilter(
+                                  val as "all" | "PAID" | "UNPAID",
                                 );
-                                setPage(1);
                               }}
-                              className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
                             >
-                              <option value="all">Semua Status</option>
-                              <option value="PAID">Lunas</option>
-                              <option value="UNPAID">Belum Lunas</option>
-                            </select>
+                              <ComboboxTrigger className="w-full text-left font-semibold">
+                                <span>
+                                  {tempStatusFilter === "all"
+                                    ? "Semua Status"
+                                    : tempStatusFilter === "PAID"
+                                      ? "Lunas"
+                                      : "Belum Lunas"}
+                                </span>
+                              </ComboboxTrigger>
+                              <ComboboxContent
+                                align="start"
+                                className="w-[var(--radix-popover-trigger-width)]"
+                              >
+                                <ComboboxInput placeholder="Cari status..." />
+                                <ComboboxEmpty>
+                                  Status tidak ditemukan.
+                                </ComboboxEmpty>
+                                <ComboboxList>
+                                  <ComboboxItem value="all">
+                                    Semua Status
+                                  </ComboboxItem>
+                                  <ComboboxItem value="PAID">
+                                    Lunas
+                                  </ComboboxItem>
+                                  <ComboboxItem value="UNPAID">
+                                    Belum Lunas
+                                  </ComboboxItem>
+                                </ComboboxList>
+                              </ComboboxContent>
+                            </Combobox>
+                          </div>
+
+                          {/* Status Pesanan */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
+                              Status Pesanan
+                            </label>
+                            <Combobox
+                              value={tempOrderStatusFilter}
+                              onValueChange={(val) => {
+                                setTempOrderStatusFilter(
+                                  val as "all" | "SUCCESS" | "REFUND",
+                                );
+                              }}
+                            >
+                              <ComboboxTrigger className="w-full text-left font-semibold">
+                                <span>
+                                  {tempOrderStatusFilter === "all"
+                                    ? "Semua Pesanan"
+                                    : tempOrderStatusFilter === "SUCCESS"
+                                      ? "Selesai"
+                                      : "Refund"}
+                                </span>
+                              </ComboboxTrigger>
+                              <ComboboxContent
+                                align="start"
+                                className="w-[var(--radix-popover-trigger-width)]"
+                              >
+                                <ComboboxInput placeholder="Cari status pesanan..." />
+                                <ComboboxEmpty>
+                                  Status tidak ditemukan.
+                                </ComboboxEmpty>
+                                <ComboboxList>
+                                  <ComboboxItem value="all">
+                                    Semua Pesanan
+                                  </ComboboxItem>
+                                  <ComboboxItem value="SUCCESS">
+                                    Selesai
+                                  </ComboboxItem>
+                                  <ComboboxItem value="REFUND">
+                                    Refund
+                                  </ComboboxItem>
+                                </ComboboxList>
+                              </ComboboxContent>
+                            </Combobox>
                           </div>
 
                           {/* Tipe Pelanggan */}
@@ -736,18 +811,83 @@ const ReportSellingPage = () => {
                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
                               Tipe Pelanggan
                             </label>
-                            <select
-                              value={customerTypeFilter}
-                              onChange={(e) => {
-                                setCustomerTypeFilter(e.target.value);
-                                setPage(1);
+                            <Combobox
+                              value={tempCustomerTypeFilter}
+                              onValueChange={(val) => {
+                                setTempCustomerTypeFilter(val);
                               }}
-                              className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
                             >
-                              <option value="all">Semua Tipe</option>
-                              <option value="retail">Retail</option>
-                              <option value="reseller">Biro / Reseller</option>
-                            </select>
+                              <ComboboxTrigger className="w-full text-left font-semibold">
+                                <span>
+                                  {tempCustomerTypeFilter === "all"
+                                    ? "Semua Tipe"
+                                    : tempCustomerTypeFilter === "retail"
+                                      ? "Retail"
+                                      : "Biro / Reseller"}
+                                </span>
+                              </ComboboxTrigger>
+                              <ComboboxContent
+                                align="start"
+                                className="w-[var(--radix-popover-trigger-width)]"
+                              >
+                                <ComboboxInput placeholder="Cari tipe pelanggan..." />
+                                <ComboboxEmpty>
+                                  Tipe tidak ditemukan.
+                                </ComboboxEmpty>
+                                <ComboboxList>
+                                  <ComboboxItem value="all">
+                                    Semua Tipe
+                                  </ComboboxItem>
+                                  <ComboboxItem value="retail">
+                                    Retail
+                                  </ComboboxItem>
+                                  <ComboboxItem value="reseller">
+                                    Biro / Reseller
+                                  </ComboboxItem>
+                                </ComboboxList>
+                              </ComboboxContent>
+                            </Combobox>
+                          </div>
+
+                          {/* Metode Pembayaran */}
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
+                              Metode Pembayaran
+                            </label>
+                            <div className="flex flex-col gap-2">
+                              {(
+                                [
+                                  { id: "CASH", label: "Tunai / Cash" },
+                                  { id: "TRANSFER", label: "Transfer Bank" },
+                                  { id: "QRIS", label: "QRIS" },
+                                ] as const
+                              ).map((method) => {
+                                const isChecked = tempPaymentMethodsFilter.includes(
+                                  method.id,
+                                );
+                                return (
+                                  <label
+                                    key={method.id}
+                                    className="flex items-center gap-2 text-xs font-semibold cursor-pointer select-none"
+                                  >
+                                    <Checkbox
+                                      checked={isChecked}
+                                      onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        setTempPaymentMethodsFilter((prev) =>
+                                          checked
+                                            ? [...prev, method.id]
+                                            : prev.filter((p) => p !== method.id),
+                                        );
+                                      }}
+                                    />
+                                    <span className="text-foreground">
+                                      {method.label}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
                           </div>
 
                           {/* Action Buttons */}
@@ -755,10 +895,19 @@ const ReportSellingPage = () => {
                             <button
                               type="button"
                               onClick={() => {
+                                setTempOperatorFilter("all");
+                                setTempStatusFilter("all");
+                                setTempCustomerTypeFilter("all");
+                                setTempOrderStatusFilter("all");
+                                setTempPaymentMethodsFilter([]);
+
                                 setOperatorFilter("all");
                                 setStatusFilter("all");
                                 setCustomerTypeFilter("all");
+                                setOrderStatusFilter("all");
+                                setPaymentMethodsFilter([]);
                                 setPage(1);
+                                setIsFilterOpen(false);
                               }}
                               className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors"
                             >
@@ -766,7 +915,15 @@ const ReportSellingPage = () => {
                             </button>
                             <Button
                               size="sm"
-                              onClick={() => setIsFilterOpen(false)}
+                              onClick={() => {
+                                setOperatorFilter(tempOperatorFilter);
+                                setStatusFilter(tempStatusFilter);
+                                setCustomerTypeFilter(tempCustomerTypeFilter);
+                                setOrderStatusFilter(tempOrderStatusFilter);
+                                setPaymentMethodsFilter(tempPaymentMethodsFilter);
+                                setPage(1);
+                                setIsFilterOpen(false);
+                              }}
                               className="h-8 px-4 rounded-xl text-[10px] font-bold"
                             >
                               Terapkan
@@ -788,7 +945,7 @@ const ReportSellingPage = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 border-b border-border/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      <TableHead className="py-4 px-5 w-[180px] min-w-[160px]">
+                      <TableHead className="py-4 px-5 text-center min-w-[120px]">
                         Tanggal
                       </TableHead>
                       <TableHead className="py-4 px-5">No. Nota</TableHead>
@@ -803,10 +960,13 @@ const ReportSellingPage = () => {
                         Sisa Piutang
                       </TableHead>
                       <TableHead className="py-4 px-5 text-center">
-                        Metode
+                        Metode Pembayaran
                       </TableHead>
-                      <TableHead className="py-4 px-5 text-center">
-                        Status
+                      <TableHead className="py-4 px-5 text-center min-w-[160px]">
+                        Status Pembayaran
+                      </TableHead>
+                      <TableHead className="py-4 px-5 text-center min-w-[140px]">
+                        Status Pesanan
                       </TableHead>
                       <TableHead className="py-4 px-5 w-[150px] min-w-[120px]">
                         Admin
@@ -820,7 +980,7 @@ const ReportSellingPage = () => {
                     {isLoading ? (
                       <TableRow>
                         <TableCell
-                          colSpan={10}
+                          colSpan={11}
                           className="text-center py-12 text-muted-foreground"
                         >
                           <div className="flex flex-col items-center justify-center space-y-2">
@@ -835,7 +995,7 @@ const ReportSellingPage = () => {
                     ) : filteredSales.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={10}
+                          colSpan={11}
                           className="text-center py-12 text-muted-foreground"
                         >
                           Tidak ada transaksi penjualan ditemukan.
@@ -844,27 +1004,6 @@ const ReportSellingPage = () => {
                     ) : (
                       filteredSales.map((sale) => {
                         const outstanding = sale.totalAmount - sale.paidAmount;
-
-                        let badgeColor =
-                          "bg-muted text-muted-foreground border-border/50";
-                        const normalizedMethod =
-                          sale.paymentMethod.toLowerCase();
-                        if (normalizedMethod === "qris") {
-                          badgeColor =
-                            "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
-                        } else if (
-                          normalizedMethod === "cash" ||
-                          normalizedMethod === "tunai"
-                        ) {
-                          badgeColor =
-                            "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
-                        } else if (
-                          normalizedMethod === "transfer" ||
-                          normalizedMethod === "transfer bank"
-                        ) {
-                          badgeColor =
-                            "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
-                        }
 
                         // Generate a mock job number from the invoice number
                         const mockJobNumber = sale.invoiceNumber.replace(
@@ -878,14 +1017,19 @@ const ReportSellingPage = () => {
                             className="hover:bg-muted/20 transition-colors duration-150"
                           >
                             {/* Date */}
-                            <TableCell className="py-4 px-5 w-[180px] min-w-[160px]">
-                              <div className="text-foreground flex items-center gap-2 font-bold whitespace-nowrap">
-                                <LuCalendar
-                                  size={14}
-                                  className="text-muted-foreground/80 shrink-0"
-                                />
-                                <span>{sale.createdAt}</span>
-                              </div>
+                            <TableCell className="py-4 px-5 text-center min-w-[120px]">
+                              {sale.createdAt.includes(", ") ? (
+                                <div className="text-muted-foreground font-semibold leading-normal">
+                                  <div>{sale.createdAt.split(", ")[0]},</div>
+                                  <div className="text-[10px]">
+                                    {sale.createdAt.split(", ")[1]}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-muted-foreground font-semibold">
+                                  {sale.createdAt}
+                                </div>
+                              )}
                             </TableCell>
 
                             {/* Invoice Number */}
@@ -894,7 +1038,7 @@ const ReportSellingPage = () => {
                                 {sale.invoiceNumber}
                               </div>
                               <div className="text-[10px] text-muted-foreground font-semibold block">
-                                No. Tiket / Job: {mockJobNumber}
+                                No. Tiket : {mockJobNumber}
                               </div>
                             </TableCell>
 
@@ -946,15 +1090,42 @@ const ReportSellingPage = () => {
 
                             {/* Payment Method */}
                             <TableCell className="py-4 px-5 text-center">
-                              <span
-                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${badgeColor}`}
-                              >
-                                {sale.paymentMethod}
-                              </span>
+                              <div className="flex flex-wrap gap-1 justify-center">
+                                {sale.paymentMethod.split(", ").map((method) => {
+                                  let methodBadgeColor =
+                                    "bg-muted text-muted-foreground border-border/50";
+                                  const normalizedMethod = method.toLowerCase();
+                                  if (normalizedMethod === "qris") {
+                                    methodBadgeColor =
+                                      "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
+                                  } else if (
+                                    normalizedMethod === "cash" ||
+                                    normalizedMethod === "tunai"
+                                  ) {
+                                    methodBadgeColor =
+                                      "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
+                                  } else if (
+                                    normalizedMethod === "transfer" ||
+                                    normalizedMethod === "transfer bank"
+                                  ) {
+                                    methodBadgeColor =
+                                      "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
+                                  }
+
+                                  return (
+                                    <span
+                                      key={method}
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${methodBadgeColor}`}
+                                    >
+                                      {method}
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             </TableCell>
 
-                            {/* Status */}
-                            <TableCell className="py-4 px-5 text-center">
+                            {/* Status Pembayaran */}
+                            <TableCell className="py-4 px-5 text-center min-w-[160px]">
                               <span
                                 className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none ${
                                   sale.status === "PAID"
@@ -966,6 +1137,26 @@ const ReportSellingPage = () => {
                                   ? "Lunas"
                                   : "Belum Lunas"}
                               </span>
+                            </TableCell>
+
+                            {/* Status Pesanan */}
+                            <TableCell className="py-4 px-5 text-center min-w-[140px]">
+                              {sale.orderStatus === "CANCELLED" ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/50">
+                                  <LuCircleX className="h-3 w-3" />
+                                  Dibatalkan
+                                </span>
+                              ) : sale.orderStatus === "REFUND" ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/20 dark:text-violet-400 dark:border-violet-900/50">
+                                  <LuRotateCcw className="h-3 w-3" />
+                                  Refund
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50">
+                                  <LuCircleCheck className="h-3 w-3" />
+                                  Selesai
+                                </span>
+                              )}
                             </TableCell>
 
                             {/* Admin */}
