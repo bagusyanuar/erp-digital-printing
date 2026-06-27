@@ -187,6 +187,7 @@ const InvoicePage = () => {
   );
   const [isSpkPreviewOpen, setIsSpkPreviewOpen] = useState(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   // Quick Payment form states
   const [payAmount, setPayAmount] = useState<number>(0);
@@ -2065,7 +2066,7 @@ const InvoicePage = () => {
                 Preview Struk Kasir
               </h2>
               <p className="text-xs text-muted-foreground font-semibold">
-                Simulasi hasil cetakan thermal struk digital printing 58mm.
+                Simulasi hasil cetakan thermal struk digital printing 80mm.
               </p>
             </div>
 
@@ -2190,17 +2191,71 @@ const InvoicePage = () => {
                 Tutup Preview
               </Button>
               <Button
-                onClick={() => {
-                  toast.success(
-                    "Mencetak Struk...",
-                    "Dokumen struk dikirim ke mesin thermal printer.",
-                  );
-                  setIsReceiptOpen(false);
+                onClick={async () => {
+                  if (!selectedInvoice) return;
+                  setIsPrinting(true);
+
+                  // 80mm standard width is ~48 characters
+                  let rawData = "================================================\n";
+                  rawData += "            TOKO ERP DIGITAL PRINTING           \n";
+                  rawData += "================================================\n";
+                  rawData += `No. Nota : ${selectedInvoice.invoiceNo}\n`;
+                  rawData += `Pelanggan: ${selectedInvoice.customerName}\n`;
+                  rawData += "------------------------------------------------\n";
+                  
+                  selectedInvoice.items.forEach(item => {
+                    rawData += `${item.productName}\n`;
+                    rawData += `${item.qty} x ${formatCurrency(item.pricePerUnit)} = ${formatCurrency(item.subtotal)}\n`;
+                  });
+                  
+                  rawData += "------------------------------------------------\n";
+                  rawData += `Total: ${formatCurrency(selectedInvoice.totalAmount)}\n`;
+                  rawData += "================================================\n";
+                  rawData += "                 Terima Kasih!                  \n\n\n";
+
+                  try {
+                    const response = await fetch("http://localhost:9876/print-test", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        printer_name: "PRINTER-POS",
+                        raw_data: rawData 
+                      }),
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error("Gagal memproses struk melalui Print Agent lokal.");
+                    }
+                    
+                    toast.success(
+                      "Mencetak Struk...",
+                      "Dokumen struk dikirim ke mesin thermal printer lokal.",
+                    );
+                    setIsReceiptOpen(false);
+                  } catch (error) {
+                    console.error("Error printing:", error);
+                    toast.error(
+                      "Gagal Cetak",
+                      "Pastikan Print Agent lokal (localhost:9876) sudah berjalan."
+                    );
+                  } finally {
+                    setIsPrinting(false);
+                  }
                 }}
-                className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95"
+                disabled={isPrinting}
+                className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <LuPrinter size={16} />
-                Cetak ke Thermal Printer
+                {isPrinting ? (
+                  <div className="relative w-4 h-4">
+                    <div className="absolute inset-0 rounded-full border-2 border-primary-foreground/20" />
+                    <div className="absolute inset-0 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
+                  </div>
+                ) : (
+                  <LuPrinter size={16} />
+                )}
+                {isPrinting ? "Mencetak..." : "Cetak ke Thermal Printer"}
               </Button>
             </div>
           </div>
