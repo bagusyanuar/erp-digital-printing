@@ -2220,7 +2220,10 @@ const InvoicePage = () => {
                   rawData +=
                     "================================================\n";
                   rawData +=
-                    "                 Terima Kasih!                  \n\n\n";
+                    "                 Terima Kasih!                  \n\n\n\n\n";
+                  
+                  // ESC/POS Command: Auto Cut
+                  rawData += "\x1d\x56\x00";
 
                   try {
                     const response = await fetch(
