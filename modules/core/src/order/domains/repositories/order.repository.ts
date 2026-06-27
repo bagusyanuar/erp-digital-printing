@@ -61,6 +61,26 @@ export interface OrderReportWidgetsModel {
   };
 }
 
+export interface SalesReportWidgetsParams {
+  status?: string;
+  payment_status?: string;
+  designer_id?: string;
+  cashier_id?: string;
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  customer_type?: string;
+  payment_method?: string;
+}
+
+export interface SalesReportWidgetsModel {
+  omset_penjualan: number;
+  volume_transaksi: number;
+  total_produk_terjual: number;
+  lunas_count: number;
+  belum_lunas_count: number;
+}
+
 export interface OrderRepository {
   saveDraft(input: DraftOrderModel): Promise<void>;
   getOrders(params: OrderParams): Promise<PaginatedResponse<OrderModel>>;
@@ -74,6 +94,7 @@ export interface OrderRepository {
   getOrderById(id: string): Promise<OrderModel>;
   updateOrder(id: string, input: DraftOrderModel): Promise<void>;
   getOrderReportWidgets(params: OrderReportWidgetsParams): Promise<OrderReportWidgetsModel>;
+  getSalesReportWidgets(params: SalesReportWidgetsParams): Promise<SalesReportWidgetsModel>;
 }
 
 

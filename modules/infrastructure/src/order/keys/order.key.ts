@@ -1,4 +1,4 @@
-import type { OrderParams, OrderReportWidgetsParams } from "@core/order/domains/repositories/order.repository";
+import type { OrderParams, OrderReportWidgetsParams, SalesReportWidgetsParams } from "@core/order/domains/repositories/order.repository";
 
 export const orderKeys = {
   all: ["orders"] as const,
@@ -9,5 +9,6 @@ export const orderKeys = {
   spk: (id: string) => [...orderKeys.all, "spk", id] as const,
   payments: (id: string) => [...orderKeys.all, "payments", id] as const,
   reportWidgets: (params: OrderReportWidgetsParams) => [...orderKeys.all, "reportWidgets", params] as const,
+  salesReportWidgets: (params: SalesReportWidgetsParams) => [...orderKeys.all, "salesReportWidgets", params] as const,
 };
 
