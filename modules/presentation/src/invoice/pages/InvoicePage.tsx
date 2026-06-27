@@ -49,7 +49,10 @@ import type {
   OrderPaymentModel,
 } from "@core/order/domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
-import type { RepayPaymentInput, RefundOrderInput } from "@core/order/domains/repositories/order.repository";
+import type {
+  RepayPaymentInput,
+  RefundOrderInput,
+} from "@core/order/domains/repositories/order.repository";
 
 // Interfaces for mapped presentation UI
 interface InvoiceItem {
@@ -122,18 +125,18 @@ const InvoicePage = () => {
   );
 
   // Temporary filter states for draft selections before clicking 'Terapkan'
-  const [tempStatusFilter, setTempStatusFilter] = useState<"ALL" | "PAID" | "UNPAID">(
-    "ALL",
-  );
+  const [tempStatusFilter, setTempStatusFilter] = useState<
+    "ALL" | "PAID" | "UNPAID"
+  >("ALL");
   const [tempCustomerTypeFilter, setTempCustomerTypeFilter] = useState<
     "ALL" | "RESELLER" | "END_USER"
   >("ALL");
   const [tempOrderStatusFilter, setTempOrderStatusFilter] = useState<
     "ALL" | "SUCCESS" | "REFUND"
   >("SUCCESS");
-  const [tempPaymentMethodsFilter, setTempPaymentMethodsFilter] = useState<string[]>(
-    [],
-  );
+  const [tempPaymentMethodsFilter, setTempPaymentMethodsFilter] = useState<
+    string[]
+  >([]);
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -506,8 +509,7 @@ const InvoicePage = () => {
     onError: (error) => {
       toast.error(
         "Refund Gagal",
-        error.message ||
-          "Terjadi kesalahan saat memproses refund di server.",
+        error.message || "Terjadi kesalahan saat memproses refund di server.",
       );
     },
   });
@@ -2196,39 +2198,51 @@ const InvoicePage = () => {
                   setIsPrinting(true);
 
                   // 80mm standard width is ~48 characters
-                  let rawData = "================================================\n";
-                  rawData += "            TOKO ERP DIGITAL PRINTING           \n";
-                  rawData += "================================================\n";
+                  let rawData =
+                    "================================================\n";
+                  rawData +=
+                    "            TOKO ERP DIGITAL PRINTING           \n";
+                  rawData +=
+                    "================================================\n";
                   rawData += `No. Nota : ${selectedInvoice.invoiceNo}\n`;
                   rawData += `Pelanggan: ${selectedInvoice.customerName}\n`;
-                  rawData += "------------------------------------------------\n";
-                  
-                  selectedInvoice.items.forEach(item => {
+                  rawData +=
+                    "------------------------------------------------\n";
+
+                  selectedInvoice.items.forEach((item) => {
                     rawData += `${item.productName}\n`;
                     rawData += `${item.qty} x ${formatCurrency(item.pricePerUnit)} = ${formatCurrency(item.subtotal)}\n`;
                   });
-                  
-                  rawData += "------------------------------------------------\n";
+
+                  rawData +=
+                    "------------------------------------------------\n";
                   rawData += `Total: ${formatCurrency(selectedInvoice.totalAmount)}\n`;
-                  rawData += "================================================\n";
-                  rawData += "                 Terima Kasih!                  \n\n\n";
+                  rawData +=
+                    "================================================\n";
+                  rawData +=
+                    "                 Terima Kasih!                  \n\n\n";
 
                   try {
-                    const response = await fetch("http://localhost:9876/print-test", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
+                    const response = await fetch(
+                      "http://localhost:9876/print",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          printer_name: "PRINTER-POS",
+                          raw_data: rawData,
+                        }),
                       },
-                      body: JSON.stringify({
-                        printer_name: "PRINTER-POS",
-                        raw_data: rawData 
-                      }),
-                    });
-                    
+                    );
+
                     if (!response.ok) {
-                        throw new Error("Gagal memproses struk melalui Print Agent lokal.");
+                      throw new Error(
+                        "Gagal memproses struk melalui Print Agent lokal.",
+                      );
                     }
-                    
+
                     toast.success(
                       "Mencetak Struk...",
                       "Dokumen struk dikirim ke mesin thermal printer lokal.",
@@ -2238,7 +2252,7 @@ const InvoicePage = () => {
                     console.error("Error printing:", error);
                     toast.error(
                       "Gagal Cetak",
-                      "Pastikan Print Agent lokal (localhost:9876) sudah berjalan."
+                      "Pastikan Print Agent lokal (localhost:9876) sudah berjalan.",
                     );
                   } finally {
                     setIsPrinting(false);
@@ -2338,7 +2352,9 @@ const InvoicePage = () => {
                     value={refundAmount || ""}
                     onChange={(e) => {
                       const val = parseFloat(e.target.value) || 0;
-                      setRefundAmount(Math.min(val, selectedInvoice.amountPaid));
+                      setRefundAmount(
+                        Math.min(val, selectedInvoice.amountPaid),
+                      );
                     }}
                     placeholder="Masukkan nominal refund..."
                     className="w-full h-11 pl-9 pr-3 text-sm font-mono font-bold bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
@@ -2385,7 +2401,9 @@ const InvoicePage = () => {
                 className="rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white"
                 disabled={processRefundMutation.isPending}
               >
-                {processRefundMutation.isPending ? "Memproses..." : "Ya, Proses Refund"}
+                {processRefundMutation.isPending
+                  ? "Memproses..."
+                  : "Ya, Proses Refund"}
               </Button>
             </div>
           </div>
