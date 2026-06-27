@@ -37,10 +37,8 @@ COPY --from=builder /app/apps/back-office-app/dist /usr/share/nginx/html
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# (Opsional) Jika kamu memisahkan nginx.conf di deployment, 
-# kamu bisa copy conf tersebut di skrip build deployment-mu atau mount volume.
-# Contoh jika nginx.conf disalin langsung:
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx.conf untuk SPA Routing (Mencegah 404 saat refresh halaman)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
