@@ -137,7 +137,7 @@ const CreateJobEntryPage = () => {
 
   // Load existing ticket details if we are in Edit Mode
   useEffect(() => {
-    let timer: NodeJS.Timeout | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     if (orderDetail) {
       timer = setTimeout(() => {
         setCustomerType(orderDetail.reseller_id ? "reseller" : "end_user");

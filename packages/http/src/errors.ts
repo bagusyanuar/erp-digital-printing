@@ -17,8 +17,8 @@ export class HttpError extends Error {
     this.name = "HttpError";
     
     // Pastikan stack trace tetap ada (V8)
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, HttpError);
+    if ('captureStackTrace' in Error) {
+      (Error as any).captureStackTrace(this, HttpError);
     }
   }
 

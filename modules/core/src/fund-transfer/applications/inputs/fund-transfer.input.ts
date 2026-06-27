@@ -10,3 +10,8 @@ export interface CreateFundTransferInput {
   amount: number;
   notes: string;
 }
+
+export interface FundTransferWidgetsParams {
+  startDate?: string;
+  endDate?: string;
+}
