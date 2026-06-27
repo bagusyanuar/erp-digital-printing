@@ -11,15 +11,14 @@
     "sourceMap": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitReturns": true,
-    "baseUrl": ".",
     "paths": {
-      "@core/*": ["modules/core/src/*"],
-      "@infrastructure/*": ["modules/infrastructure/src/*"],
-      "@presentation/*": ["modules/presentation/src/*"],
-      "@ui/*": ["packages/ui/src/components/*"],
-      "@shell/*": ["apps/back-office-app/src/*"],
-      "@erp-digital-printing/libs": ["packages/libs/src/index.ts"],
-      "@erp-digital-printing/http": ["packages/http/src/index.ts"]
+      "@core/*": ["./modules/core/src/*"],
+      "@infrastructure/*": ["./modules/infrastructure/src/*"],
+      "@presentation/*": ["./modules/presentation/src/*"],
+      "@ui/*": ["./packages/ui/src/components/*"],
+      "@shell/*": ["./apps/back-office-app/src/*"],
+      "@erp-digital-printing/libs": ["./packages/libs/src/index.ts"],
+      "@erp-digital-printing/http": ["./packages/http/src/index.ts"]
     }
   }
 }
