@@ -1,12 +1,11 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React from "react";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
-import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
+import { Card, CardContent } from "@erp-digital-printing/ui/Card";
 import { Dialog } from "@erp-digital-printing/ui/Dialog";
 import { toast } from "@erp-digital-printing/ui/Toast";
 import {
   LuSearch,
-  LuFilter,
   LuUser,
   LuCalendar,
   LuShoppingBag,
@@ -14,7 +13,6 @@ import {
   LuReceipt,
   LuCheck,
   LuPrinter,
-  LuPercent,
   LuDollarSign,
   LuClock,
   LuInfo,
@@ -25,408 +23,59 @@ import {
   LuCornerUpLeft,
   LuTrash2,
 } from "@erp-digital-printing/ui/icons";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
-import { orderKeys } from "@infrastructure/order/keys";
-import type { AppError } from "@core/shared/errors/domain.error";
-import type { OrderModel } from "@core/order/domains/models/order.model";
-import type { PaginatedResponse } from "@core/shared/api/pagination";
-import type { ProcessPaymentInput } from "@core/order/domains/repositories/order.repository";
+import { useOrder } from "../hooks/useOrder";
 
-// Interface Definitions
-interface OrderItem {
-  id: string;
-  productName: string;
-  dimension: string;
-  qty: number;
-  finishing: string;
-  pricePerUnit: number;
-  lengthCm?: number;
-  widthCm?: number;
-  uom?: string;
-  subtotal: number;
-}
-
-interface OrderTransaction {
-  id: string;
-  ticketNo: string;
-  customerName: string;
-  customerPhone?: string;
-  resellerId?: string | null;
-  status: "NEED_PAYMENT" | "LUNAS" | "BATAL" | "PARTIAL_PAID";
-  createdAt: string;
-  items: OrderItem[];
-  paymentMethod?: string;
-  discountAmount?: number;
-  taxAmount?: number;
-  totalPaid?: number;
-  changeAmount?: number;
-  grandTotal?: number;
-  remainingAmount?: number;
-}
+const formatCurrency = (val: number) => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(val);
+};
 
 const OrderPage = () => {
-  const [localOverrides, setLocalOverrides] = useState<
-    Record<string, Partial<OrderTransaction>>
-  >({});
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isDraftConfirmOpen, setIsDraftConfirmOpen] = useState(false);
-  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
-
-  const { getOrdersUseCase, payOrderUseCase, updateOrderStatusUseCase } = useOrderDI();
-
-  // Cashier POS only handles PENDING_PAYMENT status orders.
-  const mappedStatus = "PENDING_PAYMENT";
-
-  // Fetch real order data from backend API
   const {
-    data: response,
+    setLocalOverrides,
+    selectedOrderId,
+    setSelectedOrderId,
+    searchQuery,
+    setSearchQuery,
+    isDraftConfirmOpen,
+    setIsDraftConfirmOpen,
+    isCancelConfirmOpen,
+    setIsCancelConfirmOpen,
+    paymentMethod,
+    setPaymentMethod,
+    isSplitPayment,
+    setIsSplitPayment,
+    splitAmounts,
+    setSplitAmounts,
+    singleAmount,
+    setSingleAmount,
+    isReceiptOpen,
+    setIsReceiptOpen,
+    isTemporaryReceipt,
+    setIsTemporaryReceipt,
+    lastCompletedOrder,
+    setLastCompletedOrder,
+    activeOrder,
+    subtotal,
+    grandTotal,
+    totalPaid,
+    remainingAmount,
+    changeAmount,
+    isPaymentValid,
+    filteredQueue,
+    stats,
     isLoading,
-    isFetching,
-    refetch,
-  } = useQuery<PaginatedResponse<OrderModel>, AppError>({
-    queryKey: orderKeys.list({
-      page: 1,
-      limit: 100, // Fetch a larger batch for the cashier queue
-      status: mappedStatus,
-    }),
-    queryFn: () =>
-      getOrdersUseCase.execute({
-        page: 1,
-        limit: 100,
-        status: mappedStatus,
-      }),
-    staleTime: 5000,
-    gcTime: 15_000,
-    refetchOnWindowFocus: false,
-  });
-
-  // Purely computed transactions state combining remote data & local overrides (No useEffect!)
-  const transactions = useMemo((): OrderTransaction[] => {
-    return (response?.data ?? []).map((order): OrderTransaction => {
-      const override = localOverrides[order.id];
-
-      // Base mapped order from server
-      const baseOrder: OrderTransaction = {
-        id: order.id,
-        ticketNo: order.job_number,
-        customerName: order.customer_name || "Customer Walk In",
-        customerPhone: order.customer_phone || "-",
-        resellerId: order.reseller_id,
-        status:
-          order.status === "PENDING_PAYMENT"
-            ? "NEED_PAYMENT"
-            : order.status === "CANCELLED"
-              ? "BATAL"
-              : "LUNAS",
-        createdAt: order.created_at,
-        items: (order.order_items ?? []).map((item) => {
-          let dimensionText = "Pcs";
-          if (item.uom === "m2" || item.uom === "m_lari") {
-            dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
-          } else if (item.uom === "box") {
-            dimensionText = "Box";
-          } else if (item.uom === "lembar") {
-            dimensionText = "Lembar A3+";
-          }
-
-          // Check if there is an item price override
-          const itemOverride = override?.items?.find((it) => it.id === item.id);
-          const pricePerUnit = itemOverride
-            ? itemOverride.pricePerUnit
-            : item.price_per_unit || 0;
-
-          // Calculate subtotal: use BE value if no override, otherwise compute based on UOM
-          let itemSubtotal = item.subtotal || 0;
-          if (itemOverride) {
-            if (item.uom === "m2") {
-              const area =
-                ((item.length_cm || 0) * (item.width_cm || 0)) / 10000;
-              itemSubtotal = pricePerUnit * item.quantity * area;
-            } else if (item.uom === "m_lari") {
-              const length = (item.length_cm || 0) / 100;
-              itemSubtotal = pricePerUnit * item.quantity * length;
-            } else {
-              itemSubtotal = pricePerUnit * item.quantity;
-            }
-          }
-
-          return {
-            id: item.id,
-            productName: item.variant_name
-              ? `${item.product_name} (${item.variant_name})`
-              : item.product_name,
-            dimension: dimensionText,
-            qty: item.quantity,
-            finishing: item.production_notes || "-",
-            pricePerUnit,
-            lengthCm: item.length_cm,
-            widthCm: item.width_cm,
-            uom: item.uom,
-            subtotal: itemSubtotal,
-          };
-        }),
-        grandTotal: order.grand_total,
-        discountAmount: 0,
-        taxAmount: 0,
-        totalPaid: order.amount_paid,
-        changeAmount: 0,
-      };
-
-      // Apply top-level status or transaction overrides if they exist locally
-      if (override) {
-        return {
-          ...baseOrder,
-          ...override,
-          items: baseOrder.items, // already applied individual item overrides above
-        };
-      }
-
-      return baseOrder;
-    });
-  }, [response, localOverrides]);
-
-  // Payment UI states
-  const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
-  const [isSplitPayment, setIsSplitPayment] = useState<boolean>(false);
-  const [splitAmounts, setSplitAmounts] = useState<{
-    cash: number;
-    transfer: number;
-    qris: number;
-  }>({ cash: 0, transfer: 0, qris: 0 });
-  const [singleAmount, setSingleAmount] = useState<number>(0);
-  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
-  const [lastCompletedOrder, setLastCompletedOrder] =
-    useState<OrderTransaction | null>(null);
-
-  // Active Selected Order
-  const activeOrder = useMemo(() => {
-    return transactions.find((t) => t.id === selectedOrderId) || null;
-  }, [transactions, selectedOrderId]);
-
-  // Calculations for checkout panel
-  const subtotal = useMemo(() => {
-    if (!activeOrder) return 0;
-    return activeOrder.items.reduce((sum, item) => sum + item.subtotal, 0);
-  }, [activeOrder]);
-
-  const grandTotal = useMemo(() => {
-    return subtotal;
-  }, [subtotal]);
-
-  const totalPaid = useMemo(() => {
-    if (isSplitPayment) {
-      return splitAmounts.cash + splitAmounts.transfer + splitAmounts.qris;
-    }
-    return singleAmount === 0 ? grandTotal : singleAmount;
-  }, [isSplitPayment, splitAmounts, singleAmount, grandTotal]);
-
-  const remainingAmount = useMemo(() => {
-    return Math.max(0, grandTotal - totalPaid);
-  }, [grandTotal, totalPaid]);
-
-  const changeAmount = useMemo(() => {
-    if (!isSplitPayment && paymentMethod === "CASH" && totalPaid > grandTotal) {
-      return totalPaid - grandTotal;
-    }
-    return 0;
-  }, [isSplitPayment, paymentMethod, totalPaid, grandTotal]);
-
-  const isPaymentValid = useMemo(() => {
-    if (grandTotal <= 0) return false;
-    if (isSplitPayment) {
-      const totalSplit =
-        splitAmounts.cash + splitAmounts.transfer + splitAmounts.qris;
-      return totalSplit > 0 && totalSplit <= grandTotal;
-    }
-    const currentSingleAmount = singleAmount === 0 ? grandTotal : singleAmount;
-    if (currentSingleAmount <= 0) return false;
-    if (paymentMethod === "CASH") return true;
-    return currentSingleAmount <= grandTotal;
-  }, [grandTotal, isSplitPayment, splitAmounts, singleAmount, paymentMethod]);
-
-  // Filtered queue items
-  const filteredQueue = useMemo(() => {
-    return transactions.filter((order) => {
-      const matchesSearch =
-        order.ticketNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customerName.toLowerCase().includes(searchQuery.toLowerCase());
-
-      return matchesSearch;
-    });
-  }, [transactions, searchQuery]);
-
-  // Stats
-  const stats = useMemo(() => {
-    const pending = transactions.filter(
-      (t) => t.status === "NEED_PAYMENT",
-    ).length;
-    const lunas = transactions.filter((t) => t.status === "LUNAS");
-    const totalRevenue = lunas.reduce((sum, t) => sum + (t.grandTotal || 0), 0);
-    return { pending, lunasCount: lunas.length, totalRevenue };
-  }, [transactions]);
-
-  // Handlers
-  const handleSendBackToDraft = () => {
-    if (!activeOrder) return;
-    updateStatusMutation.mutate({ id: activeOrder.id, status: "DRAFT" });
-    setIsDraftConfirmOpen(false);
-  };
-
-  const handleCancelOrder = () => {
-    if (!activeOrder) return;
-    updateStatusMutation.mutate({ id: activeOrder.id, status: "CANCELLED" });
-    setIsCancelConfirmOpen(false);
-  };
-
-  const handleSelectOrder = (orderId: string) => {
-    // Clear override of previous order if not yet paid/DP-ed
-    if (selectedOrderId && selectedOrderId !== orderId) {
-      const prevOrder = transactions.find((t) => t.id === selectedOrderId);
-      if (
-        prevOrder &&
-        prevOrder.status !== "LUNAS" &&
-        prevOrder.status !== "PARTIAL_PAID"
-      ) {
-        setLocalOverrides((prev) => {
-          const updated = { ...prev };
-          delete updated[selectedOrderId];
-          return updated;
-        });
-      }
-    }
-
-    setSelectedOrderId(orderId);
-    setPaymentMethod("CASH");
-    setIsSplitPayment(false);
-    setSplitAmounts({ cash: 0, transfer: 0, qris: 0 });
-    setSingleAmount(0);
-  };
-
-  const handleUpdateItemPrice = (
-    orderId: string,
-    itemId: string,
-    price: number,
-  ) => {
-    setLocalOverrides((prev) => {
-      const orderOverride = prev[orderId] || {};
-      const currentItems =
-        transactions.find((t) => t.id === orderId)?.items || [];
-      const updatedItems = currentItems.map((item) =>
-        item.id === itemId ? { ...item, pricePerUnit: price } : item,
-      );
-      return {
-        ...prev,
-        [orderId]: {
-          ...orderOverride,
-          items: updatedItems,
-        },
-      };
-    });
-  };
-
-  // Mutation to process active payment in backend
-  const processPaymentMutation = useMutation<void, AppError, { id: string; payload: ProcessPaymentInput }>({
-    mutationFn: ({ id, payload }) => payOrderUseCase.execute(id, payload),
-    onSuccess: (_, variables) => {
-      // Refresh real orders queue from API
-      refetch();
-
-      const isFullyPaid = remainingAmount === 0;
-      const completedOverride: Partial<OrderTransaction> = {
-        status: isFullyPaid ? "LUNAS" : "PARTIAL_PAID",
-        paymentMethod,
-        grandTotal,
-        totalPaid: totalPaid,
-        remainingAmount: remainingAmount,
-        changeAmount: 0,
-      };
-
-      setLocalOverrides((prev) => ({
-        ...prev,
-        [variables.id]: {
-          ...prev[variables.id],
-          ...completedOverride,
-        },
-      }));
-
-      const completedOrder: OrderTransaction = {
-        ...activeOrder!,
-        ...completedOverride,
-      };
-
-      setLastCompletedOrder(completedOrder);
-      setIsReceiptOpen(true);
-      toast.success(
-        "Transaksi Berhasil",
-        `Pembayaran tiket ${activeOrder?.ticketNo} berhasil diproses & disimpan ke server.`,
-      );
-    },
-    onError: (error) => {
-      toast.error(
-        "Transaksi Gagal",
-        error.message || "Terjadi kesalahan saat memproses pembayaran di server.",
-      );
-    },
-  });
-
-  // Mutation to update order status (e.g. Send Back to Draft or Cancel Order)
-  const updateStatusMutation = useMutation<void, AppError, { id: string; status: string }>({
-    mutationFn: ({ id, status }) => updateOrderStatusUseCase.execute(id, status),
-    onSuccess: (_, variables) => {
-      // Refresh the orders queue from API
-      refetch();
-      setSelectedOrderId(null);
-      toast.success(
-        "Status Diperbarui",
-        `Order berhasil ${variables.status === "DRAFT" ? "dikembalikan ke Draft" : "dibatalkan"}.`,
-      );
-    },
-    onError: (error) => {
-      toast.error(
-        "Gagal Memperbarui Status",
-        error.message || "Terjadi kesalahan saat menghubungi server.",
-      );
-    },
-  });
-
-  const handleProcessPayment = () => {
-    if (!activeOrder) return;
-
-    const payments = isSplitPayment
-      ? [
-          { payment_method: "cash", amount_paid: splitAmounts.cash },
-          { payment_method: "transfer", amount_paid: splitAmounts.transfer },
-          { payment_method: "qris", amount_paid: splitAmounts.qris },
-        ].filter((p) => p.amount_paid > 0)
-      : [
-          {
-            payment_method: paymentMethod.toLowerCase(),
-            amount_paid: singleAmount === 0 ? grandTotal : singleAmount,
-          },
-        ];
-
-    const payload = {
-      reseller_id: activeOrder.resellerId || null,
-      customer_name: activeOrder.customerName,
-      customer_phone: activeOrder.customerPhone || "",
-      payments,
-    };
-
-    processPaymentMutation.mutate({
-      id: activeOrder.id,
-      payload,
-    });
-  };
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
+    updateStatusMutation,
+    processPaymentMutation,
+    handleSendBackToDraft,
+    handleCancelOrder,
+    handleSelectOrder,
+    handleUpdateItemPrice,
+    handleProcessPayment,
+  } = useOrder();
 
   return (
     <div className="p-6 space-y-6 font-sans bg-background min-h-screen animate-in fade-in duration-500">
@@ -490,11 +139,6 @@ const OrderPage = () => {
               filteredQueue.map((order) => {
                 const isSelected = order.id === selectedOrderId;
                 const isPaid = order.status === "LUNAS";
-                const totalItemPrice = order.items.reduce(
-                  (sum, item) => sum + item.subtotal,
-                  0,
-                );
-
                 return (
                   <Card
                     key={order.id}
@@ -511,7 +155,7 @@ const OrderPage = () => {
                           <span className="font-mono font-bold text-xs bg-muted px-2.5 py-1 rounded-lg border border-border/50 text-foreground">
                             {order.ticketNo}
                           </span>
-                           <span
+                          <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                               isPaid
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50"
@@ -520,7 +164,11 @@ const OrderPage = () => {
                                   : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-800/50"
                             }`}
                           >
-                            {isPaid ? "Lunas" : order.status === "PARTIAL_PAID" ? "Panjar / DP" : "Baru (Need Payment)"}
+                            {isPaid
+                              ? "Lunas"
+                              : order.status === "PARTIAL_PAID"
+                                ? "Panjar / DP"
+                                : "Baru (Need Payment)"}
                           </span>
                         </div>
 
@@ -736,24 +384,39 @@ const OrderPage = () => {
 
               {/* Payment Processing (If not paid) */}
               <div className="p-5 bg-muted/30 space-y-4">
-                {activeOrder.status === "LUNAS" || activeOrder.status === "PARTIAL_PAID" ? (
-                  <div className={`border p-4 rounded-2xl flex flex-col items-center text-center gap-2 ${
-                    activeOrder.status === "LUNAS" 
-                      ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200/50 text-emerald-700"
-                      : "bg-amber-50 dark:bg-amber-950/20 border-amber-200/50 text-amber-700"
-                  }`}>
-                    <div className={`h-9 w-9 rounded-full flex items-center justify-center font-black ${
+                {activeOrder.status === "LUNAS" ||
+                activeOrder.status === "PARTIAL_PAID" ? (
+                  <div
+                    className={`border p-4 rounded-2xl flex flex-col items-center text-center gap-2 ${
                       activeOrder.status === "LUNAS"
-                        ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
-                        : "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300"
-                    }`}>
-                      {activeOrder.status === "LUNAS" ? <LuCheck size={18} /> : <LuCoins size={18} />}
+                        ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200/50 text-emerald-700"
+                        : "bg-amber-50 dark:bg-amber-950/20 border-amber-200/50 text-amber-700"
+                    }`}
+                  >
+                    <div
+                      className={`h-9 w-9 rounded-full flex items-center justify-center font-black ${
+                        activeOrder.status === "LUNAS"
+                          ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
+                          : "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300"
+                      }`}
+                    >
+                      {activeOrder.status === "LUNAS" ? (
+                        <LuCheck size={18} />
+                      ) : (
+                        <LuCoins size={18} />
+                      )}
                     </div>
                     <div className="space-y-1">
-                      <span className={`text-xs font-black block uppercase ${
-                        activeOrder.status === "LUNAS" ? "text-emerald-800 dark:text-emerald-400" : "text-amber-800 dark:text-amber-400"
-                      }`}>
-                        {activeOrder.status === "LUNAS" ? "Transaksi Lunas" : "Transaksi Panjar / DP"}
+                      <span
+                        className={`text-xs font-black block uppercase ${
+                          activeOrder.status === "LUNAS"
+                            ? "text-emerald-800 dark:text-emerald-400"
+                            : "text-amber-800 dark:text-amber-400"
+                        }`}
+                      >
+                        {activeOrder.status === "LUNAS"
+                          ? "Transaksi Lunas"
+                          : "Transaksi Panjar / DP"}
                       </span>
                       <span className="text-[10px] text-muted-foreground font-semibold block">
                         Terbayar via {activeOrder.paymentMethod} sebesar{" "}
@@ -761,7 +424,8 @@ const OrderPage = () => {
                       </span>
                       {activeOrder.status === "PARTIAL_PAID" && (
                         <span className="text-[10px] text-rose-600 dark:text-rose-400 font-black block">
-                          Sisa Tagihan: {formatCurrency(activeOrder.remainingAmount || 0)}
+                          Sisa Tagihan:{" "}
+                          {formatCurrency(activeOrder.remainingAmount || 0)}
                         </span>
                       )}
                     </div>
@@ -770,6 +434,7 @@ const OrderPage = () => {
                       size="sm"
                       onClick={() => {
                         setLastCompletedOrder(activeOrder);
+                        setIsTemporaryReceipt(false);
                         setIsReceiptOpen(true);
                       }}
                       className={`mt-2 h-8 px-4 rounded-lg text-xs font-bold flex items-center gap-2 ${
@@ -824,7 +489,9 @@ const OrderPage = () => {
                           setSplitAmounts({ cash: 0, transfer: 0, qris: 0 });
                         }}
                         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                          isSplitPayment ? "bg-primary" : "bg-muted-foreground/30"
+                          isSplitPayment
+                            ? "bg-primary"
+                            : "bg-muted-foreground/30"
                         }`}
                       >
                         <span
@@ -851,7 +518,7 @@ const OrderPage = () => {
                                   variant={isSelected ? "default" : "outline"}
                                   onClick={() => {
                                     setPaymentMethod(method);
-                                    setSingleAmount(0); // reset to full payment of selected order
+                                    setSingleAmount(null); // reset to full payment of selected order
                                   }}
                                   className={`h-10 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
                                     isSelected
@@ -885,10 +552,19 @@ const OrderPage = () => {
                             <input
                               type="number"
                               min="0"
-                              value={singleAmount === 0 ? grandTotal : singleAmount}
+                              value={
+                                singleAmount === null
+                                  ? grandTotal
+                                  : singleAmount
+                              }
                               onChange={(e) => {
-                                const val = parseFloat(e.target.value) || 0;
-                                setSingleAmount(val);
+                                const raw = e.target.value;
+                                if (raw === "") {
+                                  setSingleAmount(null);
+                                } else {
+                                  const val = parseFloat(raw);
+                                  setSingleAmount(isNaN(val) ? 0 : val);
+                                }
                               }}
                               placeholder="Masukkan nominal..."
                               className="w-full h-10 pl-9 pr-3 text-xs font-mono font-bold bg-card border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
@@ -899,7 +575,9 @@ const OrderPage = () => {
                               <LuInfo size={14} className="shrink-0" />
                               <span>
                                 Sisa Tagihan (Tempo):{" "}
-                                <strong>{formatCurrency(remainingAmount)}</strong>
+                                <strong>
+                                  {formatCurrency(remainingAmount)}
+                                </strong>
                               </span>
                             </div>
                           )}
@@ -926,18 +604,28 @@ const OrderPage = () => {
                           <div className="space-y-1">
                             <div className="flex justify-between items-center text-[11px]">
                               <span className="font-bold text-foreground flex items-center gap-1.5">
-                                <LuDollarSign size={13} className="text-primary/70" />
+                                <LuDollarSign
+                                  size={13}
+                                  className="text-primary/70"
+                                />
                                 Tunai (Cash)
                               </span>
-                              {grandTotal - (splitAmounts.transfer + splitAmounts.qris) > 0 && (
+                              {grandTotal -
+                                (splitAmounts.transfer + splitAmounts.qris) >
+                                0 && (
                                 <button
                                   type="button"
                                   onClick={() => {
                                     const sisa = Math.max(
                                       0,
-                                      grandTotal - (splitAmounts.transfer + splitAmounts.qris),
+                                      grandTotal -
+                                        (splitAmounts.transfer +
+                                          splitAmounts.qris),
                                     );
-                                    setSplitAmounts((prev) => ({ ...prev, cash: sisa }));
+                                    setSplitAmounts((prev) => ({
+                                      ...prev,
+                                      cash: sisa,
+                                    }));
                                   }}
                                   className="text-[9px] font-black text-primary hover:underline"
                                 >
@@ -946,7 +634,8 @@ const OrderPage = () => {
                                     Math.max(
                                       0,
                                       grandTotal -
-                                        (splitAmounts.transfer + splitAmounts.qris),
+                                        (splitAmounts.transfer +
+                                          splitAmounts.qris),
                                     ),
                                   )}
                                   )
@@ -963,7 +652,10 @@ const OrderPage = () => {
                                 value={splitAmounts.cash || ""}
                                 onChange={(e) => {
                                   const val = parseFloat(e.target.value) || 0;
-                                  setSplitAmounts((prev) => ({ ...prev, cash: val }));
+                                  setSplitAmounts((prev) => ({
+                                    ...prev,
+                                    cash: val,
+                                  }));
                                 }}
                                 placeholder="0"
                                 className="w-full h-9 pl-9 pr-3 text-xs font-mono font-bold bg-card border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
@@ -975,18 +667,27 @@ const OrderPage = () => {
                           <div className="space-y-1">
                             <div className="flex justify-between items-center text-[11px]">
                               <span className="font-bold text-foreground flex items-center gap-1.5">
-                                <LuCreditCard size={13} className="text-primary/70" />
+                                <LuCreditCard
+                                  size={13}
+                                  className="text-primary/70"
+                                />
                                 Transfer Bank
                               </span>
-                              {grandTotal - (splitAmounts.cash + splitAmounts.qris) > 0 && (
+                              {grandTotal -
+                                (splitAmounts.cash + splitAmounts.qris) >
+                                0 && (
                                 <button
                                   type="button"
                                   onClick={() => {
                                     const sisa = Math.max(
                                       0,
-                                      grandTotal - (splitAmounts.cash + splitAmounts.qris),
+                                      grandTotal -
+                                        (splitAmounts.cash + splitAmounts.qris),
                                     );
-                                    setSplitAmounts((prev) => ({ ...prev, transfer: sisa }));
+                                    setSplitAmounts((prev) => ({
+                                      ...prev,
+                                      transfer: sisa,
+                                    }));
                                   }}
                                   className="text-[9px] font-black text-primary hover:underline"
                                 >
@@ -994,7 +695,8 @@ const OrderPage = () => {
                                   {formatCurrency(
                                     Math.max(
                                       0,
-                                      grandTotal - (splitAmounts.cash + splitAmounts.qris),
+                                      grandTotal -
+                                        (splitAmounts.cash + splitAmounts.qris),
                                     ),
                                   )}
                                   )
@@ -1026,18 +728,28 @@ const OrderPage = () => {
                           <div className="space-y-1">
                             <div className="flex justify-between items-center text-[11px]">
                               <span className="font-bold text-foreground flex items-center gap-1.5">
-                                <LuQrCode size={13} className="text-primary/70" />
+                                <LuQrCode
+                                  size={13}
+                                  className="text-primary/70"
+                                />
                                 QRIS
                               </span>
-                              {grandTotal - (splitAmounts.cash + splitAmounts.transfer) > 0 && (
+                              {grandTotal -
+                                (splitAmounts.cash + splitAmounts.transfer) >
+                                0 && (
                                 <button
                                   type="button"
                                   onClick={() => {
                                     const sisa = Math.max(
                                       0,
-                                      grandTotal - (splitAmounts.cash + splitAmounts.transfer),
+                                      grandTotal -
+                                        (splitAmounts.cash +
+                                          splitAmounts.transfer),
                                     );
-                                    setSplitAmounts((prev) => ({ ...prev, qris: sisa }));
+                                    setSplitAmounts((prev) => ({
+                                      ...prev,
+                                      qris: sisa,
+                                    }));
                                   }}
                                   className="text-[9px] font-black text-primary hover:underline"
                                 >
@@ -1046,7 +758,8 @@ const OrderPage = () => {
                                     Math.max(
                                       0,
                                       grandTotal -
-                                        (splitAmounts.cash + splitAmounts.transfer),
+                                        (splitAmounts.cash +
+                                          splitAmounts.transfer),
                                     ),
                                   )}
                                   )
@@ -1063,7 +776,10 @@ const OrderPage = () => {
                                 value={splitAmounts.qris || ""}
                                 onChange={(e) => {
                                   const val = parseFloat(e.target.value) || 0;
-                                  setSplitAmounts((prev) => ({ ...prev, qris: val }));
+                                  setSplitAmounts((prev) => ({
+                                    ...prev,
+                                    qris: val,
+                                  }));
                                 }}
                                 placeholder="0"
                                 className="w-full h-9 pl-9 pr-3 text-xs font-mono font-bold bg-card border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
@@ -1074,13 +790,17 @@ const OrderPage = () => {
                           {/* Real-time split details summary */}
                           <div className="bg-primary/[0.02] border border-border/40 p-3.5 rounded-2xl text-[11px] font-semibold space-y-1.5">
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Total Tagihan:</span>
+                              <span className="text-muted-foreground">
+                                Total Tagihan:
+                              </span>
                               <span className="text-foreground font-bold">
                                 {formatCurrency(grandTotal)}
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Total Diinput:</span>
+                              <span className="text-muted-foreground">
+                                Total Diinput:
+                              </span>
                               <span className="text-foreground font-bold">
                                 {formatCurrency(totalPaid)}
                               </span>
@@ -1094,7 +814,7 @@ const OrderPage = () => {
                                   remainingAmount > 0
                                     ? "text-rose-600 dark:text-rose-400"
                                     : "text-emerald-600 dark:text-emerald-400"
-                                  }`}
+                                }`}
                               >
                                 {remainingAmount > 0
                                   ? formatCurrency(remainingAmount)
@@ -1105,6 +825,22 @@ const OrderPage = () => {
                         </div>
                       </>
                     )}
+
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => {
+                        if (activeOrder) {
+                          setLastCompletedOrder(activeOrder);
+                          setIsTemporaryReceipt(true);
+                          setIsReceiptOpen(true);
+                        }
+                      }}
+                      className="w-full h-10 rounded-xl font-bold border-dashed border-primary/45 text-primary hover:bg-primary/5 flex items-center justify-center gap-2 transition-all active:scale-95 mb-2.5"
+                    >
+                      <LuPrinter size={15} />
+                      Cetak Nota Sementara (Draft)
+                    </Button>
 
                     {/* Submit Actions */}
                     <div className="pt-2 flex gap-3">
@@ -1124,9 +860,11 @@ const OrderPage = () => {
                       >
                         Batal
                       </Button>
-                       <Button
+                      <Button
                         onClick={handleProcessPayment}
-                        disabled={!isPaymentValid || processPaymentMutation.isPending}
+                        disabled={
+                          !isPaymentValid || processPaymentMutation.isPending
+                        }
                         className={`h-11 flex-[2] rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${
                           isPaymentValid && !processPaymentMutation.isPending
                             ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25"
@@ -1134,7 +872,9 @@ const OrderPage = () => {
                         }`}
                       >
                         <LuPrinter size={16} />
-                        {processPaymentMutation.isPending ? "Memproses..." : "Bayar & Cetak Struk"}
+                        {processPaymentMutation.isPending
+                          ? "Memproses..."
+                          : "Bayar & Cetak Struk"}
                       </Button>
                     </div>
                   </>
@@ -1175,19 +915,28 @@ const OrderPage = () => {
             <div className="flex flex-col gap-1 border-b border-border/30 pb-4 pr-10">
               <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
                 <LuPrinter size={20} className="text-primary" />
-                Preview Struk Kasir
+                {isTemporaryReceipt
+                  ? "Preview Nota Sementara"
+                  : "Preview Struk Kasir"}
               </h2>
               <p className="text-xs text-muted-foreground font-semibold">
-                Simulasi hasil cetakan thermal struk digital printing 58mm.
+                {isTemporaryReceipt
+                  ? "Simulasi hasil cetakan nota sementara (Draft) 58mm."
+                  : "Simulasi hasil cetakan thermal struk digital printing 58mm."}
               </p>
             </div>
 
             {/* Simulated Receipt Paper container */}
             <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl font-mono text-[11px] leading-relaxed text-slate-800 dark:text-slate-200 overflow-y-auto max-h-[50vh] shadow-inner">
-              <div className="text-center space-y-1 pb-4 border-b border-dashed border-slate-300 dark:border-slate-700">
+              <div className="text-center space-y-1 pb-4 border-b border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center">
                 <span className="font-bold text-sm block">
                   DIGITAL PRINTING ERP
                 </span>
+                {isTemporaryReceipt && (
+                  <span className="inline-block bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-bold px-2 py-0.5 rounded text-[9px] uppercase tracking-wider my-1">
+                    NOTA SEMENTARA (DRAFT)
+                  </span>
+                )}
                 <span className="block text-[10px] text-muted-foreground">
                   Jl. Percetakan Keren No. 88, Jakarta
                 </span>
@@ -1198,12 +947,14 @@ const OrderPage = () => {
 
               {/* Receipt metadata */}
               <div className="py-3 space-y-1 border-b border-dashed border-slate-300 dark:border-slate-700">
-                <div className="flex justify-between">
-                  <span>No. Tiket:</span>
-                  <span className="font-bold">
-                    {lastCompletedOrder.ticketNo}
-                  </span>
-                </div>
+                {!isTemporaryReceipt && (
+                  <div className="flex justify-between">
+                    <span>No. Tiket:</span>
+                    <span className="font-bold">
+                      {lastCompletedOrder.ticketNo}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Tanggal:</span>
                   <span>{lastCompletedOrder.createdAt}</span>
@@ -1256,40 +1007,53 @@ const OrderPage = () => {
                 <div className="flex justify-between font-bold text-xs border-t border-dotted border-slate-300 dark:border-slate-700 pt-2 text-foreground">
                   <span>TOTAL BELANJA:</span>
                   <span>
-                    {formatCurrency(lastCompletedOrder.grandTotal || 0)}
+                    {formatCurrency(
+                      isTemporaryReceipt
+                        ? lastCompletedOrder.items.reduce(
+                            (s, i) => s + i.subtotal,
+                            0,
+                          )
+                        : lastCompletedOrder.grandTotal || 0,
+                    )}
                   </span>
                 </div>
 
-                <div className="flex justify-between pt-1.5">
-                  <span>Metode Bayar:</span>
-                  <span className="font-bold">
-                    {lastCompletedOrder.paymentMethod}
-                  </span>
-                </div>
+                {!isTemporaryReceipt && (
+                  <>
+                    <div className="flex justify-between pt-1.5">
+                      <span>Metode Bayar:</span>
+                      <span className="font-bold">
+                        {lastCompletedOrder.paymentMethod}
+                      </span>
+                    </div>
 
-                <div className="flex justify-between">
-                  <span>Jumlah Bayar:</span>
-                  <span>
-                    {formatCurrency(lastCompletedOrder.totalPaid || 0)}
-                  </span>
-                </div>
+                    <div className="flex justify-between">
+                      <span>Jumlah Bayar:</span>
+                      <span>
+                        {formatCurrency(lastCompletedOrder.totalPaid || 0)}
+                      </span>
+                    </div>
 
-                {lastCompletedOrder.status === "PARTIAL_PAID" && (
-                  <div className="flex justify-between font-bold text-rose-600 dark:text-rose-400">
-                    <span>SISA TAGIHAN (UTANG):</span>
-                    <span>
-                      {formatCurrency(lastCompletedOrder.remainingAmount || 0)}
-                    </span>
-                  </div>
-                )}
+                    {lastCompletedOrder.status === "PARTIAL_PAID" && (
+                      <div className="flex justify-between font-bold text-rose-600 dark:text-rose-400">
+                        <span>SISA TAGIHAN (UTANG):</span>
+                        <span>
+                          {formatCurrency(
+                            lastCompletedOrder.remainingAmount || 0,
+                          )}
+                        </span>
+                      </div>
+                    )}
 
-                {lastCompletedOrder.status === "LUNAS" && (
-                  <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
-                    <span>Kembalian:</span>
-                    <span>
-                      {formatCurrency(lastCompletedOrder.changeAmount || 0)}
-                    </span>
-                  </div>
+                    {lastCompletedOrder.status === "LUNAS" && (
+                      <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
+                        <span>Kembalian:</span>
+                        <span>
+                          {formatCurrency(lastCompletedOrder.changeAmount || 0)}
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -1314,15 +1078,21 @@ const OrderPage = () => {
               <Button
                 onClick={() => {
                   toast.success(
-                    "Mencetak Struk...",
-                    "Dokumen struk dikirim ke mesin thermal printer.",
+                    isTemporaryReceipt
+                      ? "Mencetak Nota Sementara..."
+                      : "Mencetak Struk...",
+                    isTemporaryReceipt
+                      ? "Dokumen nota sementara dikirim ke mesin thermal printer."
+                      : "Dokumen struk dikirim ke mesin thermal printer.",
                   );
                   setIsReceiptOpen(false);
                 }}
                 className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95"
               >
                 <LuPrinter size={16} />
-                Cetak ke Thermal Printer
+                {isTemporaryReceipt
+                  ? "Cetak Nota Sementara"
+                  : "Cetak ke Thermal Printer"}
               </Button>
             </div>
           </div>
@@ -1353,7 +1123,8 @@ const OrderPage = () => {
             <span className="font-mono font-bold text-foreground bg-muted px-1.5 py-0.5 rounded border border-border/50">
               {activeOrder?.ticketNo}
             </span>{" "}
-            ke status **Draft**. Desainer akan dapat mengedit kembali item belanja ini. Transaksi akan dihapus dari antrean kasir.
+            ke status **Draft**. Desainer akan dapat mengedit kembali item
+            belanja ini. Transaksi akan dihapus dari antrean kasir.
           </p>
 
           <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
@@ -1399,7 +1170,8 @@ const OrderPage = () => {
             <span className="font-mono font-bold text-foreground bg-muted px-1.5 py-0.5 rounded border border-border/50">
               {activeOrder?.ticketNo}
             </span>{" "}
-            secara permanen? Tindakan ini tidak dapat dibatalkan dan transaksi tidak dapat diproses lebih lanjut.
+            secara permanen? Tindakan ini tidak dapat dibatalkan dan transaksi
+            tidak dapat diproses lebih lanjut.
           </p>
 
           <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
@@ -1430,8 +1202,12 @@ const OrderPage = () => {
               <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
             </div>
             <div>
-              <h3 className="font-bold text-foreground text-sm">Memproses Permintaan...</h3>
-              <p className="text-[11px] text-muted-foreground mt-1">Sedang memperbarui status order di server</p>
+              <h3 className="font-bold text-foreground text-sm">
+                Memproses Permintaan...
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Sedang memperbarui status order di server
+              </p>
             </div>
           </div>
         </div>
