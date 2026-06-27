@@ -33,6 +33,10 @@ RUN rm -rf /usr/share/nginx/html/*
 # Salin hasil build dari Stage 1
 COPY --from=builder /app/apps/back-office-app/dist /usr/share/nginx/html
 
+# Copy script entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # (Opsional) Jika kamu memisahkan nginx.conf di deployment, 
 # kamu bisa copy conf tersebut di skrip build deployment-mu atau mount volume.
 # Contoh jika nginx.conf disalin langsung:
@@ -40,4 +44,6 @@ COPY --from=builder /app/apps/back-office-app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
+# Gunakan entrypoint.sh sebagai gerbang utama saat container berjalan
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
