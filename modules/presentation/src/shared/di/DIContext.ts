@@ -19,11 +19,18 @@ import type { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAna
 
 
 import type { GetCapitalTransactions, CreateCapitalTransaction, DeleteCapitalTransaction } from "@core/capital/applications/usecases/capital.usecase";
+import type { GetFundTransfers, CreateFundTransfer, GetFundTransferWidgets } from "@core/fund-transfer/applications/usecases/fund-transfer.usecase";
 
 // ──────────────────────────────────────────────
 // Module Use Case Types
 // Tambahkan interface baru di sini saat modul bertambah.
 // ──────────────────────────────────────────────
+
+export interface FundTransferUseCases {
+  getFundTransfersUseCase: GetFundTransfers;
+  createFundTransferUseCase: CreateFundTransfer;
+  getFundTransferWidgetsUseCase: GetFundTransferWidgets;
+}
 
 export interface CapitalUseCases {
   getCapitalTransactionsUseCase: GetCapitalTransactions;
@@ -140,6 +147,7 @@ export interface AppContainer {
   supplier: SupplierUseCases;
   expense: ExpenseUseCases;
   capital: CapitalUseCases;
+  fundTransfer: FundTransferUseCases;
 }
 
 // ──────────────────────────────────────────────

@@ -2,7 +2,9 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Card, CardContent } from "@erp-digital-printing/ui/Card";
-import { DateRangePicker, type DateRange } from "@erp-digital-printing/ui/DateRangePicker";
+import {
+  DateRangePicker,
+} from "@erp-digital-printing/ui/DateRangePicker";
 import { toast } from "@erp-digital-printing/ui/Toast";
 import {
   Table,
@@ -16,59 +18,39 @@ import {
 import {
   LuPlus,
   LuSearch,
-  LuBanknote,
-  LuCalendar,
   LuWallet,
-  LuTrash2,
-  LuRefreshCw,
-  LuFilter,
   LuArrowRightLeft,
+  LuBuilding,
 } from "@erp-digital-printing/ui/icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FundTransferFormDialog } from "../components/FundTransferFormDialog";
+import { useFundTransferTable } from "../hooks/useFundTransferTable";
+import { useFundTransferDI } from "../hooks/useFundTransferDI";
+import { fundTransferKeys } from "@infrastructure/fund-transfer/keys/fund-transfer.key";
 
-interface FundTransfer {
-  id: string;
-  date: string;
-  sourceAccount: string;
-  destinationAccount: string;
-  amount: number;
-  transferFee: number;
-  description: string;
-}
-
-const MOCK_TRANSFERS: FundTransfer[] = [
-  {
-    id: "TRF-001",
-    date: "2026-06-25",
-    sourceAccount: "Kas Besar",
-    destinationAccount: "Bank BCA",
-    amount: 10000000,
-    transferFee: 0,
-    description: "Setor tunai ke rekening BCA",
-  },
-  {
-    id: "TRF-002",
-    date: "2026-06-23",
-    sourceAccount: "Bank BCA",
-    destinationAccount: "Bank Mandiri",
-    amount: 25000000,
-    transferFee: 6500,
-    description: "Transfer saldo antar bank untuk operasional",
-  },
-];
+const formatDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export default function FundTransferPage() {
-  const [data, setData] = useState<FundTransfer[]>(MOCK_TRANSFERS);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const today = new Date();
-    return {
-      from: today,
-      to: today,
-    };
-  });
+  const {
+    transfers,
+    totalEntries,
+    totalPages,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    searchQuery,
+    setSearchQuery,
+    dateRange,
+    setDateRange,
+    isLoading,
+  } = useFundTransferTable();
+
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const formatCurrency = (val: number) => {
@@ -79,50 +61,55 @@ export default function FundTransferPage() {
     }).format(val);
   };
 
-  const filteredData = useMemo(() => {
-    return data.filter((item) => {
-      const matchesSearch =
-        item.sourceAccount.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.destinationAccount.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
-    });
-  }, [data, searchQuery]);
+  const queryClient = useQueryClient();
+  const { createFundTransferUseCase, getFundTransferWidgetsUseCase } = useFundTransferDI();
 
-  const paginatedData = useMemo(() => {
-    const startIndex = (page - 1) * pageSize;
-    return filteredData.slice(startIndex, startIndex + pageSize);
-  }, [filteredData, page, pageSize]);
+  const startDateStr = dateRange?.from ? formatDate(dateRange.from) : undefined;
+  const endDateStr = dateRange?.to ? formatDate(dateRange.to) : undefined;
 
-  const totalAmount = useMemo(() => {
-    return filteredData.reduce((acc, curr) => acc + curr.amount, 0);
-  }, [filteredData]);
+  const { data: widgetsData } = useQuery({
+    queryKey: fundTransferKeys.widgets({
+      startDate: startDateStr,
+      endDate: endDateStr,
+    }),
+    queryFn: () =>
+      getFundTransferWidgetsUseCase.execute({
+        startDate: startDateStr,
+        endDate: endDateStr,
+      }),
+  });
 
-  const totalFees = useMemo(() => {
-    return filteredData.reduce((acc, curr) => acc + curr.transferFee, 0);
-  }, [filteredData]);
+  const createMutation = useMutation({
+    mutationFn: (input: {
+      sourceAccount: string;
+      destinationAccount: string;
+      amount: number;
+      description: string;
+    }) =>
+      createFundTransferUseCase.execute({
+        fromAccount: input.sourceAccount,
+        toAccount: input.destinationAccount,
+        amount: input.amount,
+        notes: input.description,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: fundTransferKeys.all });
+      toast.success("Sukses", "Pemindahan dana berhasil ditambahkan.");
+      setIsFormOpen(false);
+    },
+    onError: (err: Error) => {
+      toast.error("Gagal", err.message || "Gagal melakukan pemindahan dana.");
+    },
+  });
 
-  const handleCreate = (newData: Omit<FundTransfer, "id">) => {
-    const newRecord: FundTransfer = {
-      ...newData,
-      id: `TRF-00${data.length + 1}`,
-    };
-    setData([newRecord, ...data]);
-    toast.success(
-      "Sukses",
-      "Pemindahan dana berhasil ditambahkan (Mock State)"
-    );
-    setIsFormOpen(false);
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data pemindahan dana ini?")) {
-      setData(data.filter((item) => item.id !== id));
-      toast.success(
-        "Sukses",
-        "Pemindahan dana berhasil dihapus (Mock State)"
-      );
-    }
+  const handleCreate = (newData: {
+    date: string;
+    sourceAccount: string;
+    destinationAccount: string;
+    amount: number;
+    description: string;
+  }) => {
+    createMutation.mutate(newData);
   };
 
   return (
@@ -134,66 +121,77 @@ export default function FundTransferPage() {
             Pemindahan Dana
           </h1>
           <p className="text-sm text-muted-foreground">
-            Kelola dan catat transaksi mutasi dana antar rekening kas atau bank internal.
+            Kelola dan catat transaksi mutasi dana antar rekening kas atau bank
+            internal.
           </p>
         </div>
         <Button
           onClick={() => {
             setIsFormOpen(true);
           }}
-          className="flex items-center gap-2"
+          className="h-10 px-5 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 shrink-0 self-end md:self-auto"
         >
-          <LuPlus className="h-4 w-4" />
+          <LuPlus size={18} />
           Tambah Pemindahan
         </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="relative overflow-hidden border-border/50 shadow-sm">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="p-3 bg-primary/10 text-primary rounded-xl">
-              <LuArrowRightLeft className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="rounded-3xl border-border/50 overflow-hidden relative shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-card via-card to-primary/5">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                 Total Pemindahan Dana
-              </p>
-              <h3 className="text-2xl font-bold mt-1 text-foreground">
-                {formatCurrency(totalAmount)}
+              </span>
+              <h3 className="text-2xl font-black text-foreground tracking-tight">
+                {formatCurrency(widgetsData?.totalAmount ?? 0)}
               </h3>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
+                Akumulasi pemindahan dana periode ini
+              </p>
+            </div>
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
+              <LuArrowRightLeft size={24} />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-border/50 shadow-sm">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="p-3 bg-amber-500/10 text-amber-500 rounded-xl">
-              <LuWallet className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Total Biaya Admin
-              </p>
-              <h3 className="text-2xl font-bold mt-1 text-foreground">
-                {formatCurrency(totalFees)}
-              </h3>
-            </div>
-          </CardContent>
-        </Card>
+        <Card className="rounded-3xl border-border/50 overflow-hidden relative shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-card via-card to-emerald-500/5">
+          <CardContent className="p-6">
+            <div className="space-y-4 w-full">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">
+                Metode Pemindahan
+              </span>
+              <div className="flex flex-wrap gap-4 items-center">
+                {(!widgetsData?.breakdown || widgetsData.breakdown.length === 0) ? (
+                  <span className="text-xs text-muted-foreground">Tidak ada data breakdown</span>
+                ) : (
+                  widgetsData.breakdown
+                    .filter((item) => !item.accountName.toLowerCase().includes("qris"))
+                    .map((item, idx) => {
+                      const isCash = item.accountName.toLowerCase().includes("cash") || item.accountName.toLowerCase().includes("kas");
+                      const colorClass = isCash ? "text-amber-600 bg-amber-500/10 border-amber-500/20" : "text-blue-600 bg-blue-500/10 border-blue-500/20";
+                      const Icon = isCash ? LuWallet : LuBuilding;
 
-        <Card className="relative overflow-hidden border-border/50 shadow-sm">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl">
-              <LuCalendar className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Jumlah Transaksi Mutasi
-              </p>
-              <h3 className="text-2xl font-bold mt-1 text-foreground">
-                {filteredData.length} Mutasi
-              </h3>
+                      return (
+                        <div key={item.accountName} className={`flex items-center gap-3 ${idx > 0 ? "pl-4 border-l border-border/50" : ""}`}>
+                          <div className={`h-10 w-10 rounded-xl flex items-center justify-center border shrink-0 ${colorClass}`}>
+                            <Icon size={20} />
+                          </div>
+                          <div className="space-y-0.5 min-w-0">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full inline-block uppercase ${colorClass}`}>
+                              {item.accountName}
+                            </span>
+                            <h4 className="text-base font-black text-foreground tracking-tight truncate">
+                              {formatCurrency(item.amount)}
+                            </h4>
+                          </div>
+                        </div>
+                      );
+                    })
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -219,13 +217,9 @@ export default function FundTransferPage() {
               <DateRangePicker
                 value={dateRange}
                 onChange={setDateRange}
+                isClearable
+                className="w-full sm:w-[260px] h-10 rounded-xl"
               />
-              <Button variant="outline" size="icon" className="h-10 w-10 border-border/50">
-                <LuFilter className="h-4 w-4 text-muted-foreground" />
-              </Button>
-              <Button variant="outline" size="icon" className="h-10 w-10 border-border/50">
-                <LuRefreshCw className="h-4 w-4 text-muted-foreground" />
-              </Button>
             </div>
           </div>
 
@@ -234,52 +228,62 @@ export default function FundTransferPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
-                  <TableHead className="w-[120px] font-semibold text-xs uppercase tracking-wider">ID Mutasi</TableHead>
-                  <TableHead className="w-[120px] font-semibold text-xs uppercase tracking-wider">Tanggal</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider">Kas/Bank Asal</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider">Kas/Bank Tujuan</TableHead>
-                  <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">Nominal</TableHead>
-                  <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">Biaya Transfer</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider">Keterangan</TableHead>
-                  <TableHead className="w-[80px] text-center font-semibold text-xs uppercase tracking-wider">Aksi</TableHead>
+                  <TableHead className="w-[180px] text-center font-semibold text-xs uppercase tracking-wider">
+                    Tanggal
+                  </TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider">
+                    Sumber Kas
+                  </TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider">
+                    Kas Tujuan
+                  </TableHead>
+                  <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">
+                    Nominal
+                  </TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider">
+                    Keterangan
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedData.length === 0 ? (
+                {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                    <TableCell
+                      colSpan={5}
+                      className="h-32 text-center text-muted-foreground text-xs"
+                    >
+                      Sedang memuat data...
+                    </TableCell>
+                  </TableRow>
+                ) : transfers.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="h-32 text-center text-muted-foreground text-xs"
+                    >
                       Tidak ada data pemindahan dana ditemukan.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedData.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-muted/10 transition-colors">
-                      <TableCell className="font-mono font-bold text-xs text-foreground/80">{item.id}</TableCell>
-                      <TableCell className="text-sm">{item.date}</TableCell>
-                      <TableCell className="font-semibold text-sm text-rose-600">
-                        {item.sourceAccount}
+                  transfers.map((item) => (
+                    <TableRow
+                      key={item.id}
+                      className="hover:bg-muted/10 transition-colors"
+                    >
+                      <TableCell className="text-center text-xs text-muted-foreground">
+                        {item.transferDate}
                       </TableCell>
-                      <TableCell className="font-semibold text-sm text-emerald-600">
-                        {item.destinationAccount}
+                      <TableCell className="font-semibold text-xs text-rose-600">
+                        {item.fromAccount}
                       </TableCell>
-                      <TableCell className="text-right font-bold text-sm text-foreground">
+                      <TableCell className="font-semibold text-xs text-emerald-600">
+                        {item.toAccount}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-xs text-foreground">
                         {formatCurrency(item.amount)}
                       </TableCell>
-                      <TableCell className="text-right text-sm text-muted-foreground">
-                        {item.transferFee > 0 ? formatCurrency(item.transferFee) : "-"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                        {item.description || "-"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg"
-                          onClick={() => handleDelete(item.id)}
-                        >
-                          <LuTrash2 className="h-4 w-4" />
-                        </Button>
+                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                        {item.notes || "-"}
                       </TableCell>
                     </TableRow>
                   ))
@@ -292,8 +296,8 @@ export default function FundTransferPage() {
           <TablePagination
             currentPage={page}
             pageSize={pageSize}
-            totalEntries={filteredData.length}
-            totalPages={Math.max(1, Math.ceil(filteredData.length / pageSize))}
+            totalEntries={totalEntries}
+            totalPages={totalPages}
             onPageChange={setPage}
             onPageSizeChange={setPageSize}
           />
@@ -305,6 +309,7 @@ export default function FundTransferPage() {
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleCreate}
+        loading={createMutation.isPending}
       />
     </div>
   );

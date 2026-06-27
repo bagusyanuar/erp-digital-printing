@@ -49,6 +49,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   ADJUSTMENT: "Penyesuaian Kas",
   CAPITAL_WITHDRAWAL: "Penarikan Owner (Prive)",
   CAPITAL: "Modal",
+  FUND_TRANSFER: "Pemindahan Dana",
 };
 
 const formatDate = (date: Date): string => {

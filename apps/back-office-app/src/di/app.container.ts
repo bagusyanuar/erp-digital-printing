@@ -10,6 +10,7 @@ import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase, upda
 import { getSupplierUseCase, createSupplierUseCase, getSupplierByIdUseCase, updateSupplierUseCase, deleteSupplierUseCase } from "@infrastructure/supplier/containers/supplier.container";
 import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCase, getExpenseAnalyticsSummaryUseCase, payExpenseUseCase } from "@infrastructure/expense/containers/expense.container";
 import { getCapitalTransactionsUseCase, createCapitalTransactionUseCase, deleteCapitalTransactionUseCase } from "@infrastructure/capital/containers/capital.container";
+import { getFundTransfersUseCase, createFundTransferUseCase, getFundTransferWidgetsUseCase } from "@infrastructure/fund-transfer/containers/fund-transfer.container";
 
 
 
@@ -122,6 +123,11 @@ export function createAppContainer(): AppContainer {
       getCapitalTransactionsUseCase: getCapitalTransactionsUseCase(httpClient),
       createCapitalTransactionUseCase: createCapitalTransactionUseCase(httpClient),
       deleteCapitalTransactionUseCase: deleteCapitalTransactionUseCase(httpClient),
+    },
+    fundTransfer: {
+      getFundTransfersUseCase: getFundTransfersUseCase(httpClient),
+      createFundTransferUseCase: createFundTransferUseCase(httpClient),
+      getFundTransferWidgetsUseCase: getFundTransferWidgetsUseCase(httpClient),
     },
   };
 }
