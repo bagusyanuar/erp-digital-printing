@@ -21,10 +21,10 @@ export default defineConfig({
     dedupe: ["zod", "react", "react-dom", "react-router-dom", "@tanstack/react-query", "framer-motion", "zustand"],
   },
   server: {
-    https: {
+    https: fs.existsSync(path.resolve(__dirname, "../../.ssl/_wildcard.made-printing.local+1-key.pem")) ? {
       key: fs.readFileSync(path.resolve(__dirname, "../../.ssl/_wildcard.made-printing.local+1-key.pem")),
       cert: fs.readFileSync(path.resolve(__dirname, "../../.ssl/_wildcard.made-printing.local+1.pem")),
-    },
+    } : undefined,
     host: "made-printing.local",
     port: 5173,
   },
