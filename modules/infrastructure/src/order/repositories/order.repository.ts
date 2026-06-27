@@ -313,6 +313,9 @@ export class ApiOrderRepository implements OrderRepository {
       if (params.customer_type) {
         query.customer_type = params.customer_type;
       }
+      if (params.payment_method) {
+        query.payment_method = params.payment_method;
+      }
 
       const response = await this.http.get<ApiResponse<OrderReportWidgetsModel>>(
         "/orders/reports/widgets",

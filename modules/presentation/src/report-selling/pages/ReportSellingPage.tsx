@@ -412,11 +412,14 @@ const ReportSellingPage = () => {
   const stats = useMemo(() => {
     if (widgetsData) {
       return {
-        totalRevenue: widgetsData.omset_penjualan,
-        totalProductsSold: widgetsData.total_produk_terjual,
-        paidCount: widgetsData.status_nota.lunas,
-        unpaidCount: widgetsData.status_nota.belum_lunas,
-        transactionCount: widgetsData.volume_transaksi,
+        totalRevenue: widgetsData.omset_penjualan || 0,
+        totalProductsSold: widgetsData.total_produk_terjual || 0,
+        paidCount: widgetsData.status_nota?.lunas || 0,
+        unpaidCount:
+          widgetsData.status_nota?.belum_lunas ??
+          widgetsData.belum_lunas_count ??
+          0,
+        transactionCount: widgetsData.volume_transaksi || 0,
       };
     }
 

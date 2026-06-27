@@ -46,13 +46,16 @@ export interface OrderReportWidgetsParams {
   start_date?: string;
   end_date?: string;
   customer_type?: string;
+  payment_method?: string;
 }
 
 export interface OrderReportWidgetsModel {
   omset_penjualan: number;
-  volume_transaksi: number;
-  total_produk_terjual: number;
-  status_nota: {
+  total_piutang: number;
+  belum_lunas_count: number;
+  volume_transaksi?: number;
+  total_produk_terjual?: number;
+  status_nota?: {
     lunas: number;
     belum_lunas: number;
   };

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React from "react";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Card, CardContent } from "@erp-digital-printing/ui/Card";
@@ -11,10 +11,7 @@ import {
   DropdownContent,
   DropdownItem,
 } from "@erp-digital-printing/ui/Dropdown";
-import {
-  DateRangePicker,
-  type DateRange,
-} from "@erp-digital-printing/ui/DateRangePicker";
+import { DateRangePicker } from "@erp-digital-printing/ui/DateRangePicker";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@erp-digital-printing/ui/Toast";
 import {
@@ -28,7 +25,6 @@ import {
   LuClock,
   LuInfo,
   LuCoins,
-  LuTrendingUp,
   LuDollarSign,
   LuEllipsisVertical,
   LuScissors,
@@ -37,576 +33,107 @@ import {
   LuRotateCcw,
   LuCircleCheck,
   LuCircleX,
+  LuCalendar,
 } from "@erp-digital-printing/ui/icons";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
-import { orderKeys } from "@infrastructure/order/keys";
-import { useDebounce } from "../../shared/hooks/useDebounce";
-import type { AppError } from "@core/shared/errors/domain.error";
-import type {
-  OrderModel,
-  OrderSpkModel,
-  OrderPaymentModel,
-} from "@core/order/domains/models/order.model";
-import type { PaginatedResponse } from "@core/shared/api/pagination";
-import type {
-  RepayPaymentInput,
-  RefundOrderInput,
-} from "@core/order/domains/repositories/order.repository";
-
-// Interfaces for mapped presentation UI
-interface InvoiceItem {
-  id: string;
-  productName: string;
-  qty: number;
-  pricePerUnit: number;
-  subtotal: number;
-  notes?: string;
-}
-
-interface Invoice {
-  id: string;
-  invoiceNo: string;
-  jobNumber: string;
-  customerName: string;
-  customerPhone: string;
-  isReseller: boolean;
-  createdAt: string;
-  items: InvoiceItem[];
-  paymentMethods: string[];
-  totalAmount: number;
-  amountPaid: number;
-  status: "PAID" | "PARTIAL" | "UNPAID";
-  orderStatus: string;
-}
+import { useInvoice } from "../hooks/useInvoice";
 
 const InvoicePage = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebounce(searchQuery, 750);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const today = new Date();
-    return {
-      from: today,
-      to: today,
-    };
-  });
-
-  const startDateStr = useMemo(() => {
-    if (!dateRange?.from) return undefined;
-    try {
-      const d = dateRange.from;
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    } catch {
-      return undefined;
-    }
-  }, [dateRange]);
-
-  const endDateStr = useMemo(() => {
-    if (!dateRange?.to) return undefined;
-    try {
-      const d = dateRange.to;
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    } catch {
-      return undefined;
-    }
-  }, [dateRange]);
-
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "PAID" | "UNPAID">(
-    "ALL",
-  );
-  const [customerTypeFilter, setCustomerTypeFilter] = useState<
-    "ALL" | "RESELLER" | "END_USER"
-  >("ALL");
-  const [orderStatusFilter, setOrderStatusFilter] = useState<
-    "ALL" | "SUCCESS" | "REFUND"
-  >("SUCCESS");
-  const [paymentMethodsFilter, setPaymentMethodsFilter] = useState<string[]>(
-    [],
-  );
-
-  // Temporary filter states for draft selections before clicking 'Terapkan'
-  const [tempStatusFilter, setTempStatusFilter] = useState<
-    "ALL" | "PAID" | "UNPAID"
-  >("ALL");
-  const [tempCustomerTypeFilter, setTempCustomerTypeFilter] = useState<
-    "ALL" | "RESELLER" | "END_USER"
-  >("ALL");
-  const [tempOrderStatusFilter, setTempOrderStatusFilter] = useState<
-    "ALL" | "SUCCESS" | "REFUND"
-  >("SUCCESS");
-  const [tempPaymentMethodsFilter, setTempPaymentMethodsFilter] = useState<
-    string[]
-  >([]);
-
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  const activeFiltersCount = useMemo(() => {
-    let count = 0;
-    if (statusFilter !== "ALL") count++;
-    if (customerTypeFilter !== "ALL") count++;
-    if (orderStatusFilter !== "SUCCESS") count++;
-    if (paymentMethodsFilter.length > 0) count++;
-    return count;
-  }, [
+  const {
+    // Search & Filters
+    searchQuery,
+    setSearchQuery,
+    dateRange,
+    setDateRange,
     statusFilter,
+    setStatusFilter,
     customerTypeFilter,
+    setCustomerTypeFilter,
     orderStatusFilter,
+    setOrderStatusFilter,
     paymentMethodsFilter,
-  ]);
+    setPaymentMethodsFilter,
+    tempStatusFilter,
+    setTempStatusFilter,
+    tempCustomerTypeFilter,
+    setTempCustomerTypeFilter,
+    tempOrderStatusFilter,
+    setTempOrderStatusFilter,
+    tempPaymentMethodsFilter,
+    setTempPaymentMethodsFilter,
+    isFilterOpen,
+    setIsFilterOpen,
+    activeFiltersCount,
 
-  const mappedOrderStatus = useMemo(() => {
-    if (orderStatusFilter === "SUCCESS") {
-      return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED";
-    }
-    if (orderStatusFilter === "REFUND") {
-      return "REFUND";
-    }
-    return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED,REFUND";
-  }, [orderStatusFilter]);
+    // Pagination
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
 
-  const mappedPaymentStatus = useMemo(() => {
-    if (statusFilter === "PAID") return "PAID";
-    if (statusFilter === "UNPAID") return "PARTIAL_PAID,UNPAID";
-    return undefined; // ALL
-  }, [statusFilter]);
+    // Selection / Dialog flags
+    selectedInvoice,
+    setSelectedInvoice,
+    isDetailOpen,
+    setIsDetailOpen,
+    isRefundOpen,
+    setIsRefundOpen,
+    isPayOpen,
+    setIsPayOpen,
+    isSpkOpen,
+    setIsSpkOpen,
+    selectedSpkCategory,
+    isSpkPreviewOpen,
+    setIsSpkPreviewOpen,
+    isReceiptOpen,
+    setIsReceiptOpen,
+    isPrinting,
+    setIsPrinting,
 
-  const mappedPaymentMethods = useMemo(() => {
-    if (paymentMethodsFilter.length === 0) return undefined;
-    return paymentMethodsFilter.join(",").toLowerCase();
-  }, [paymentMethodsFilter]);
+    // Payment Form state
+    payAmount,
+    setPayAmount,
+    payMethod,
+    setPayMethod,
+    isSplitPayment,
+    setIsSplitPayment,
+    splitAmounts,
+    setSplitAmounts,
 
-  // Pagination states
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+    // Refund Form state
+    refundAmount,
+    setRefundAmount,
+    refundMethod,
+    setRefundMethod,
+    refundReason,
+    setRefundReason,
 
-  // Selection states for Dialogs
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isRefundOpen, setIsRefundOpen] = useState(false);
-  const [isPayOpen, setIsPayOpen] = useState(false);
-  const [isSpkOpen, setIsSpkOpen] = useState(false);
-  const [selectedSpkCategory, setSelectedSpkCategory] = useState<string | null>(
-    null,
-  );
-  const [isSpkPreviewOpen, setIsSpkPreviewOpen] = useState(false);
-  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
-
-  // Quick Payment form states
-  const [payAmount, setPayAmount] = useState<number>(0);
-  const [payMethod, setPayMethod] = useState<string>("CASH");
-  const [isSplitPayment, setIsSplitPayment] = useState<boolean>(false);
-  const [splitAmounts, setSplitAmounts] = useState<{
-    cash: number;
-    transfer: number;
-    qris: number;
-  }>({ cash: 0, transfer: 0, qris: 0 });
-
-  // Refund form states
-  const [refundAmount, setRefundAmount] = useState<number>(0);
-  const [refundMethod, setRefundMethod] = useState<string>("cash");
-  const [refundReason, setRefundReason] = useState<string>("");
-
-  const outstandingAmount = useMemo(() => {
-    if (!selectedInvoice) return 0;
-    return selectedInvoice.totalAmount - selectedInvoice.amountPaid;
-  }, [selectedInvoice]);
-
-  const totalSplitInput = useMemo(() => {
-    return splitAmounts.cash + splitAmounts.transfer + splitAmounts.qris;
-  }, [splitAmounts]);
-
-  const remainingOutstanding = useMemo(() => {
-    return Math.max(
-      0,
-      outstandingAmount - (isSplitPayment ? totalSplitInput : payAmount),
-    );
-  }, [outstandingAmount, isSplitPayment, totalSplitInput, payAmount]);
-
-  const {
-    getOrdersUseCase,
-    repayOrderUseCase,
-    refundOrderUseCase,
-    getOrderPaymentsUseCase,
-    getOrderSpkUseCase,
-  } = useOrderDI();
-
-  // Fetch SPK from backend when the modal is open
-  const { data: spkResponse, isLoading: isLoadingSpk } = useQuery<
-    OrderSpkModel,
-    AppError
-  >({
-    queryKey: orderKeys.spk(selectedInvoice?.id ?? ""),
-    queryFn: () => getOrderSpkUseCase.execute(selectedInvoice!.id),
-    enabled: isSpkOpen && !!selectedInvoice?.id,
-    staleTime: 5000,
-    refetchOnWindowFocus: false,
-  });
-
-  // Fetch Payment History from backend when the detail modal is open
-  const { data: payments, isLoading: isLoadingPayments } = useQuery<
-    OrderPaymentModel[],
-    AppError
-  >({
-    queryKey: orderKeys.payments(selectedInvoice?.id ?? ""),
-    queryFn: () => getOrderPaymentsUseCase.execute(selectedInvoice!.id),
-    enabled: isDetailOpen && !!selectedInvoice?.id,
-    staleTime: 5000,
-    refetchOnWindowFocus: false,
-  });
-
-  const groupedPayments = useMemo(() => {
-    if (!payments) return [];
-
-    // Group by payment_number
-    const map = new Map<number, typeof payments>();
-    payments.forEach((p) => {
-      const num = p.payment_number || 1; // Fallback to 1 if missing
-      if (!map.has(num)) {
-        map.set(num, []);
-      }
-      map.get(num)!.push(p);
-    });
-
-    // Convert map to array and sort by payment_number
-    return Array.from(map.entries())
-      .map(([payment_number, pays]) => {
-        const totalAmount = pays.reduce((sum, p) => sum + p.amount, 0);
-        const created_at = pays[0]?.created_at;
-        const cashier_name = pays[0]?.cashier_name;
-        const methods = pays.map((p) => p.payment_method).join(", ");
-        const payment_type = pays[0]?.payment_type;
-
-        return {
-          id: pays[0]?.id ?? "",
-          payment_number,
-          payment_type,
-          methods,
-          totalAmount,
-          created_at,
-          cashier_name,
-          details: pays,
-        };
-      })
-      .sort((a, b) => a.payment_number - b.payment_number);
-  }, [payments]);
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
-
-  const formatDateTime = (createdAt?: string, fallbackDate?: string) => {
-    const targetStr = createdAt || fallbackDate;
-    if (!targetStr) return "-";
-    try {
-      const dateObj = new Date(targetStr);
-      if (isNaN(dateObj.getTime())) return targetStr;
-
-      const day = String(dateObj.getDate()).padStart(2, "0");
-      const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-      const year = dateObj.getFullYear();
-
-      if (createdAt) {
-        const hours = String(dateObj.getHours()).padStart(2, "0");
-        const minutes = String(dateObj.getMinutes()).padStart(2, "0");
-        const seconds = String(dateObj.getSeconds()).padStart(2, "0");
-        return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
-      }
-      return `${day}/${month}/${year}`;
-    } catch {
-      return targetStr;
-    }
-  };
-
-  // Fetch real order data from backend API with dynamic pagination
-  const {
-    data: response,
+    // Computed / Query responses
+    invoices: filteredInvoices,
     isLoading,
-    refetch,
-  } = useQuery<PaginatedResponse<OrderModel>, AppError>({
-    queryKey: orderKeys.list({
-      page,
-      limit: pageSize,
-      status: mappedOrderStatus,
-      payment_status: mappedPaymentStatus,
-      search: debouncedSearch || undefined,
-      start_date: startDateStr,
-      end_date: endDateStr,
-      customer_type:
-        customerTypeFilter !== "ALL"
-          ? customerTypeFilter.toLowerCase()
-          : undefined,
-      payment_methods: mappedPaymentMethods,
-    }),
-    queryFn: () =>
-      getOrdersUseCase.execute({
-        page,
-        limit: pageSize,
-        status: mappedOrderStatus,
-        payment_status: mappedPaymentStatus,
-        search: debouncedSearch || undefined,
-        start_date: startDateStr,
-        end_date: endDateStr,
-        customer_type:
-          customerTypeFilter !== "ALL"
-            ? customerTypeFilter.toLowerCase()
-            : undefined,
-        payment_methods: mappedPaymentMethods,
-      }),
-    staleTime: 5000,
-    gcTime: 15_000,
-    refetchOnWindowFocus: false,
-  });
+    spkResponse,
+    isLoadingSpk,
+    activeSpkCategoryItems,
+    isLoadingPayments,
+    groupedPayments,
+    isLoadingWidgets,
+    stats,
+    outstandingAmount,
+    totalSplitInput,
+    remainingOutstanding,
+    response,
 
-  // Purely computed invoices state from API response
-  const invoices = useMemo((): Invoice[] => {
-    return (response?.data ?? []).map((order): Invoice => {
-      // Format backend date to localized Indonesian date
-      const formattedDate = formatDateTime(order.created_at);
+    // Actions / Handlers
+    handleOpenPay,
+    handleProcessPayment,
+    handleProcessRefund,
+    handlePrintInvoice,
+    handlePrintSpk,
+    processPaymentMutation,
+    processRefundMutation,
 
-      return {
-        id: order.id,
-        invoiceNo: order.invoice_number || order.job_number,
-        jobNumber: order.job_number,
-        customerName: order.customer_name || "Customer Walk In",
-        customerPhone: order.customer_phone || "-",
-        isReseller: !!order.reseller_id,
-        createdAt: formattedDate,
-        items: (order.order_items ?? []).map((item) => ({
-          id: item.id,
-          productName: item.variant_name
-            ? `${item.product_name} (${item.variant_name})`
-            : item.product_name,
-          qty: item.quantity,
-          pricePerUnit: item.price_per_unit || 0,
-          subtotal: item.subtotal || 0,
-          notes: item.production_notes || "-",
-        })),
-        totalAmount: order.grand_total || 0,
-        amountPaid: order.amount_paid || 0,
-        paymentMethods: Array.from(
-          new Set(
-            (order.order_payments ?? [])
-              .map((pay) => pay.payment_method.toUpperCase())
-              .filter(Boolean),
-          ),
-        ),
-        status:
-          order.payment_status === "PAID"
-            ? "PAID"
-            : order.payment_status === "PARTIAL_PAID"
-              ? "PARTIAL"
-              : "UNPAID",
-        orderStatus: order.status,
-      };
-    });
-  }, [response]);
-
-  // Get active items for the selected SPK category from backend data
-  const activeSpkCategoryItems = useMemo(() => {
-    if (!spkResponse || !selectedSpkCategory) return [];
-    const cat = spkResponse.spk_by_category.find(
-      (c) => c.category_name === selectedSpkCategory,
-    );
-    return cat ? cat.items : [];
-  }, [spkResponse, selectedSpkCategory]);
-
-  // Invoices are already filtered on the backend side
-  const filteredInvoices = invoices;
-
-  // Statistics Computations
-  const stats = useMemo(() => {
-    const totalCount = filteredInvoices.length;
-    const paidCount = filteredInvoices.filter(
-      (i) => i.status === "PAID",
-    ).length;
-    const unpaidCount = filteredInvoices.filter(
-      (i) => i.status !== "PAID",
-    ).length;
-    const totalReceivable = filteredInvoices.reduce(
-      (sum, i) => sum + (i.totalAmount - i.amountPaid),
-      0,
-    );
-    const totalCollected = filteredInvoices.reduce(
-      (sum, i) => sum + i.amountPaid,
-      0,
-    );
-
-    // Total Penjualan: Lunas + Piutang (Grand Total of all invoices)
-    const totalSales = filteredInvoices.reduce(
-      (sum, i) => sum + i.totalAmount,
-      0,
-    );
-
-    // Total Pendapatan: Hanya transaksi yang lunas saja
-    const totalRevenue = filteredInvoices
-      .filter((i) => i.status === "PAID")
-      .reduce((sum, i) => sum + i.totalAmount, 0);
-
-    return {
-      totalCount,
-      paidCount,
-      unpaidCount,
-      totalReceivable,
-      totalCollected,
-      totalSales,
-      totalRevenue,
-    };
-  }, [filteredInvoices]);
-
-  const handleOpenPay = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-    setPayAmount(invoice.totalAmount - invoice.amountPaid);
-    setPayMethod("CASH");
-    setIsSplitPayment(false);
-    setSplitAmounts({ cash: 0, transfer: 0, qris: 0 });
-    setIsPayOpen(true);
-  };
-
-  // Mutation to process quick payment (pelunasan) in backend
-  const processPaymentMutation = useMutation<
-    void,
-    AppError,
-    { id: string; payload: RepayPaymentInput }
-  >({
-    mutationFn: ({ id, payload }) => repayOrderUseCase.execute(id, payload),
-    onSuccess: () => {
-      refetch();
-      setIsPayOpen(false);
-      toast.success(
-        "Pelunasan Berhasil",
-        `Pembayaran pelunasan untuk nota ${selectedInvoice?.invoiceNo} berhasil disimpan.`,
-      );
-    },
-    onError: (error) => {
-      toast.error(
-        "Pelunasan Gagal",
-        error.message ||
-          "Terjadi kesalahan saat memproses pelunasan di server.",
-      );
-    },
-  });
-
-  // Mutation to process refund in backend
-  const processRefundMutation = useMutation<
-    void,
-    AppError,
-    { id: string; payload: RefundOrderInput }
-  >({
-    mutationFn: ({ id, payload }) => refundOrderUseCase.execute(id, payload),
-    onSuccess: () => {
-      refetch();
-      setIsRefundOpen(false);
-      toast.success(
-        "Refund Berhasil",
-        `Pengajuan refund untuk nota ${selectedInvoice?.invoiceNo} berhasil disimpan.`,
-      );
-    },
-    onError: (error) => {
-      toast.error(
-        "Refund Gagal",
-        error.message || "Terjadi kesalahan saat memproses refund di server.",
-      );
-    },
-  });
-
-  const handleProcessRefund = () => {
-    if (!selectedInvoice) return;
-
-    if (refundAmount <= 0) {
-      toast.error("Refund Gagal", "Nominal refund harus lebih dari 0.");
-      return;
-    }
-
-    if (refundAmount > selectedInvoice.amountPaid) {
-      toast.error(
-        "Refund Gagal",
-        `Nominal refund tidak boleh melebihi jumlah yang sudah dibayar (${formatCurrency(selectedInvoice.amountPaid)}).`,
-      );
-      return;
-    }
-
-    if (!refundReason.trim()) {
-      toast.error("Refund Gagal", "Alasan refund wajib diisi.");
-      return;
-    }
-
-    const payload: RefundOrderInput = {
-      payment_method: refundMethod.toLowerCase(),
-      amount: refundAmount,
-      reason: refundReason.trim(),
-    };
-
-    processRefundMutation.mutate({
-      id: selectedInvoice.id,
-      payload,
-    });
-  };
-
-  const handleProcessPayment = () => {
-    if (!selectedInvoice) return;
-
-    const payments = isSplitPayment
-      ? [
-          { payment_method: "cash", amount_paid: splitAmounts.cash },
-          { payment_method: "transfer", amount_paid: splitAmounts.transfer },
-          { payment_method: "qris", amount_paid: splitAmounts.qris },
-        ].filter((p) => p.amount_paid > 0)
-      : [
-          {
-            payment_method: payMethod.toLowerCase(),
-            amount_paid: payAmount,
-          },
-        ];
-
-    if (payments.length === 0) {
-      toast.error(
-        "Nominal pelunasan tidak valid",
-        "Silakan masukkan nominal pembayaran.",
-      );
-      return;
-    }
-
-    const totalToPay = payments.reduce((sum, p) => sum + p.amount_paid, 0);
-    if (totalToPay > outstandingAmount) {
-      toast.error(
-        "Nominal berlebih",
-        `Jumlah pembayaran melebihi sisa tagihan (${formatCurrency(outstandingAmount)}).`,
-      );
-      return;
-    }
-
-    const payload: RepayPaymentInput = {
-      payments,
-    };
-
-    processPaymentMutation.mutate({
-      id: selectedInvoice.id,
-      payload,
-    });
-  };
-
-  const handlePrintInvoice = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-    setIsReceiptOpen(true);
-  };
-
-  const handlePrintSpk = (category: string) => {
-    setSelectedSpkCategory(category);
-    setIsSpkPreviewOpen(true);
-  };
-
-  const handlePrintAllSpk = () => {
-    toast.success(
-      "Rilis Semua SPK",
-      `Berhasil merilis ${spkResponse?.spk_by_category.length || 0} SPK terpisah untuk masing-masing divisi produksi.`,
-    );
-    setIsSpkOpen(false);
-  };
+    // Helpers
+    formatCurrency,
+  } = useInvoice();
 
   return (
     <div className="p-6 space-y-6 font-sans bg-background min-h-screen animate-in fade-in duration-500">
@@ -622,22 +149,6 @@ const InvoicePage = () => {
             cetak ulang nota kasir.
           </p>
         </div>
-
-        {/* Action button */}
-        <div className="flex gap-2 shrink-0">
-          <Button
-            variant="outline"
-            className="rounded-xl font-bold text-xs flex items-center gap-2 border-border/60"
-            onClick={() =>
-              toast.success(
-                "Ekspor Data",
-                "Mengekspor laporan invoice ke Excel.",
-              )
-            }
-          >
-            Ekspor Laporan
-          </Button>
-        </div>
       </div>
 
       {/* Top Stat Cards */}
@@ -652,9 +163,13 @@ const InvoicePage = () => {
               <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
                 Total Penjualan (Periode)
               </span>
-              <span className="text-xl font-black text-foreground">
-                {formatCurrency(stats.totalSales)}
-              </span>
+              {isLoadingWidgets ? (
+                <div className="h-7 w-32 bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-lg mt-1" />
+              ) : (
+                <span className="text-xl font-black text-foreground">
+                  {formatCurrency(stats.totalSales)}
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -669,9 +184,13 @@ const InvoicePage = () => {
               <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
                 Total Piutang (Periode)
               </span>
-              <span className="text-xl font-black text-rose-600 dark:text-rose-400">
-                {formatCurrency(stats.totalReceivable)}
-              </span>
+              {isLoadingWidgets ? (
+                <div className="h-7 w-32 bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-lg mt-1" />
+              ) : (
+                <span className="text-xl font-black text-rose-600 dark:text-rose-400">
+                  {formatCurrency(stats.totalReceivable)}
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -686,9 +205,13 @@ const InvoicePage = () => {
               <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
                 Invoice Belum Lunas
               </span>
-              <span className="text-xl font-black text-red-600">
-                {stats.unpaidCount} Transaksi
-              </span>
+              {isLoadingWidgets ? (
+                <div className="h-7 w-32 bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-lg mt-1" />
+              ) : (
+                <span className="text-xl font-black text-red-600">
+                  {stats.unpaidCount} Transaksi
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1197,6 +720,7 @@ const InvoicePage = () => {
       <Dialog
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
+        size="xl"
         className="rounded-3xl p-6 bg-card border border-border/50 text-foreground overflow-hidden max-h-[90vh] flex flex-col"
         showCloseButton={true}
       >
@@ -1206,203 +730,261 @@ const InvoicePage = () => {
             <div className="flex flex-col gap-1 border-b border-border/30 pb-4 shrink-0">
               <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
                 <LuReceipt size={20} className="text-primary" />
-                Detail Rincian Belanja Nota
+                Detail Rincian Belanja
               </h2>
+              <p className="text-xs text-muted-foreground font-semibold">
+                Invoice:{" "}
+                <span className="font-mono text-foreground font-bold">
+                  {selectedInvoice.invoiceNo}
+                </span>
+              </p>
             </div>
 
-            {/* Scrollable Body Content */}
-            <div className="flex-1 overflow-y-auto pr-1 space-y-5 scrollbar-thin">
-              {/* Header info */}
-              <div className="grid grid-cols-2 gap-4 bg-muted/30 p-3.5 rounded-xl border border-border/40">
-                <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
-                    Nomor Invoice
-                  </span>
-                  <span className="font-mono font-black text-foreground text-xs block">
-                    {selectedInvoice.invoiceNo}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
-                    Pelanggan
-                  </span>
-                  <span className="font-bold text-foreground text-xs block">
-                    {selectedInvoice.customerName}
-                  </span>
-                </div>
-              </div>
-
-              {/* Item list */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
-                  Daftar Item Cetak
-                </span>
-                <div className="border border-border/40 rounded-xl overflow-hidden divide-y divide-border/20">
-                  {selectedInvoice.items.map((item, idx) => (
-                    <div
-                      key={item.id}
-                      className="p-3 bg-card flex justify-between gap-4 text-xs font-semibold"
-                    >
-                      <div>
-                        <span className="text-foreground block">
-                          {idx + 1}. {item.productName}
+            {/* Two-Column Layout */}
+            <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-2 gap-6 h-full min-h-0">
+              {/* LEFT COLUMN: Dokumen, Produk & Desain (Scrollable) */}
+              <div className="flex flex-col h-full overflow-y-auto pr-1 scrollbar-thin space-y-5">
+                {/* Utama & Pelanggan Box */}
+                <div className="bg-muted/30 p-4 rounded-2xl border border-border/40 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                        Pelanggan
+                      </span>
+                      <span className="font-bold text-foreground text-xs block">
+                        {selectedInvoice.customerName}
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none ${
+                          selectedInvoice.isReseller
+                            ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
+                            : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
+                        }`}
+                      >
+                        {selectedInvoice.isReseller
+                          ? "Biro / Reseller"
+                          : "Retail"}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                        Staff Kasir
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center">
+                          <LuUser size={10} className="text-primary" />
+                        </div>
+                        <span className="font-bold text-foreground text-xs">
+                          {groupedPayments[0]?.cashier_name || "Sistem"}
                         </span>
-                        {item.notes && (
-                          <span className="text-[10px] text-muted-foreground block font-medium mt-0.5">
-                            Finishing: {item.notes}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info Tiket Kerja (Desain) */}
+                  <div className="border-t border-border/30 pt-3 grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                        Nomor Tiket Pesanan
+                      </span>
+                      <span className="font-mono font-black text-foreground text-xs bg-muted px-2 py-0.5 rounded border border-border inline-block">
+                        {selectedInvoice.jobNumber}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                        Tanggal Transaksi
+                      </span>
+                      <div className="flex items-center gap-1.5 text-xs text-foreground font-bold mt-1">
+                        <LuCalendar size={13} className="text-primary/70" />
+                        {selectedInvoice.createdAt}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Item List */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
+                    Daftar Item Cetak
+                  </span>
+                  <div className="border border-border/40 rounded-xl overflow-hidden divide-y divide-border/20">
+                    {selectedInvoice.items.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        className="p-3.5 bg-card flex justify-between gap-4 text-xs font-semibold hover:bg-muted/10 transition-colors"
+                      >
+                        <div>
+                          <span className="text-foreground block font-bold">
+                            {idx + 1}. {item.productName}
                           </span>
-                        )}
-                        <span className="text-[10px] text-primary font-bold block mt-1">
-                          {formatCurrency(item.pricePerUnit)} x {item.qty} Qty
+                          {item.notes && item.notes !== "-" && (
+                            <span className="text-[10px] text-muted-foreground block font-medium mt-1">
+                              Spesifikasi: {item.notes}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-primary font-bold block mt-1">
+                            {formatCurrency(item.pricePerUnit)} x {item.qty} Qty
+                          </span>
+                        </div>
+                        <span className="font-black text-foreground shrink-0 self-center">
+                          {formatCurrency(item.subtotal)}
                         </span>
                       </div>
-                      <span className="font-black text-foreground shrink-0 self-center">
-                        {formatCurrency(item.subtotal)}
-                      </span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Riwayat Pembayaran (Dynamic Timeline UI) */}
-              <div className="space-y-2.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
-                  Riwayat Pembayaran
-                </span>
-                <div className="bg-muted/15 border border-border/40 rounded-2xl p-4 max-h-[180px] overflow-y-auto scrollbar-thin">
-                  {isLoadingPayments ? (
-                    <div className="flex flex-col items-center justify-center py-6 space-y-2">
-                      <div className="relative w-6 h-6">
-                        <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
-                        <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              {/* RIGHT COLUMN: Finansial & Riwayat Pembayaran */}
+              <div className="flex flex-col h-full overflow-hidden space-y-5 justify-between">
+                {/* Timeline Pembayaran */}
+                <div className="flex flex-col flex-1 min-h-0 space-y-2.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block shrink-0">
+                    Riwayat Transaksi Masuk
+                  </span>
+                  <div className="flex-1 bg-muted/15 border border-border/40 rounded-2xl p-4 overflow-y-auto scrollbar-thin">
+                    {isLoadingPayments ? (
+                      <div className="flex flex-col items-center justify-center h-full space-y-2">
+                        <div className="relative w-8 h-8">
+                          <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                          <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                        </div>
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Memuat riwayat pembayaran...
+                        </span>
                       </div>
-                      <span className="text-[10px] font-bold text-muted-foreground">
-                        Memuat Riwayat Pembayaran...
-                      </span>
-                    </div>
-                  ) : payments && payments.length > 0 ? (
-                    <div className="relative border-l border-border pl-4 space-y-4">
-                      {groupedPayments.map((pay, idx) => (
-                        <div
-                          key={pay.id}
-                          className="relative flex flex-col gap-2"
-                        >
-                          {/* Circle Indicator */}
-                          <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 dark:ring-emerald-950/40" />
-                          <div className="flex justify-between items-start gap-4 text-xs font-semibold">
-                            <div>
-                              <span className="text-foreground font-black block">
-                                {pay.payment_type === "DOWN_PAYMENT"
-                                  ? "Pembayaran Awal (DP)"
-                                  : pay.payment_type === "FULL_PAYMENT"
-                                    ? "Lunas / Pembayaran Langsung"
-                                    : `Pelunasan #${pay.payment_number > 1 ? pay.payment_number - 1 : idx}`}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
-                                {pay.created_at} • Kasir: {pay.cashier_name}
-                              </span>
-                            </div>
-                            <span className="font-black text-emerald-600 dark:text-emerald-400 shrink-0">
-                              {formatCurrency(pay.totalAmount)}
-                            </span>
-                          </div>
-
-                          {/* Detail Rincian Metode Pembayaran */}
-                          <div className="ml-0 mt-1 pl-3 border-l-2 border-border/40 space-y-1.5">
-                            {pay.details.map((detail) => (
-                              <div
-                                key={detail.id}
-                                className="flex justify-between items-center text-[10px] font-semibold"
-                              >
-                                <span className="text-muted-foreground uppercase tracking-wider">
-                                  {detail.payment_method}
+                    ) : groupedPayments.length > 0 ? (
+                      <div className="relative border-l border-border pl-4 space-y-4">
+                        {groupedPayments.map((pay, idx) => (
+                          <div
+                            key={pay.id}
+                            className="relative flex flex-col gap-1.5"
+                          >
+                            {/* Circle Indicator */}
+                            <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 dark:ring-emerald-950/40" />
+                            <div className="flex justify-between items-start gap-4 text-xs font-semibold">
+                              <div>
+                                <span className="text-foreground font-black block">
+                                  {pay.payment_type === "DOWN_PAYMENT"
+                                    ? "Pembayaran Awal (DP)"
+                                    : pay.payment_type === "FULL_PAYMENT"
+                                      ? "Lunas / Pembayaran Langsung"
+                                      : `Pelunasan #${pay.payment_number > 1 ? pay.payment_number - 1 : idx}`}
                                 </span>
-                                <span className="text-foreground">
-                                  {formatCurrency(detail.amount)}
+                                <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
+                                  {pay.created_at} • Kasir: {pay.cashier_name}
                                 </span>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* If outstanding balance exists, show warning dot/installment step */}
-                      {selectedInvoice.totalAmount -
-                        selectedInvoice.amountPaid >
-                        0 && (
-                        <div className="relative">
-                          {/* Orange Indicator for unpaid remaining */}
-                          <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-4 ring-amber-100 dark:ring-amber-950/40 animate-pulse" />
-                          <div className="flex justify-between items-start gap-4 text-xs font-semibold">
-                            <div>
-                              <span className="text-amber-600 dark:text-amber-400 font-black block">
-                                Sisa Tagihan Belum Lunas (Piutang)
-                              </span>
-                              <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
-                                Menunggu pelunasan
+                              <span className="font-black text-emerald-600 dark:text-emerald-400 shrink-0">
+                                {formatCurrency(pay.totalAmount)}
                               </span>
                             </div>
-                            <span className="font-black text-rose-500 shrink-0">
-                              {formatCurrency(
-                                selectedInvoice.totalAmount -
-                                  selectedInvoice.amountPaid,
-                              )}
-                            </span>
+                            {/* Detail Rincian Metode Pembayaran */}
+                            <div className="ml-0 mt-1 pl-3 border-l-2 border-border/40 space-y-1.5">
+                              {pay.details.map((detail) => (
+                                <div
+                                  key={detail.id}
+                                  className="flex justify-between items-center text-[10px] font-semibold"
+                                >
+                                  <span className="text-muted-foreground uppercase tracking-wider">
+                                    {detail.payment_method}
+                                  </span>
+                                  <span className="text-foreground">
+                                    {formatCurrency(detail.amount)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 space-y-1">
-                      <span className="text-xs font-bold text-muted-foreground block">
-                        Belum ada riwayat pembayaran
-                      </span>
-                      <span className="text-[10px] text-muted-foreground block font-medium">
-                        Transaksi ini berstatus piutang tanpa pembayaran awal.
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+                        ))}
 
-              {/* Subtotals & Payment summary */}
-              <div className="border-t border-border/20 pt-4 space-y-2 text-xs font-semibold">
-                <div className="flex justify-between items-center text-muted-foreground">
-                  <span>Total Belanja</span>
-                  <span className="font-bold text-foreground">
-                    {formatCurrency(selectedInvoice.totalAmount)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
-                  <span>Jumlah Telah Terbayar</span>
-                  <span className="font-black">
-                    {formatCurrency(selectedInvoice.amountPaid)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center border-t border-dashed border-border/30 pt-2 font-black">
-                  <span className="text-primary uppercase tracking-wider text-[10px]">
-                    Sisa Tagihan
-                  </span>
-                  <span className="text-sm text-rose-500">
-                    {formatCurrency(
-                      selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                        {/* Sisa Piutang Info in Timeline */}
+                        {selectedInvoice.totalAmount -
+                          selectedInvoice.amountPaid >
+                          0 && (
+                          <div className="relative">
+                            <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-4 ring-amber-100 dark:ring-amber-950/40 animate-pulse" />
+                            <div className="flex justify-between items-start gap-4 text-xs font-semibold">
+                              <div>
+                                <span className="text-amber-600 dark:text-amber-400 font-black block">
+                                  Sisa Tagihan (Piutang)
+                                </span>
+                                <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
+                                  Menunggu pelunasan
+                                </span>
+                              </div>
+                              <span className="font-black text-rose-500 shrink-0">
+                                {formatCurrency(
+                                  selectedInvoice.totalAmount -
+                                    selectedInvoice.amountPaid,
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 space-y-1.5">
+                        <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto text-rose-500">
+                          <LuClock size={16} />
+                        </div>
+                        <span className="text-xs font-bold text-muted-foreground block">
+                          Belum ada riwayat pembayaran
+                        </span>
+                        <span className="text-[9px] text-muted-foreground block font-medium max-w-[200px] mx-auto">
+                          Transaksi ini berstatus piutang belum dibayar (UNPAID)
+                          atau baru di-input.
+                        </span>
+                      </div>
                     )}
-                  </span>
+                  </div>
+                </div>
+
+                {/* Financial Summary Box (Fixed at the Bottom) */}
+                <div className="border-t border-border/30 pt-4 space-y-2.5 text-xs font-semibold shrink-0">
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span>Total Belanja</span>
+                    <span className="font-bold text-foreground">
+                      {formatCurrency(selectedInvoice.totalAmount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
+                    <span>Terbayar</span>
+                    <span className="font-black">
+                      {formatCurrency(selectedInvoice.amountPaid)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-dashed border-border/30 pt-2 font-black">
+                    <span className="text-primary uppercase tracking-wider text-[10px]">
+                      Sisa Tagihan
+                    </span>
+                    <span className="text-sm text-rose-500">
+                      {selectedInvoice.totalAmount -
+                        selectedInvoice.amountPaid >
+                      0
+                        ? formatCurrency(
+                            selectedInvoice.totalAmount -
+                              selectedInvoice.amountPaid,
+                          )
+                        : "-"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Buttons */}
+            {/* Buttons / Actions */}
             <div className="flex justify-end gap-2.5 border-t border-border/20 pt-4 shrink-0">
               <Button
                 variant="outline"
-                className="rounded-xl text-xs font-bold px-4 border-border/50"
+                className="rounded-xl text-xs font-bold px-4 border-border/50 h-10 hover:bg-muted"
                 onClick={() => setIsDetailOpen(false)}
               >
                 Tutup
               </Button>
               <Button
-                className="rounded-xl text-xs font-black px-4 bg-primary text-primary-foreground flex items-center gap-1.5"
+                className="rounded-xl text-xs font-black px-4 bg-primary text-primary-foreground flex items-center gap-1.5 h-10 shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
                 onClick={() => {
                   setIsDetailOpen(false);
                   handlePrintInvoice(selectedInvoice);
@@ -2221,7 +1803,7 @@ const InvoicePage = () => {
                     "================================================\n";
                   rawData +=
                     "                 Terima Kasih!                  \n\n\n\n\n\n\n";
-                  
+
                   // ESC/POS Command: Auto Cut
                   rawData += "\x1d\x56\x00";
 
