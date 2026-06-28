@@ -7,8 +7,9 @@ import {
   LuCalendar,
   LuPrinter,
   LuClock,
-  LuScissors,
-  LuCoins,
+  LuCircleX,
+  LuRotateCcw,
+  LuCircleCheck,
 } from "@erp-digital-printing/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
@@ -18,6 +19,29 @@ import type {
   OrderPaymentModel,
 } from "@core/order/domains/models/order.model";
 import type { AppError } from "@core/shared/errors/domain.error";
+
+const formatDateTime = (createdAt?: string, fallbackDate?: string) => {
+  const targetStr = createdAt || fallbackDate;
+  if (!targetStr) return "-";
+  try {
+    const dateObj = new Date(targetStr);
+    if (isNaN(dateObj.getTime())) return targetStr;
+
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const year = dateObj.getFullYear();
+
+    if (createdAt) {
+      const hours = String(dateObj.getHours()).padStart(2, "0");
+      const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+      const seconds = String(dateObj.getSeconds()).padStart(2, "0");
+      return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
+    }
+    return `${day}/${month}/${year}`;
+  } catch {
+    return targetStr;
+  }
+};
 
 interface DetailReportSellingProps {
   isOpen: boolean;
@@ -67,21 +91,7 @@ const DetailReportSelling: React.FC<DetailReportSellingProps> = ({
     return Array.from(map.entries())
       .map(([payment_number, pays]) => {
         const totalAmount = pays.reduce((sum, p) => sum + p.amount, 0);
-        let created_at = "";
-        if (pays[0]?.created_at) {
-          try {
-            created_at = new Date(pays[0].created_at).toLocaleString("id-ID", {
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            });
-          } catch (error) {
-            // Fallback to empty string if date format fails
-          }
-        }
+        const created_at = formatDateTime(pays[0]?.created_at);
         const cashier_name = pays[0]?.cashier_name || "Sistem";
         const methods = pays.map((p) => p.payment_method).join(", ");
         const payment_type = pays[0]?.payment_type;
@@ -210,25 +220,27 @@ const DetailReportSelling: React.FC<DetailReportSellingProps> = ({
                   <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
                     Tanggal Transaksi
                   </span>
-                  <div className="flex items-center gap-1.5 text-xs text-foreground font-bold">
-                    <LuCalendar size={13} className="text-primary/70" />
-                    {(() => {
-                      try {
-                        return new Date(sale.created_at).toLocaleString(
-                          "id-ID",
-                          {
-                            year: "numeric",
-                            month: "2-digit",
-                            day: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit",
-                          },
-                        );
-                      } catch (e) {
-                        return sale.created_at;
-                      }
-                    })()}
+                  <div className="flex items-center justify-between gap-1.5 text-xs text-foreground font-bold">
+                    <div className="flex items-center gap-1.5">
+                      <LuCalendar size={13} className="text-primary/70" />
+                      {formatDateTime(sale.created_at)}
+                    </div>
+                    {sale.status === "CANCELLED" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/50">
+                        <LuCircleX className="h-2.5 w-2.5" />
+                        Dibatalkan
+                      </span>
+                    ) : sale.status === "REFUND" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/20 dark:text-violet-400 dark:border-violet-900/50">
+                        <LuRotateCcw className="h-2.5 w-2.5" />
+                        Refund
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50">
+                        <LuCircleCheck className="h-2.5 w-2.5" />
+                        Selesai
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -287,48 +299,76 @@ const DetailReportSelling: React.FC<DetailReportSellingProps> = ({
                   </div>
                 ) : groupedPayments.length > 0 ? (
                   <div className="relative border-l border-border pl-4 space-y-4">
-                    {groupedPayments.map((pay, idx) => (
-                      <div
-                        key={pay.id}
-                        className="relative flex flex-col gap-1.5"
-                      >
-                        {/* Circle Indicator */}
-                        <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 dark:ring-emerald-950/40" />
-                        <div className="flex justify-between items-start gap-4 text-xs font-semibold">
-                          <div>
-                            <span className="text-foreground font-black block">
-                              {pay.payment_type === "DOWN_PAYMENT"
-                                ? "Pembayaran Awal (DP)"
-                                : pay.payment_type === "FULL_PAYMENT"
-                                  ? "Lunas / Pembayaran Langsung"
-                                  : `Pelunasan #${pay.payment_number > 1 ? pay.payment_number - 1 : idx}`}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
-                              {pay.created_at} • Kasir: {pay.cashier_name}
-                            </span>
-                          </div>
-                          <span className="font-black text-emerald-600 dark:text-emerald-400 shrink-0">
-                            {formatCurrency(pay.totalAmount)}
-                          </span>
-                        </div>
-                        {/* Detail Rincian Metode Pembayaran */}
-                        <div className="ml-0 mt-1 pl-3 border-l-2 border-border/40 space-y-1.5">
-                          {pay.details.map((detail) => (
+                    {(() => {
+                      const standardPayments = groupedPayments.filter(
+                        (p) => p.payment_type !== "REFUND"
+                      );
+                      return groupedPayments.map((pay) => {
+                        const isRefund = pay.payment_type === "REFUND";
+                        return (
+                          <div
+                            key={pay.id}
+                            className="relative flex flex-col gap-1.5"
+                          >
+                            {/* Circle Indicator */}
                             <div
-                              key={detail.id}
-                              className="flex justify-between items-center text-[10px] font-semibold"
-                            >
-                              <span className="text-muted-foreground uppercase tracking-wider">
-                                {detail.payment_method}
-                              </span>
-                              <span className="text-foreground">
-                                {formatCurrency(detail.amount)}
+                              className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ring-4 ${
+                                isRefund
+                                  ? "bg-rose-500 ring-rose-100 dark:ring-rose-950/40"
+                                  : "bg-emerald-500 ring-emerald-100 dark:ring-emerald-950/40"
+                              }`}
+                            />
+                            <div className="flex justify-between items-start gap-4 text-xs font-semibold">
+                              <div>
+                                <span className="text-foreground font-black block">
+                                  {isRefund ? (
+                                    <span className="text-rose-600 dark:text-rose-400">
+                                      Refund / Pengembalian Dana
+                                    </span>
+                                  ) : pay.payment_type === "DOWN_PAYMENT" ? (
+                                    "Pembayaran Awal (DP)"
+                                  ) : pay.payment_type === "FULL_PAYMENT" ? (
+                                    "Lunas / Pembayaran Langsung"
+                                  ) : (
+                                    `Pelunasan #${
+                                      standardPayments.indexOf(pay) + 1
+                                    }`
+                                  )}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
+                                  {pay.created_at} • Kasir: {pay.cashier_name}
+                                </span>
+                              </div>
+                              <span
+                                className={`font-black shrink-0 ${
+                                  isRefund
+                                    ? "text-rose-600 dark:text-rose-400"
+                                    : "text-emerald-600 dark:text-emerald-400"
+                                }`}
+                              >
+                                {isRefund ? "-" : "+"} {formatCurrency(pay.totalAmount)}
                               </span>
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                            {/* Detail Rincian Metode Pembayaran */}
+                            <div className="ml-0 mt-1 pl-3 border-l-2 border-border/40 space-y-1.5">
+                              {pay.details.map((detail) => (
+                                <div
+                                  key={detail.id}
+                                  className="flex justify-between items-center text-[10px] font-semibold"
+                                >
+                                  <span className="text-muted-foreground uppercase tracking-wider">
+                                    {detail.payment_method}
+                                  </span>
+                                  <span className="text-foreground">
+                                    {formatCurrency(detail.amount)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
 
                     {/* Sisa Piutang Info in Timeline */}
                     {outstanding > 0 && (

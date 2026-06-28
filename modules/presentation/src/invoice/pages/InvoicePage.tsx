@@ -856,48 +856,76 @@ const InvoicePage = () => {
                       </div>
                     ) : groupedPayments.length > 0 ? (
                       <div className="relative border-l border-border pl-4 space-y-4">
-                        {groupedPayments.map((pay, idx) => (
-                          <div
-                            key={pay.id}
-                            className="relative flex flex-col gap-1.5"
-                          >
-                            {/* Circle Indicator */}
-                            <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 dark:ring-emerald-950/40" />
-                            <div className="flex justify-between items-start gap-4 text-xs font-semibold">
-                              <div>
-                                <span className="text-foreground font-black block">
-                                  {pay.payment_type === "DOWN_PAYMENT"
-                                    ? "Pembayaran Awal (DP)"
-                                    : pay.payment_type === "FULL_PAYMENT"
-                                      ? "Lunas / Pembayaran Langsung"
-                                      : `Pelunasan #${pay.payment_number > 1 ? pay.payment_number - 1 : idx}`}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
-                                  {pay.created_at} • Kasir: {pay.cashier_name}
-                                </span>
-                              </div>
-                              <span className="font-black text-emerald-600 dark:text-emerald-400 shrink-0">
-                                {formatCurrency(pay.totalAmount)}
-                              </span>
-                            </div>
-                            {/* Detail Rincian Metode Pembayaran */}
-                            <div className="ml-0 mt-1 pl-3 border-l-2 border-border/40 space-y-1.5">
-                              {pay.details.map((detail) => (
+                        {(() => {
+                          const standardPayments = groupedPayments.filter(
+                            (p) => p.payment_type !== "REFUND"
+                          );
+                          return groupedPayments.map((pay) => {
+                            const isRefund = pay.payment_type === "REFUND";
+                            return (
+                              <div
+                                key={pay.id}
+                                className="relative flex flex-col gap-1.5"
+                              >
+                                {/* Circle Indicator */}
                                 <div
-                                  key={detail.id}
-                                  className="flex justify-between items-center text-[10px] font-semibold"
-                                >
-                                  <span className="text-muted-foreground uppercase tracking-wider">
-                                    {detail.payment_method}
-                                  </span>
-                                  <span className="text-foreground">
-                                    {formatCurrency(detail.amount)}
+                                  className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ring-4 ${
+                                    isRefund
+                                      ? "bg-rose-500 ring-rose-100 dark:ring-rose-950/40"
+                                      : "bg-emerald-500 ring-emerald-100 dark:ring-emerald-950/40"
+                                  }`}
+                                />
+                                <div className="flex justify-between items-start gap-4 text-xs font-semibold">
+                                  <div>
+                                    <span className="text-foreground font-black block">
+                                      {isRefund ? (
+                                        <span className="text-rose-600 dark:text-rose-400">
+                                          Refund / Pengembalian Dana
+                                        </span>
+                                      ) : pay.payment_type === "DOWN_PAYMENT" ? (
+                                        "Pembayaran Awal (DP)"
+                                      ) : pay.payment_type === "FULL_PAYMENT" ? (
+                                        "Lunas / Pembayaran Langsung"
+                                      ) : (
+                                        `Pelunasan #${
+                                          standardPayments.indexOf(pay) + 1
+                                        }`
+                                      )}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
+                                      {pay.created_at} • Kasir: {pay.cashier_name}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`font-black shrink-0 ${
+                                      isRefund
+                                        ? "text-rose-600 dark:text-rose-400"
+                                        : "text-emerald-600 dark:text-emerald-400"
+                                    }`}
+                                  >
+                                    {isRefund ? "-" : "+"} {formatCurrency(pay.totalAmount)}
                                   </span>
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                                {/* Detail Rincian Metode Pembayaran */}
+                                <div className="ml-0 mt-1 pl-3 border-l-2 border-border/40 space-y-1.5">
+                                  {pay.details.map((detail) => (
+                                    <div
+                                      key={detail.id}
+                                      className="flex justify-between items-center text-[10px] font-semibold"
+                                    >
+                                      <span className="text-muted-foreground uppercase tracking-wider">
+                                        {detail.payment_method}
+                                      </span>
+                                      <span className="text-foreground">
+                                        {formatCurrency(detail.amount)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
 
                         {/* Sisa Piutang Info in Timeline */}
                         {selectedInvoice.totalAmount -
