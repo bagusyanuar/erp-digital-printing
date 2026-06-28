@@ -81,6 +81,45 @@ export interface SalesReportWidgetsModel {
   belum_lunas_count: number;
 }
 
+export interface SalesTrendParams {
+  type?: "weekly" | "monthly" | "yearly";
+  status?: string;
+  payment_status?: string;
+  payment_method?: string;
+  designer_id?: string;
+  cashier_id?: string;
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  customer_type?: string;
+}
+
+export interface SalesTrendItem {
+  label: string;
+  total: number;
+}
+
+export interface CategorySalesParams {
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface CategorySalesItem {
+  category_id: string;
+  category_name: string;
+  total_sales: number;
+}
+
+export interface PaymentSalesParams {
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface PaymentSalesItem {
+  payment_method: string;
+  total_amount: number;
+}
+
 export interface OrderRepository {
   saveDraft(input: DraftOrderModel): Promise<void>;
   getOrders(params: OrderParams): Promise<PaginatedResponse<OrderModel>>;
@@ -95,6 +134,9 @@ export interface OrderRepository {
   updateOrder(id: string, input: DraftOrderModel): Promise<void>;
   getOrderReportWidgets(params: OrderReportWidgetsParams): Promise<OrderReportWidgetsModel>;
   getSalesReportWidgets(params: SalesReportWidgetsParams): Promise<SalesReportWidgetsModel>;
+  getSalesTrend(params: SalesTrendParams): Promise<SalesTrendItem[]>;
+  getCategorySales(params: CategorySalesParams): Promise<CategorySalesItem[]>;
+  getPaymentSales(params: PaymentSalesParams): Promise<PaymentSalesItem[]>;
 }
 
 

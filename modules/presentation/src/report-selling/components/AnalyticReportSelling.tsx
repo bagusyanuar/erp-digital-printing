@@ -19,15 +19,11 @@ import {
   Pie,
 } from "recharts";
 
+import { type TrendDataItem } from "../hooks/useReportSelling";
+
 interface ChartDataItem {
   name: string;
   value: number;
-}
-
-interface TrendDataItem {
-  name: string;
-  omset: number;
-  cashflow: number;
 }
 
 interface AnalyticReportSellingProps {
@@ -55,69 +51,12 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
   dateRange,
   setDateRange,
 }) => {
-  // Dinamis menghitung data trend berdasarkan periode terpilih (rolling lookback)
-  const filteredTrendData = useMemo(() => {
-    const today = new Date();
-
-    if (trendPeriod === "weekly") {
-      const listWeeks: { name: string; omset: number }[] = [];
-
-      // Tampilkan 6 minggu penjualan sebelumnya (termasuk minggu ini)
-      for (let i = 5; i >= 0; i--) {
-        const targetDate = new Date(today);
-        targetDate.setDate(today.getDate() - i * 7);
-
-        const weekNum = 6 - i;
-        const seedValue = 4000000 + ((weekNum * 2300000) % 9000000);
-
-        listWeeks.push({
-          name: `Minggu ${weekNum}`,
-          omset: seedValue,
-        });
-      }
-      return listWeeks;
-    }
-
-    if (trendPeriod === "monthly") {
-      const listMonths: { name: string; omset: number }[] = [];
-
-      // Tampilkan 12 bulan penjualan sebelumnya (termasuk bulan ini)
-      for (let i = 11; i >= 0; i--) {
-        const targetDate = new Date(
-          today.getFullYear(),
-          today.getMonth() - i,
-          1,
-        );
-        const monthLabel = format(targetDate, "MMM yyyy");
-        const seedValue =
-          35000000 + ((targetDate.getMonth() * 7500000) % 45000000);
-
-        listMonths.push({
-          name: monthLabel,
-          omset: seedValue,
-        });
-      }
-      return listMonths;
-    }
-
-    if (trendPeriod === "yearly") {
-      const listYears: { name: string; omset: number }[] = [];
-      const currentYear = today.getFullYear();
-
-      // Tampilkan 5 tahun penjualan sebelumnya (termasuk tahun ini)
-      for (let i = 4; i >= 0; i--) {
-        const y = currentYear - i;
-        const seedValue = 450000000 + (y % 3) * 150000000;
-        listYears.push({
-          name: String(y),
-          omset: seedValue,
-        });
-      }
-      return listYears;
-    }
-
-    return [];
-  }, [trendPeriod]);
+  // Gunakan data tren dari API
+  const filteredTrendData = originalTrendData;
+  const maxCategoryVal = useMemo(() => {
+    if (!categoriesData || categoriesData.length === 0) return 0;
+    return Math.max(...categoriesData.map((d) => d.value));
+  }, [categoriesData]);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -210,7 +149,10 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
                     borderColor: "rgba(156,163,175,0.2)",
                     borderRadius: "12px",
                     boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+                    color: "var(--color-foreground, #1f2937)",
                   }}
+                  itemStyle={{ color: "var(--color-foreground, #1f2937)" }}
+                  labelStyle={{ color: "var(--color-foreground, #1f2937)" }}
                   formatter={(value: unknown) => [
                     formatCurrency(Number(value || 0)),
                     "",
@@ -279,7 +221,17 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
                   stroke="currentColor"
                   className="text-muted-foreground text-xs"
                   tickLine={false}
-                  tickFormatter={(v) => `Rp ${(v / 1000000).toFixed(0)} Jt`}
+                  domain={[0, maxCategoryVal === 0 ? 1000000 : 'auto']}
+                  tickFormatter={(v) => {
+                    if (v === 0) return "Rp 0";
+                    if (v >= 1000000) {
+                      return `Rp ${(v / 1000000).toFixed(1).replace(/\.0$/, "")} Jt`;
+                    }
+                    if (v >= 1000) {
+                      return `Rp ${(v / 1000).toFixed(0)} Rb`;
+                    }
+                    return `Rp ${v}`;
+                  }}
                 />
                 <YAxis
                   type="category"
@@ -290,11 +242,15 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
                   width={130}
                 />
                 <Tooltip
+                  cursor={{ fill: "rgba(156, 163, 175, 0.05)" }}
                   contentStyle={{
                     backgroundColor: "var(--color-card, #fff)",
                     borderColor: "rgba(156,163,175,0.2)",
                     borderRadius: "12px",
+                    color: "var(--color-foreground, #1f2937)",
                   }}
+                  itemStyle={{ color: "var(--color-foreground, #1f2937)" }}
+                  labelStyle={{ color: "var(--color-foreground, #1f2937)" }}
                   formatter={(value: unknown) => [
                     formatCurrency(Number(value || 0)),
                     "Omset",
@@ -324,42 +280,58 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
             </p>
           </div>
           <div className="h-[200px] w-full relative flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={paymentsData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {paymentsData.map((entry, index) => {
-                    const norm = entry.name.toLowerCase();
-                    const fillStyle = norm.includes("transfer") 
-                      ? "var(--color-primary, #3b82f6)"
-                      : norm.includes("qris")
-                      ? "#a855f7"
-                      : (norm.includes("tunai") || norm.includes("cash"))
-                      ? "#10b981"
-                      : colors[index % colors.length];
-                    return (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={fillStyle}
-                      />
-                    );
-                  })}
-                </Pie>
-                <Tooltip
-                  formatter={(value: unknown) => [
-                    formatCurrency(Number(value || 0)),
-                    "Total",
-                  ]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            {paymentsData.some((p) => p.value > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={paymentsData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {paymentsData.map((entry, index) => {
+                      const norm = entry.name.toLowerCase();
+                      const fillStyle = norm.includes("transfer") 
+                        ? "var(--color-primary, #3b82f6)"
+                        : norm.includes("qris")
+                        ? "#a855f7"
+                        : (norm.includes("tunai") || norm.includes("cash"))
+                        ? "#10b981"
+                        : colors[index % colors.length];
+                      return (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={fillStyle}
+                        />
+                      );
+                    })}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "var(--color-card, #fff)",
+                      borderColor: "rgba(156,163,175,0.2)",
+                      borderRadius: "12px",
+                      color: "var(--color-foreground, #1f2937)",
+                    }}
+                    itemStyle={{ color: "var(--color-foreground, #1f2937)" }}
+                    labelStyle={{ color: "var(--color-foreground, #1f2937)" }}
+                    formatter={(value: unknown) => [
+                      formatCurrency(Number(value || 0)),
+                      "Total",
+                    ]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center p-4 border border-dashed border-border/60 rounded-2xl h-full w-full bg-muted/10">
+                <span className="text-xs text-muted-foreground font-semibold">
+                  Tidak ada transaksi dalam periode ini
+                </span>
+              </div>
+            )}
           </div>
           <div className="space-y-2 mt-4">
             {paymentsData.map((item, idx) => {

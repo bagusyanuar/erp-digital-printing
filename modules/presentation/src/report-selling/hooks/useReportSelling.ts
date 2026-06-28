@@ -24,28 +24,11 @@ export interface SalesTransaction {
   quantity: number;
 }
 
-// Mock data for trends
-const MOCK_REVENUE_TRENDS_WEEKLY = [
-  { name: "Minggu 1", omset: 5000000, cashflow: 4000000 },
-  { name: "Minggu 2", omset: 12000000, cashflow: 9500000 },
-  { name: "Minggu 3", omset: 8000000, cashflow: 7500000 },
-  { name: "Minggu 4", omset: 15000000, cashflow: 13000000 },
-];
-
-const MOCK_REVENUE_TRENDS_MONTHLY = [
-  { name: "Jan", omset: 45000000, cashflow: 40000000 },
-  { name: "Feb", omset: 52000000, cashflow: 48000000 },
-  { name: "Mar", omset: 49000000, cashflow: 46000000 },
-  { name: "Apr", omset: 63000000, cashflow: 58000000 },
-  { name: "Mei", omset: 58000000, cashflow: 55000000 },
-  { name: "Jun", omset: 72000000, cashflow: 68000000 },
-];
-
-const MOCK_REVENUE_TRENDS_YEARLY = [
-  { name: "2024", omset: 520000000, cashflow: 490000000 },
-  { name: "2025", omset: 680000000, cashflow: 640000000 },
-  { name: "2026", omset: 850000000, cashflow: 810000000 },
-];
+export interface TrendDataItem {
+  name: string;
+  omset: number;
+  cashflow: number;
+}
 
 const formatDateTime = (createdAt?: string, fallbackDate?: string) => {
   const targetStr = createdAt || fallbackDate;
@@ -71,7 +54,13 @@ const formatDateTime = (createdAt?: string, fallbackDate?: string) => {
 };
 
 export const useReportSelling = () => {
-  const { getOrdersUseCase, getSalesReportWidgetsUseCase } = useOrderDI();
+  const {
+    getOrdersUseCase,
+    getSalesReportWidgetsUseCase,
+    getSalesTrendUseCase,
+    getCategorySalesUseCase,
+    getPaymentSalesUseCase,
+  } = useOrderDI();
   const { getUsersUseCase } = useUserDI();
   const [activeTab, setActiveTab] = useState<"data" | "analytic">("data");
   const [trendPeriod, setTrendPeriod] = useState<
@@ -207,6 +196,81 @@ export const useReportSelling = () => {
             : undefined,
         cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
         payment_method: mappedPaymentMethods,
+      }),
+    staleTime: 5000,
+    gcTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const trendStatusParam = useMemo(() => {
+    if (orderStatusFilter === "all" || orderStatusFilter === "SUCCESS") {
+      return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED";
+    }
+    return "";
+  }, [orderStatusFilter]);
+
+  // Fetch sales trend data from backend API
+  const { data: trendDataRaw } = useQuery({
+    queryKey: orderKeys.salesTrend({
+      type: trendPeriod,
+      status: trendStatusParam || undefined,
+      payment_status: mappedPaymentStatus,
+      payment_method: mappedPaymentMethods,
+      search: debouncedSearch || undefined,
+      customer_type:
+        customerTypeFilter !== "all"
+          ? customerTypeFilter === "retail"
+            ? "end_user"
+            : "reseller"
+          : undefined,
+      cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
+    }),
+    queryFn: () =>
+      getSalesTrendUseCase.execute({
+        type: trendPeriod,
+        status: trendStatusParam || undefined,
+        payment_status: mappedPaymentStatus,
+        payment_method: mappedPaymentMethods,
+        search: debouncedSearch || undefined,
+        customer_type:
+          customerTypeFilter !== "all"
+            ? customerTypeFilter === "retail"
+              ? "end_user"
+              : "reseller"
+            : undefined,
+        cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
+      }),
+    staleTime: 5000,
+    gcTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch top-selling categories data from backend API
+  const { data: categorySalesRaw } = useQuery({
+    queryKey: orderKeys.categorySales({
+      start_date: startDateStr,
+      end_date: endDateStr,
+    }),
+    queryFn: () =>
+      getCategorySalesUseCase.execute({
+        start_date: startDateStr,
+        end_date: endDateStr,
+      }),
+    staleTime: 5000,
+    gcTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch payment sales data from backend API
+  const { data: paymentSalesRaw } = useQuery({
+    queryKey: orderKeys.paymentSales({
+      start_date: startDateStr,
+      end_date: endDateStr,
+    }),
+    queryFn: () =>
+      getPaymentSalesUseCase.execute({
+        start_date: startDateStr,
+        end_date: endDateStr,
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -358,22 +422,37 @@ export const useReportSelling = () => {
 
   // Dynamic calculations for charts based on filtered sales
   const categoriesData = useMemo(() => {
-    return [
-      { name: "Banner & Spanduk", value: 45500000 },
-      { name: "Stiker A3+ & Label", value: 32400000 },
-      { name: "Brosur & Flyer", value: 18900000 },
-      { name: "Kartu Nama", value: 12500000 },
-      { name: "Buku & Dokumen", value: 8700000 },
-    ];
-  }, []);
+    if (!categorySalesRaw) return [];
+    return categorySalesRaw.map((item) => {
+      const raw = item as unknown as Record<string, unknown>;
+      const name = item.category_name || (typeof raw.categoryName === "string" ? raw.categoryName : "Unknown");
+      const value = typeof item.total_sales === "number" 
+        ? item.total_sales 
+        : (typeof raw.totalSales === "number" 
+            ? (raw.totalSales as number) 
+            : 0);
+      return { name, value };
+    });
+  }, [categorySalesRaw]);
 
   const paymentsData = useMemo(() => {
-    return [
-      { name: "Transfer Bank", value: 58200000 },
-      { name: "QRIS", value: 32500000 },
-      { name: "Tunai / Cash", value: 14300000 },
-    ];
-  }, []);
+    if (!paymentSalesRaw) return [];
+    return paymentSalesRaw.map((item) => {
+      const norm = item.payment_method.toLowerCase();
+      let name = item.payment_method;
+      if (norm === "cash" || norm === "tunai") {
+        name = "Tunai / Cash";
+      } else if (norm === "transfer") {
+        name = "Transfer Bank";
+      } else if (norm === "qris") {
+        name = "QRIS";
+      }
+      return {
+        name,
+        value: item.total_amount,
+      };
+    });
+  }, [paymentSalesRaw]);
 
   const customerTypesData = useMemo(() => {
     const map = new Map<string, { name: string; value: number }>();
@@ -392,11 +471,69 @@ export const useReportSelling = () => {
   }, [filteredSales]);
 
   // Active trend data based on selected period
-  const trendData = useMemo(() => {
-    if (trendPeriod === "weekly") return MOCK_REVENUE_TRENDS_WEEKLY;
-    if (trendPeriod === "yearly") return MOCK_REVENUE_TRENDS_YEARLY;
-    return MOCK_REVENUE_TRENDS_MONTHLY;
-  }, [trendPeriod]);
+  const trendData = useMemo((): TrendDataItem[] => {
+    if (!trendDataRaw) return [];
+    return trendDataRaw.map((item) => {
+      let formattedName = item.label;
+      try {
+        // Handle YYYY-MM-DD or year only
+        const parts = item.label.split("-");
+        if (parts.length === 3) {
+          const d = new Date(item.label);
+          if (!isNaN(d.getTime())) {
+            if (trendPeriod === "weekly") {
+              formattedName = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+            } else if (trendPeriod === "monthly") {
+              const months = [
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "Mei",
+                "Jun",
+                "Jul",
+                "Ags",
+                "Sep",
+                "Okt",
+                "Nov",
+                "Des",
+              ];
+              formattedName = `${months[d.getMonth()]} ${d.getFullYear()}`;
+            } else if (trendPeriod === "yearly") {
+              formattedName = `${d.getFullYear()}`;
+            }
+          }
+        } else if (parts.length === 2) {
+          // YYYY-MM format
+          const d = new Date(`${item.label}-01`);
+          if (!isNaN(d.getTime())) {
+            const months = [
+              "Jan",
+              "Feb",
+              "Mar",
+              "Apr",
+              "Mei",
+              "Jun",
+              "Jul",
+              "Ags",
+              "Sep",
+              "Okt",
+              "Nov",
+              "Des",
+            ];
+            formattedName = `${months[d.getMonth()]} ${d.getFullYear()}`;
+          }
+        }
+      } catch {
+        // Fallback to original label
+      }
+      return {
+        name: formattedName,
+        omset: item.total,
+        cashflow: item.total,
+      };
+    });
+  }, [trendDataRaw, trendPeriod]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("id-ID", {

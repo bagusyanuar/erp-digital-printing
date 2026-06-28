@@ -1,4 +1,4 @@
-import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel } from "../../domains/repositories/order.repository";
+import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel, SalesTrendParams, SalesTrendItem, CategorySalesParams, CategorySalesItem, PaymentSalesParams, PaymentSalesItem } from "../../domains/repositories/order.repository";
 import type { SaveDraftOrderInput } from "../inputs/order.input";
 import type { OrderModel, OrderSpkModel, OrderPaymentModel } from "../../domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
@@ -100,11 +100,35 @@ export class GetSalesReportWidgets {
   }
 }
 
+export class GetSalesTrend {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(params: SalesTrendParams): Promise<SalesTrendItem[]> {
+    return await this.orderRepository.getSalesTrend(params);
+  }
+}
+
 export class RefundOrder {
   constructor(private readonly orderRepository: OrderRepository) {}
 
   async execute(id: string, input: RefundOrderInput): Promise<void> {
     await this.orderRepository.refundOrder(id, input);
+  }
+}
+
+export class GetCategorySales {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(params: CategorySalesParams): Promise<CategorySalesItem[]> {
+    return await this.orderRepository.getCategorySales(params);
+  }
+}
+
+export class GetPaymentSales {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(params: PaymentSalesParams): Promise<PaymentSalesItem[]> {
+    return await this.orderRepository.getPaymentSales(params);
   }
 }
 

@@ -1,5 +1,5 @@
 import type { DraftOrderModel, OrderModel, OrderSpkModel, OrderPaymentModel } from "@core/order/domains/models/order.model";
-import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel } from "@core/order/domains/repositories/order.repository";
+import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel, SalesTrendParams, SalesTrendItem, CategorySalesParams, CategorySalesItem, PaymentSalesParams, PaymentSalesItem } from "@core/order/domains/repositories/order.repository";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import { safeApiCall } from "@infrastructure/libs/error";
 import type { HttpClient } from "@erp-digital-printing/http";
@@ -368,6 +368,99 @@ export class ApiOrderRepository implements OrderRepository {
 
       if (!response.data) {
         throw new Error("Gagal memuat data widget laporan penjualan.");
+      }
+
+      return response.data;
+    });
+  }
+
+  async getSalesTrend(params: SalesTrendParams): Promise<SalesTrendItem[]> {
+    return safeApiCall(async () => {
+      const query: Record<string, string | number> = {};
+      if (params.type) {
+        query.type = params.type;
+      }
+      if (params.status) {
+        query.status = params.status;
+      }
+      if (params.payment_status) {
+        query.payment_status = params.payment_status;
+      }
+      if (params.payment_method) {
+        query.payment_method = params.payment_method;
+      }
+      if (params.designer_id) {
+        query.designer_id = params.designer_id;
+      }
+      if (params.cashier_id) {
+        query.cashier_id = params.cashier_id;
+      }
+      if (params.search) {
+        query.search = params.search;
+      }
+      if (params.start_date) {
+        query.start_date = params.start_date;
+      }
+      if (params.end_date) {
+        query.end_date = params.end_date;
+      }
+      if (params.customer_type) {
+        query.customer_type = params.customer_type;
+      }
+
+      const response = await this.http.get<ApiResponse<SalesTrendItem[]>>(
+        "/orders/reports/sales-trend",
+        { params: query }
+      );
+
+      if (!response.data) {
+        throw new Error("Gagal memuat data tren penjualan.");
+      }
+
+      return response.data;
+    });
+  }
+
+  async getCategorySales(params: CategorySalesParams): Promise<CategorySalesItem[]> {
+    return safeApiCall(async () => {
+      const query: Record<string, string | number> = {};
+      if (params.start_date) {
+        query.start_date = params.start_date;
+      }
+      if (params.end_date) {
+        query.end_date = params.end_date;
+      }
+
+      const response = await this.http.get<ApiResponse<CategorySalesItem[]>>(
+        "/orders/reports/category-sales",
+        { params: query }
+      );
+
+      if (!response.data) {
+        throw new Error("Gagal memuat data kategori cetakan terlaris.");
+      }
+
+      return response.data;
+    });
+  }
+
+  async getPaymentSales(params: PaymentSalesParams): Promise<PaymentSalesItem[]> {
+    return safeApiCall(async () => {
+      const query: Record<string, string | number> = {};
+      if (params.start_date) {
+        query.start_date = params.start_date;
+      }
+      if (params.end_date) {
+        query.end_date = params.end_date;
+      }
+
+      const response = await this.http.get<ApiResponse<PaymentSalesItem[]>>(
+        "/orders/reports/payment-sales",
+        { params: query }
+      );
+
+      if (!response.data) {
+        throw new Error("Gagal memuat data penjualan metode pembayaran.");
       }
 
       return response.data;
