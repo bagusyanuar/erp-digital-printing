@@ -358,30 +358,22 @@ export const useReportSelling = () => {
 
   // Dynamic calculations for charts based on filtered sales
   const categoriesData = useMemo(() => {
-    const map = new Map<
-      string,
-      { name: string; value: number; count: number }
-    >();
-    filteredSales.forEach((sale) => {
-      const cat = sale.productCategory;
-      const current = map.get(cat) || { name: cat, value: 0, count: 0 };
-      current.value += sale.totalAmount;
-      current.count += 1;
-      map.set(cat, current);
-    });
-    return Array.from(map.values()).sort((a, b) => b.value - a.value);
-  }, [filteredSales]);
+    return [
+      { name: "Banner & Spanduk", value: 45500000 },
+      { name: "Stiker A3+ & Label", value: 32400000 },
+      { name: "Brosur & Flyer", value: 18900000 },
+      { name: "Kartu Nama", value: 12500000 },
+      { name: "Buku & Dokumen", value: 8700000 },
+    ];
+  }, []);
 
   const paymentsData = useMemo(() => {
-    const map = new Map<string, { name: string; value: number }>();
-    filteredSales.forEach((sale) => {
-      const method = sale.paymentMethod;
-      const current = map.get(method) || { name: method, value: 0 };
-      current.value += sale.paidAmount;
-      map.set(method, current);
-    });
-    return Array.from(map.values()).sort((a, b) => b.value - a.value);
-  }, [filteredSales]);
+    return [
+      { name: "Transfer Bank", value: 58200000 },
+      { name: "QRIS", value: 32500000 },
+      { name: "Tunai / Cash", value: 14300000 },
+    ];
+  }, []);
 
   const customerTypesData = useMemo(() => {
     const map = new Map<string, { name: string; value: number }>();

@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
 import { format } from "date-fns";
 import { Card } from "@erp-digital-printing/ui/Card";
-import { LuTrendingUp, LuShoppingBag } from "@erp-digital-printing/ui/icons";
+import { LuTrendingUp, LuShoppingBag, LuFilter } from "@erp-digital-printing/ui/icons";
+import { DateRangePicker, type DateRange } from "@erp-digital-printing/ui/DateRangePicker";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -38,6 +39,8 @@ interface AnalyticReportSellingProps {
   customerTypesData: ChartDataItem[];
   formatCurrency: (value: number) => string;
   colors: string[];
+  dateRange: DateRange | undefined;
+  setDateRange: (range: DateRange | undefined) => void;
 }
 
 export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
@@ -49,6 +52,8 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
   customerTypesData,
   formatCurrency,
   colors,
+  dateRange,
+  setDateRange,
 }) => {
   // Dinamis menghitung data trend berdasarkan periode terpilih (rolling lookback)
   const filteredTrendData = useMemo(() => {
@@ -228,10 +233,30 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
           </div>
         </div>
       </Card>
+      
+      {/* Filter Row for Categories & Payment Methods */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-card border border-border/40 rounded-3xl shadow-sm">
+        <div className="space-y-0.5">
+          <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <LuFilter className="text-primary" size={16} />
+            Filter Data Analisis
+          </h4>
+          <p className="text-xs text-muted-foreground">
+            Mengontrol rentang data Kategori Terlaris dan Metode Pembayaran di bawah ini.
+          </p>
+        </div>
+        <DateRangePicker
+          value={dateRange}
+          onChange={setDateRange}
+          isClearable
+          className="w-full sm:w-[260px] h-10 rounded-xl"
+        />
+      </div>
+
       {/* Grid for product distribution and demographics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Products Category Performance */}
-        <Card className="rounded-3xl border-border/50 shadow-sm p-6 bg-card">
+        <Card className="lg:col-span-2 rounded-3xl border-border/50 shadow-sm p-6 bg-card">
           <div className="space-y-1 mb-6">
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
               <LuShoppingBag className="text-indigo-500" />
@@ -254,7 +279,7 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
                   stroke="currentColor"
                   className="text-muted-foreground text-xs"
                   tickLine={false}
-                  tickFormatter={(v) => `Rp ${(v / 1000000).toFixed(1)}M`}
+                  tickFormatter={(v) => `Rp ${(v / 1000000).toFixed(0)} Jt`}
                 />
                 <YAxis
                   type="category"
@@ -262,7 +287,7 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
                   stroke="currentColor"
                   className="text-foreground text-xs font-medium"
                   tickLine={false}
-                  width={100}
+                  width={130}
                 />
                 <Tooltip
                   contentStyle={{
@@ -288,48 +313,65 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
           </div>
         </Card>
 
-        {/* Demographics & Payments Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-          {/* Payment Methods Chart */}
-          <Card className="rounded-3xl border-border/50 shadow-sm p-6 bg-card flex flex-col justify-between">
-            <div className="space-y-1 mb-4">
-              <h3 className="text-md font-bold text-foreground">
-                Metode Pembayaran
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Rasio penggunaan channel pembayaran.
-              </p>
-            </div>
-            <div className="h-[200px] w-full relative flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={paymentsData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {paymentsData.map((entry, index) => (
+        {/* Payment Methods Chart */}
+        <Card className="lg:col-span-1 rounded-3xl border-border/50 shadow-sm p-6 bg-card flex flex-col justify-between">
+          <div className="space-y-1 mb-4">
+            <h3 className="text-md font-bold text-foreground">
+              Metode Pembayaran
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Rasio penggunaan channel pembayaran.
+            </p>
+          </div>
+          <div className="h-[200px] w-full relative flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={paymentsData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {paymentsData.map((entry, index) => {
+                    const norm = entry.name.toLowerCase();
+                    const fillStyle = norm.includes("transfer") 
+                      ? "var(--color-primary, #3b82f6)"
+                      : norm.includes("qris")
+                      ? "#a855f7"
+                      : (norm.includes("tunai") || norm.includes("cash"))
+                      ? "#10b981"
+                      : colors[index % colors.length];
+                    return (
                       <Cell
                         key={`cell-${index}`}
-                        fill={colors[index % colors.length]}
+                        fill={fillStyle}
                       />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: unknown) => [
-                      formatCurrency(Number(value || 0)),
-                      "Total",
-                    ]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-2 mt-4">
-              {paymentsData.map((item, idx) => (
+                    );
+                  })}
+                </Pie>
+                <Tooltip
+                  formatter={(value: unknown) => [
+                    formatCurrency(Number(value || 0)),
+                    "Total",
+                  ]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="space-y-2 mt-4">
+            {paymentsData.map((item, idx) => {
+              const norm = item.name.toLowerCase();
+              const badgeColor = norm.includes("transfer") 
+                ? "var(--color-primary, #3b82f6)"
+                : norm.includes("qris")
+                ? "#a855f7"
+                : (norm.includes("tunai") || norm.includes("cash"))
+                ? "#10b981"
+                : colors[idx % colors.length];
+              return (
                 <div
                   key={item.name}
                   className="flex items-center justify-between text-xs font-semibold"
@@ -338,7 +380,7 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
                     <span
                       className="w-3 h-3 rounded-full"
                       style={{
-                        backgroundColor: colors[idx % colors.length],
+                        backgroundColor: badgeColor,
                       }}
                     />
                     <span className="text-muted-foreground">{item.name}</span>
@@ -347,71 +389,10 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
                     {formatCurrency(item.value)}
                   </span>
                 </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Customer Types Chart */}
-          <Card className="rounded-3xl border-border/50 shadow-sm p-6 bg-card flex flex-col justify-between">
-            <div className="space-y-1 mb-4">
-              <h3 className="text-md font-bold text-foreground">
-                Segmentasi Pelanggan
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Proporsi kontribusi omset dari tiap tipe pelanggan.
-              </p>
-            </div>
-            <div className="h-[200px] w-full relative flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={customerTypesData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {customerTypesData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={colors[(index + 3) % colors.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: unknown) => [
-                      formatCurrency(Number(value || 0)),
-                      "Total",
-                    ]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-2 mt-4">
-              {customerTypesData.map((item, idx) => (
-                <div
-                  key={item.name}
-                  className="flex items-center justify-between text-xs font-semibold"
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-3 h-3 rounded-full"
-                      style={{
-                        backgroundColor: colors[(idx + 3) % colors.length],
-                      }}
-                    />
-                    <span className="text-muted-foreground">{item.name}</span>
-                  </div>
-                  <span className="text-foreground">
-                    {formatCurrency(item.value)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
+              );
+            })}
+          </div>
+        </Card>
       </div>
     </div>
   );

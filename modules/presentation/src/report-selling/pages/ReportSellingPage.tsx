@@ -873,6 +873,8 @@ const ReportSellingPage = () => {
           customerTypesData={customerTypesData}
           formatCurrency={formatCurrency}
           colors={COLORS}
+          dateRange={dateRange}
+          setDateRange={setDateRange}
         />
       )}
       <DetailReportSelling
