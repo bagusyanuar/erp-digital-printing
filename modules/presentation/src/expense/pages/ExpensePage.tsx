@@ -17,6 +17,7 @@ import { useDebounce } from "../../shared/hooks/useDebounce";
 import { ExpenseBillTable } from "../components/ExpenseBillTable";
 import { ExpenseFormDialog } from "../components/ExpenseFormDialog";
 import { ExpensePaymentDialog } from "../components/ExpensePaymentDialog";
+import { ExpenseDetailDialog } from "../components/ExpenseDetailDialog";
 import type { ExpenseBill } from "../types/expenseTypes";
 
 const ExpensePage = () => {
@@ -39,6 +40,7 @@ const ExpensePage = () => {
 
   // Dialog States
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState<ExpenseBill | null>(null);
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -132,8 +134,7 @@ const ExpensePage = () => {
 
   const handleOpenDetail = (bill: ExpenseBill) => {
     setSelectedBill(bill);
-    setIsReadOnly(true);
-    setIsFormOpen(true);
+    setIsDetailOpen(true);
   };
 
   const handleOpenPay = (bill: ExpenseBill) => {
@@ -287,7 +288,6 @@ const ExpensePage = () => {
         </CardContent>
       </Card>
 
-      {/* Expense Form Dialog */}
       <ExpenseFormDialog
         key={
           isFormOpen
@@ -301,6 +301,14 @@ const ExpensePage = () => {
         bill={selectedBill}
         readOnly={isReadOnly}
         onSave={handleSaveBill}
+      />
+
+      {/* Expense Detail Dialog */}
+      <ExpenseDetailDialog
+        key={isDetailOpen ? `detail-${selectedBill?.id}` : "closed-detail"}
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        bill={selectedBill}
       />
 
       {/* Expense Payment Dialog */}
