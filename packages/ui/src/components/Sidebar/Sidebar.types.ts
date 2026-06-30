@@ -46,6 +46,7 @@ export interface SidebarFooterProps {
     role: string;
     avatar?: ReactNode;
   };
+  onLogout?: () => void;
   className?: string;
 }
 

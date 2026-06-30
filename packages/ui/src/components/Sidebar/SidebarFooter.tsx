@@ -5,7 +5,7 @@ import { SidebarFooterProps } from "./Sidebar.types";
 import { LuChevronsUpDown, LuUser, LuLogOut, LuSettings, LuShield } from "react-icons/lu";
 import { motion, AnimatePresence } from "framer-motion";
 
-export const SidebarFooter = ({ user, className }: SidebarFooterProps) => {
+export const SidebarFooter = ({ user, onLogout, className }: SidebarFooterProps) => {
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -65,7 +65,10 @@ export const SidebarFooter = ({ user, className }: SidebarFooterProps) => {
               </div>
 
               <div className="mt-1 border-t border-border pt-1">
-                <button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-bold text-rose-500 hover:bg-rose-500/10 transition-all">
+                <button
+                  onClick={onLogout}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-bold text-rose-500 hover:bg-rose-500/10 transition-all"
+                >
                   <LuLogOut className="h-4 w-4" />
                   Log Out
                 </button>

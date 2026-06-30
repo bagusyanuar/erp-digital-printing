@@ -1,8 +1,14 @@
 import React, { useMemo } from "react";
-import { format } from "date-fns";
 import { Card } from "@erp-digital-printing/ui/Card";
-import { LuTrendingUp, LuShoppingBag, LuFilter } from "@erp-digital-printing/ui/icons";
-import { DateRangePicker, type DateRange } from "@erp-digital-printing/ui/DateRangePicker";
+import {
+  LuTrendingUp,
+  LuShoppingBag,
+  LuFilter,
+} from "@erp-digital-printing/ui/icons";
+import {
+  DateRangePicker,
+  type DateRange,
+} from "@erp-digital-printing/ui/DateRangePicker";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -45,7 +51,6 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
   trendData: originalTrendData,
   categoriesData,
   paymentsData,
-  customerTypesData,
   formatCurrency,
   colors,
   dateRange,
@@ -175,7 +180,7 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
           </div>
         </div>
       </Card>
-      
+
       {/* Filter Row for Categories & Payment Methods */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-card border border-border/40 rounded-3xl shadow-sm">
         <div className="space-y-0.5">
@@ -184,7 +189,8 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
             Filter Data Analisis
           </h4>
           <p className="text-xs text-muted-foreground">
-            Mengontrol rentang data Kategori Terlaris dan Metode Pembayaran di bawah ini.
+            Mengontrol rentang data Kategori Terlaris dan Metode Pembayaran di
+            bawah ini.
           </p>
         </div>
         <DateRangePicker
@@ -221,7 +227,7 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
                   stroke="currentColor"
                   className="text-muted-foreground text-xs"
                   tickLine={false}
-                  domain={[0, maxCategoryVal === 0 ? 1000000 : 'auto']}
+                  domain={[0, maxCategoryVal === 0 ? 1000000 : "auto"]}
                   tickFormatter={(v) => {
                     if (v === 0) return "Rp 0";
                     if (v >= 1000000) {
@@ -294,19 +300,14 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
                   >
                     {paymentsData.map((entry, index) => {
                       const norm = entry.name.toLowerCase();
-                      const fillStyle = norm.includes("transfer") 
+                      const fillStyle = norm.includes("transfer")
                         ? "var(--color-primary, #3b82f6)"
                         : norm.includes("qris")
-                        ? "#a855f7"
-                        : (norm.includes("tunai") || norm.includes("cash"))
-                        ? "#10b981"
-                        : colors[index % colors.length];
-                      return (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={fillStyle}
-                        />
-                      );
+                          ? "#a855f7"
+                          : norm.includes("tunai") || norm.includes("cash")
+                            ? "#10b981"
+                            : colors[index % colors.length];
+                      return <Cell key={`cell-${index}`} fill={fillStyle} />;
                     })}
                   </Pie>
                   <Tooltip
@@ -336,13 +337,13 @@ export const AnalyticReportSelling: React.FC<AnalyticReportSellingProps> = ({
           <div className="space-y-2 mt-4">
             {paymentsData.map((item, idx) => {
               const norm = item.name.toLowerCase();
-              const badgeColor = norm.includes("transfer") 
+              const badgeColor = norm.includes("transfer")
                 ? "var(--color-primary, #3b82f6)"
                 : norm.includes("qris")
-                ? "#a855f7"
-                : (norm.includes("tunai") || norm.includes("cash"))
-                ? "#10b981"
-                : colors[idx % colors.length];
+                  ? "#a855f7"
+                  : norm.includes("tunai") || norm.includes("cash")
+                    ? "#10b981"
+                    : colors[idx % colors.length];
               return (
                 <div
                   key={item.name}

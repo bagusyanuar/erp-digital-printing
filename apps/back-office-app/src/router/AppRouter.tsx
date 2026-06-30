@@ -3,6 +3,7 @@ import { authRoutes } from "./modules/auth.routes";
 import { dashboardRoutes } from "./modules/dashboard.routes";
 import { sharedRoutes } from "./modules/shared.routes";
 import { categoryRoutes } from "./modules/category.routes";
+import { userRoutes } from "./modules/user.routes";
 import { productRoutes } from "./modules/product.routes";
 import { attributeRoutes } from "./modules/attribute.routes";
 import { customerRoutes } from "./modules/customer.routes";
@@ -67,6 +68,7 @@ const router = createBrowserRouter([
               ...invoiceRoutes,
               ...cashFlowRoutes,
               ...reportRoutes,
+              ...userRoutes,
             ],
           },
         ],
