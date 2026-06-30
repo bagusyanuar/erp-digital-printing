@@ -2,15 +2,16 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
+import { Link } from "react-router-dom"
 import {
     LuLayoutDashboard,
     LuTrendingUp,
     LuShoppingCart,
-    LuUsers,
+    LuWallet,
+    LuCreditCard,
     LuClock,
     LuEllipsisVertical,
-    LuPrinter,
-    LuCircleCheck
+    LuArrowRight
 } from "@erp-digital-printing/ui/icons"
 import {
     AreaChart,
@@ -38,11 +39,11 @@ const revenueData = [
     { name: "Sun", revenue: 6900000 },
 ]
 
-// Dummy Data for Order Status
-const orderStatusData = [
-    { name: "Selesai", value: 45, color: "#10b981" },
-    { name: "Proses", value: 30, color: "#eb1b33" }, // Using our primary red
-    { name: "Menunggu", value: 25, color: "#f59e0b" },
+// Dummy Data for Payment Distribution
+const paymentDistributionData = [
+    { name: "Cash", value: 40, amount: "Rp 13.0M", color: "#10b981" },
+    { name: "Transfer", value: 35, amount: "Rp 11.375M", color: "#3b82f6" },
+    { name: "QRIS", value: 25, amount: "Rp 8.125M", color: "#eb1b33" }, // Using our primary red
 ]
 
 // Dummy Data for Recent Orders
@@ -78,41 +79,42 @@ export default function DashboardPage() {
                         isClearable
                         className="w-[280px]"
                     />
-                    <button className="flex items-center gap-2 h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all cursor-pointer">
-                        <LuPrinter size={18} />
-                        Cetak Laporan
-                    </button>
                 </div>
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                    { label: "Total Omzet", value: "Rp 40.8M", icon: LuTrendingUp, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-                    { label: "Pesanan Masuk", value: "1,284", icon: LuShoppingCart, color: "text-primary", bg: "bg-primary/10" },
-                    { label: "Pelanggan Baru", value: "+142", icon: LuUsers, color: "text-blue-500", bg: "bg-blue-500/10" },
-                    { label: "Order Selesai", value: "98%", icon: LuCircleCheck, color: "text-purple-500", bg: "bg-purple-500/10" },
+                    { label: "Total Omzet", value: "Rp 40.8M", icon: LuTrendingUp, color: "text-emerald-500", bg: "bg-emerald-500/10", to: "/report/selling" },
+                    { label: "Total Pendapatan", value: "Rp 32.5M", icon: LuWallet, color: "text-blue-500", bg: "bg-blue-500/10", to: "/report/cash-flow" },
+                    { label: "Total Pengeluaran", value: "Rp 18.5M", icon: LuCreditCard, color: "text-rose-500", bg: "bg-rose-500/10", to: "/report/cash-flow" },
+                    { label: "Volume Transaksi", value: "1,284", icon: LuShoppingCart, color: "text-primary", bg: "bg-primary/10", to: "/report/selling" },
                 ].map((stat, i) => (
-                    <motion.div
+                    <Link
                         key={stat.label}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                        className="bg-card border border-border/50 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-all group"
+                        to={stat.to}
+                        className="block group cursor-pointer"
                     >
-                        <div className="flex items-center justify-between">
-                            <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color}`}>
-                                <stat.icon size={24} />
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.1 }}
+                            className="bg-card border border-border/50 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-all"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color}`}>
+                                    <stat.icon size={24} />
+                                </div>
+                                <div className="text-muted-foreground/0 group-hover:text-foreground group-hover:text-muted-foreground/100 group-hover:translate-x-1 transition-all">
+                                    <LuArrowRight size={20} />
+                                </div>
                             </div>
-                            <button className="text-muted-foreground hover:text-foreground">
-                                <LuEllipsisVertical size={20} />
-                            </button>
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-muted-foreground tracking-wide">{stat.label}</p>
-                            <h3 className="text-2xl font-black text-foreground">{stat.value}</h3>
-                        </div>
-                    </motion.div>
+                            <div>
+                                <p className="text-sm font-bold text-muted-foreground tracking-wide">{stat.label}</p>
+                                <h3 className="text-2xl font-black text-foreground">{stat.value}</h3>
+                            </div>
+                        </motion.div>
+                    </Link>
                 ))}
             </div>
 
@@ -175,18 +177,26 @@ export default function DashboardPage() {
                     </div>
                 </motion.div>
 
-                {/* Status Pie Chart */}
+                {/* Payment Distribution Pie Chart */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className="bg-card border border-border/50 p-6 rounded-3xl space-y-6 shadow-sm"
                 >
-                    <h3 className="text-lg font-black tracking-tight text-foreground">Status Produksi</h3>
+                    <div className="flex items-center justify-between w-full">
+                        <Link
+                            to="/report/cash-flow"
+                            className="flex items-center justify-between w-full text-lg font-black tracking-tight text-foreground hover:text-primary transition-colors group/title"
+                        >
+                            Distribusi Pendapatan
+                            <LuArrowRight className="h-5 w-5 text-muted-foreground group-hover/title:translate-x-1 group-hover/title:text-primary transition-all" />
+                        </Link>
+                    </div>
                     <div className="h-[250px] w-full relative">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
-                                    data={orderStatusData}
+                                    data={paymentDistributionData}
                                     cx="50%"
                                     cy="50%"
                                     innerRadius={60}
@@ -194,7 +204,7 @@ export default function DashboardPage() {
                                     paddingAngle={8}
                                     dataKey="value"
                                 >
-                                    {orderStatusData.map((entry, index) => (
+                                    {paymentDistributionData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
                                     ))}
                                 </Pie>
@@ -204,18 +214,21 @@ export default function DashboardPage() {
                             </PieChart>
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className="text-3xl font-black text-foreground">100</span>
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total Job</span>
+                            <span className="text-xl font-black text-foreground">Rp 32.5M</span>
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total Masuk</span>
                         </div>
                     </div>
                     <div className="space-y-3">
-                        {orderStatusData.map((status) => (
-                            <div key={status.name} className="flex items-center justify-between text-sm">
+                        {paymentDistributionData.map((item) => (
+                            <div key={item.name} className="flex items-center justify-between text-sm">
                                 <div className="flex items-center gap-2">
-                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: status.color }} />
-                                    <span className="font-bold text-muted-foreground">{status.name}</span>
+                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+                                    <span className="font-bold text-muted-foreground">{item.name}</span>
                                 </div>
-                                <span className="font-black text-foreground">{status.value}%</span>
+                                <div className="flex items-center gap-2 font-black">
+                                    <span className="text-foreground">{item.amount}</span>
+                                    <span className="text-muted-foreground text-xs">({item.value}%)</span>
+                                </div>
                             </div>
                         ))}
                     </div>
