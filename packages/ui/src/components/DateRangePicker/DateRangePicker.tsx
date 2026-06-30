@@ -107,7 +107,7 @@ export const DateRangePicker = ({
 
   // Generate 12 years grid centered around currentYear
   const years = React.useMemo(() => {
-    const list = [];
+    const list: number[] = [];
     for (let i = currentYear - 5; i <= currentYear + 6; i++) {
       list.push(i);
     }
