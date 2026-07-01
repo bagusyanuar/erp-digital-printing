@@ -2012,11 +2012,13 @@ const InvoicePage = () => {
                     "No. Transaksi",
                     selectedInvoice.invoiceNo,
                   );
+                  rawData += formatLine("Kasir", "Kasir Utama");
+                  rawData +=
+                    "------------------------------------------------\n\n";
                   rawData += formatLine(
                     "Pelanggan",
                     selectedInvoice.customerName.toUpperCase(),
                   );
-                  rawData += formatLine("Kasir", "Kasir Utama");
 
                   rawData +=
                     "------------------------------------------------\n";
