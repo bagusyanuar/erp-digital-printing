@@ -1808,7 +1808,10 @@ const InvoicePage = () => {
                   setIsPrinting(true);
 
                   const printFormatCurrency = (val: number): string => {
-                    return formatCurrency(val).replace(/\u00a0/g, " ");
+                    const formattedNumber = new Intl.NumberFormat("id-ID", {
+                      maximumFractionDigits: 0,
+                    }).format(val);
+                    return `Rp ${formattedNumber}`;
                   };
 
                   const formatLine = (
