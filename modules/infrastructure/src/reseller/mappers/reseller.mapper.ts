@@ -32,7 +32,7 @@ export function mapCreateInputToRequest(
   return {
     customer_level_id: "d2c67ef8-82e4-4d8b-968b-5a1e2f5b6154",
     name: input.name,
-    email: input.email,
+    email: input.email || null,
     phone: input.phone,
     address: input.address,
     credit_limit: input.creditLimit,

@@ -9,7 +9,7 @@ export interface ResellerQuery extends PaginationQuery {
 export interface CreateResellerRequest {
   customer_level_id: string;
   name: string;
-  email?: string;
+  email?: string | null;
   phone?: string;
   address?: string;
   credit_limit?: number;
