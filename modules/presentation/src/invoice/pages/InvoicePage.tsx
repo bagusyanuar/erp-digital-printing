@@ -1807,30 +1807,77 @@ const InvoicePage = () => {
                   if (!selectedInvoice) return;
                   setIsPrinting(true);
 
-                  // 80mm standard width is ~48 characters
-                  let rawData =
-                    "================================================\n";
-                  rawData +=
-                    "            TOKO ERP DIGITAL PRINTING           \n";
-                  rawData +=
-                    "================================================\n";
-                  rawData += `No. Nota : ${selectedInvoice.invoiceNo}\n`;
-                  rawData += `Pelanggan: ${selectedInvoice.customerName}\n`;
-                  rawData +=
-                    "------------------------------------------------\n";
+                  const formatLine = (
+                    left: string,
+                    right: string,
+                    charWidth = 48,
+                  ): string => {
+                    const spacesNeeded = charWidth - left.length - right.length;
+                    if (spacesNeeded > 0) {
+                      return left + " ".repeat(spacesNeeded) + right + "\n";
+                    }
+                    return (
+                      left +
+                      "\n" +
+                      " ".repeat(charWidth - right.length) +
+                      right +
+                      "\n"
+                    );
+                  };
+
+                  // ESC/POS Command: Center Align
+                  let rawData = "\x1b\x61\x01";
+                  
+                  // ESC/POS Command: Print NV Bit Image #1 (normal mode)
+                  rawData += "\x1c\x70\x01\x00\n";
+                  
+                  rawData += "            MADE DIGITAL PRINTING           \n";
+                  rawData += " INDOOR - OUTDOOR - A3+ - DTF - SPANDUK KAIN \n";
+                  rawData += "   Jl. Kali Sindang, Jagalan, Jebres - Solo  \n";
+                  rawData += "     Buka : 08.00 (Pagi) - 01.00 (Malam)     \n";
+                  rawData += "               WA. 082134305050              \n";
+                  
+                  // ESC/POS Command: Left Align
+                  rawData += "\x1b\x61\x00";
+                  rawData += "------------------------------------------------\n";
+                  
+                  rawData += formatLine("Tanggal", selectedInvoice.createdAt);
+                  rawData += formatLine("No. Transaksi", selectedInvoice.invoiceNo);
+                  rawData += formatLine("Pelanggan", selectedInvoice.customerName.toUpperCase());
+                  rawData += formatLine("Kasir", "Kasir Utama");
+                  
+                  rawData += "------------------------------------------------\n";
 
                   selectedInvoice.items.forEach((item) => {
                     rawData += `${item.productName}\n`;
-                    rawData += `${item.qty} x ${formatCurrency(item.pricePerUnit)} = ${formatCurrency(item.subtotal)}\n`;
+                    if (item.notes && item.notes !== "-") {
+                      rawData += `* ${item.notes}\n`;
+                    }
+                    const leftDetail = `${item.qty} x ${formatCurrency(item.pricePerUnit)}`;
+                    const rightDetail = formatCurrency(item.subtotal);
+                    rawData += formatLine(leftDetail, rightDetail);
                   });
 
-                  rawData +=
-                    "------------------------------------------------\n";
-                  rawData += `Total: ${formatCurrency(selectedInvoice.totalAmount)}\n`;
-                  rawData +=
-                    "================================================\n";
-                  rawData +=
-                    "                 Terima Kasih!                  \n\n\n\n\n\n\n";
+                  rawData += "------------------------------------------------\n";
+                  
+                  const totalItemsText = `${selectedInvoice.items.length} item`;
+                  rawData += formatLine("Total Item", totalItemsText);
+                  rawData += formatLine("Subtotal", formatCurrency(selectedInvoice.totalAmount));
+                  
+                  rawData += "================================================\n";
+                  rawData += formatLine("TOTAL", formatCurrency(selectedInvoice.totalAmount));
+                  rawData += "------------------------------------------------\n";
+                  
+                  const remaining = selectedInvoice.totalAmount - selectedInvoice.amountPaid;
+                  const paymentMethod = remaining <= 0 ? "Lunas" : "Piutang";
+                  rawData += formatLine("Metode Bayar", paymentMethod);
+                  rawData += formatLine("Bayar", formatCurrency(selectedInvoice.amountPaid));
+                  
+                  rawData += "------------------------------------------------\n";
+                  
+                  // ESC/POS Command: Center Align
+                  rawData += "\x1b\x61\x01";
+                  rawData += "Terima kasih atas kunjungan Anda\n\n\n\n\n\n\n";
 
                   // ESC/POS Command: Auto Cut
                   rawData += "\x1d\x56\x00";
