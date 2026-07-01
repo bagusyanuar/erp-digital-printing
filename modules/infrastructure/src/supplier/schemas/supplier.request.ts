@@ -8,8 +8,8 @@ export interface SupplierQuery extends PaginationQuery {
 
 export interface CreateSupplierRequest {
   name: string;
-  contact_name: string;
-  phone: string;
-  email: string;
-  address: string;
+  contact_name?: string;
+  phone?: string;
+  email?: string | null;
+  address?: string;
 }

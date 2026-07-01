@@ -8,8 +8,8 @@ export interface SupplierParams extends PaginationParams {
 
 export interface CreateSupplierInput {
   name: string;
-  contactName: string;
-  phone: string;
-  email: string;
-  address: string;
+  contactName?: string;
+  phone?: string;
+  email?: string | null;
+  address?: string;
 }

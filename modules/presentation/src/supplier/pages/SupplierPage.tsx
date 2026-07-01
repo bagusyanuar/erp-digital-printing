@@ -38,10 +38,10 @@ import { useSupplierTable, type Supplier } from "../hooks/useSupplierTable";
 // Zod Schema for input validation (using camelCase to align with Core inputs)
 const supplierInputSchema = z.object({
   name: z.string().min(1, "Nama supplier wajib diisi"),
-  contactName: z.string().min(1, "Nama kontak wajib diisi"),
-  phone: z.string().min(1, "Nomor telepon wajib diisi"),
-  email: z.string().email("Format email tidak valid").or(z.literal("")),
-  address: z.string().min(1, "Alamat wajib diisi"),
+  contactName: z.string().optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+  email: z.string().email("Format email tidak valid").optional().or(z.literal("")).transform(val => val === "" ? null : val),
+  address: z.string().optional().or(z.literal("")),
 });
 
 const SupplierPage = () => {

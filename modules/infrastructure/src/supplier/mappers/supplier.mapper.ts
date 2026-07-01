@@ -33,7 +33,7 @@ export function mapCreateInputToRequest(
     name: input.name,
     contact_name: input.contactName,
     phone: input.phone,
-    email: input.email,
+    email: input.email || null,
     address: input.address,
   };
 }
