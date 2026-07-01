@@ -1731,7 +1731,7 @@ const InvoicePage = () => {
                       rawData += `   UKURAN: ${lengthM} x ${widthM} meter\n`;
 
                       // 3. Quantity
-                      rawData += `   JUMLAH: ${item.quantity} ${item.uom || "pcs"}\n`;
+                      rawData += `   JUMLAH: ${item.quantity} pcs\n`;
                     } else {
                       // 1. Quantity
                       rawData += `   JUMLAH: ${item.quantity} ${item.uom || "pcs"}\n`;
