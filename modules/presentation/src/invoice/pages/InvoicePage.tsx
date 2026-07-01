@@ -1674,15 +1674,15 @@ const InvoicePage = () => {
                   // ESC/POS Command: Center Align
                   let rawData = "\x1b\x61\x01";
 
-                  // Divisi: Double Height + Double Width + Bold
-                  rawData += "\x1d\x21\x11\x1b\x45\x01";
+                  // Divisi: Double Height + Double Width + Bold using ESC ! 56
+                  rawData += "\x1b\x21\x38";
                   rawData += `${selectedSpkCategory.toUpperCase()}\n`;
-                  rawData += "\x1d\x21\x00\x1b\x45\x00"; // Reset
+                  rawData += "\x1b\x21\x00"; // Reset print mode (standard size, normal weight)
                   rawData += "\n";
 
                   // ESC/POS Command: Left Align
                   rawData += "\x1b\x61\x00";
-                  rawData += "\x1b\x45\x00"; // Ensure Bold is turned off
+                  rawData += "\x1b\x21\x00"; // Ensure standard mode is applied again
                   rawData +=
                     "------------------------------------------------\n";
 
@@ -1731,10 +1731,10 @@ const InvoicePage = () => {
                       rawData += `   UKURAN: ${lengthM} x ${widthM} meter\n`;
 
                       // 3. Quantity
-                      rawData += `   JUMLAH: ${item.quantity} Qty\n`;
+                      rawData += `   JUMLAH: ${item.quantity} ${item.uom || "pcs"}\n`;
                     } else {
                       // 1. Quantity
-                      rawData += `   JUMLAH: ${item.quantity} Qty\n`;
+                      rawData += `   JUMLAH: ${item.quantity} ${item.uom || "pcs"}\n`;
 
                       // 2. Catatan
                       if (
