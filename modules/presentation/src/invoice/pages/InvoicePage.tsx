@@ -1807,6 +1807,10 @@ const InvoicePage = () => {
                   if (!selectedInvoice) return;
                   setIsPrinting(true);
 
+                  const printFormatCurrency = (val: number): string => {
+                    return formatCurrency(val).replace(/\u00a0/g, " ");
+                  };
+
                   const formatLine = (
                     left: string,
                     right: string,
@@ -1853,8 +1857,8 @@ const InvoicePage = () => {
                     if (item.notes && item.notes !== "-") {
                       rawData += `* ${item.notes}\n`;
                     }
-                    const leftDetail = `${item.qty} x ${formatCurrency(item.pricePerUnit)}`;
-                    const rightDetail = formatCurrency(item.subtotal);
+                    const leftDetail = `${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`;
+                    const rightDetail = printFormatCurrency(item.subtotal);
                     rawData += formatLine(leftDetail, rightDetail);
                   });
 
@@ -1862,16 +1866,16 @@ const InvoicePage = () => {
                   
                   const totalItemsText = `${selectedInvoice.items.length} item`;
                   rawData += formatLine("Total Item", totalItemsText);
-                  rawData += formatLine("Subtotal", formatCurrency(selectedInvoice.totalAmount));
+                  rawData += formatLine("Subtotal", printFormatCurrency(selectedInvoice.totalAmount));
                   
                   rawData += "================================================\n";
-                  rawData += formatLine("TOTAL", formatCurrency(selectedInvoice.totalAmount));
+                  rawData += formatLine("TOTAL", printFormatCurrency(selectedInvoice.totalAmount));
                   rawData += "------------------------------------------------\n";
                   
                   const remaining = selectedInvoice.totalAmount - selectedInvoice.amountPaid;
                   const paymentMethod = remaining <= 0 ? "Lunas" : "Piutang";
                   rawData += formatLine("Metode Bayar", paymentMethod);
-                  rawData += formatLine("Bayar", formatCurrency(selectedInvoice.amountPaid));
+                  rawData += formatLine("Bayar", printFormatCurrency(selectedInvoice.amountPaid));
                   
                   rawData += "------------------------------------------------\n";
                   
