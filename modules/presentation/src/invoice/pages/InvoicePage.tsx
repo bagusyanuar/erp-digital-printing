@@ -1682,58 +1682,68 @@ const InvoicePage = () => {
 
                   // ESC/POS Command: Left Align
                   rawData += "\x1b\x61\x00";
+                  rawData += "\x1b\x45\x00"; // Ensure Bold is turned off
                   rawData +=
                     "------------------------------------------------\n";
 
                   rawData += formatLine("No. Nota", selectedInvoice.invoiceNo);
-                  rawData += formatLine(
-                    "No. Tiket / Job",
-                    selectedInvoice.jobNumber,
-                  );
+                  rawData += formatLine("Tanggal", selectedInvoice.createdAt);
+                  rawData +=
+                    "------------------------------------------------\n\n";
                   rawData += formatLine(
                     "Pelanggan",
                     selectedInvoice.customerName.toUpperCase(),
                   );
-                  rawData += formatLine("Tanggal", selectedInvoice.createdAt);
 
                   rawData +=
                     "------------------------------------------------\n";
 
-                  // Label: DAFTAR ITEM PRODUKSI (Bold)
-                  rawData += "\x1b\x45\x01";
+                  // Label: DAFTAR ITEM PRODUKSI (Normal)
                   rawData += "DAFTAR ITEM PRODUKSI:\n";
-                  rawData += "\x1b\x45\x00";
                   rawData +=
                     "------------------------------------------------\n";
 
                   activeSpkCategoryItems.forEach((item, idx) => {
-                    // Item Name (Double Height, Not Bold)
-                    rawData += "\x1d\x21\x01";
+                    // Item Name (Normal size, Not Bold)
                     const itemTitle = item.variant_name
                       ? `${idx + 1}. ${item.product_name} (${item.variant_name})`
                       : `${idx + 1}. ${item.product_name}`;
                     rawData += `${itemTitle}\n`;
-                    rawData += "\x1d\x21\x00"; // Reset
 
-                    // Item Qty (Normal size, Not Bold)
-                    rawData += `   JUMLAH: ${item.quantity} Qty\n`;
-
-                    // Size/Dimensions (Not Bold)
-                    if (
+                    const hasDimensions =
                       (item.uom === "m2" || item.uom === "m_lari") &&
                       item.length_cm &&
-                      item.width_cm
-                    ) {
-                      rawData += `   UKURAN: ${item.length_cm} x ${item.width_cm} cm (${item.uom})\n`;
-                    }
+                      item.width_cm;
 
-                    // Production Notes (Not Bold)
-                    if (
-                      item.production_notes &&
-                      item.production_notes !== "-" &&
-                      item.production_notes !== ""
-                    ) {
-                      rawData += `   CATATAN: ${item.production_notes}\n`;
+                    if (hasDimensions) {
+                      // 1. Catatan
+                      if (
+                        item.production_notes &&
+                        item.production_notes !== "-" &&
+                        item.production_notes !== ""
+                      ) {
+                        rawData += `   CATATAN: ${item.production_notes}\n`;
+                      }
+
+                      // 2. Ukuran (in meters)
+                      const lengthM = (item.length_cm ?? 0) / 100;
+                      const widthM = (item.width_cm ?? 0) / 100;
+                      rawData += `   UKURAN: ${lengthM} x ${widthM} meter\n`;
+
+                      // 3. Quantity
+                      rawData += `   JUMLAH: ${item.quantity} Qty\n`;
+                    } else {
+                      // 1. Quantity
+                      rawData += `   JUMLAH: ${item.quantity} Qty\n`;
+
+                      // 2. Catatan
+                      if (
+                        item.production_notes &&
+                        item.production_notes !== "-" &&
+                        item.production_notes !== ""
+                      ) {
+                        rawData += `   CATATAN: ${item.production_notes}\n`;
+                      }
                     }
 
                     rawData +=
@@ -1743,10 +1753,8 @@ const InvoicePage = () => {
                   rawData += "\n";
                   // ESC/POS Command: Center Align
                   rawData += "\x1b\x61\x01";
-                  rawData += "\x1b\x45\x01";
                   rawData += "--- HARAP DIKERJAKAN SESUAI SPESIFIKASI ---\n";
                   rawData += "Sistem ERP Digital Printing\n";
-                  rawData += "\x1b\x45\x00";
                   rawData += "\n\n\n\n\n\n\n";
 
                   // ESC/POS Command: Auto Cut
