@@ -1644,17 +1644,151 @@ const InvoicePage = () => {
                 Tutup
               </Button>
               <Button
-                onClick={() => {
-                  toast.success(
-                    "Mencetak SPK...",
-                    `SPK Divisi ${selectedSpkCategory} berhasil dikirim ke printer workshop produksi.`,
-                  );
-                  setIsSpkPreviewOpen(false);
+                disabled={isPrinting}
+                onClick={async () => {
+                  if (!selectedInvoice || !selectedSpkCategory) return;
+                  setIsPrinting(true);
+
+                  const formatLine = (
+                    left: string,
+                    right: string,
+                    charWidth = 48,
+                  ): string => {
+                    const spacesNeeded = charWidth - left.length - right.length;
+                    if (spacesNeeded > 0) {
+                      return left + " ".repeat(spacesNeeded) + right + "\n";
+                    }
+                    return (
+                      left +
+                      "\n" +
+                      " ".repeat(charWidth - right.length) +
+                      right +
+                      "\n"
+                    );
+                  };
+
+                  // ESC/POS Command: Center Align
+                  let rawData = "\x1b\x61\x01";
+
+                  // Title: SURAT PERINTAH KERJA (SPK) in Double Height + Double Width + Bold
+                  rawData += "\x1d\x21\x11\x1b\x45\x01";
+                  rawData += "SURAT PERINTAH KERJA\n";
+                  rawData += "      ( S P K )     \n";
+                  rawData += "\x1d\x21\x00\x1b\x45\x00"; // Reset
+
+                  // Divisi: Double Height + Double Width + Bold
+                  rawData += "\x1d\x21\x11\x1b\x45\x01";
+                  rawData += `DIVISI: ${selectedSpkCategory.toUpperCase()}\n`;
+                  rawData += "\x1d\x21\x00\x1b\x45\x00"; // Reset
+                  rawData += "\n";
+
+                  // ESC/POS Command: Left Align
+                  rawData += "\x1b\x61\x00";
+                  rawData += "------------------------------------------------\n";
+
+                  rawData += formatLine("No. Nota", selectedInvoice.invoiceNo);
+                  rawData += formatLine("No. Tiket / Job", selectedInvoice.jobNumber);
+                  rawData += formatLine("Pelanggan", selectedInvoice.customerName.toUpperCase());
+                  rawData += formatLine("Tanggal", selectedInvoice.createdAt);
+
+                  rawData += "------------------------------------------------\n";
+                  
+                  // Label: DAFTAR ITEM PRODUKSI (Bold)
+                  rawData += "\x1b\x45\x01";
+                  rawData += "DAFTAR ITEM PRODUKSI:\n";
+                  rawData += "\x1b\x45\x00";
+                  rawData += "------------------------------------------------\n";
+
+                  activeSpkCategoryItems.forEach((item, idx) => {
+                    // Item Name (Double Height + Bold)
+                    rawData += "\x1d\x21\x01\x1b\x45\x01";
+                    const itemTitle = item.variant_name
+                      ? `${idx + 1}. ${item.product_name} (${item.variant_name})`
+                      : `${idx + 1}. ${item.product_name}`;
+                    rawData += `${itemTitle}\n`;
+                    rawData += "\x1d\x21\x00\x1b\x45\x00"; // Reset
+
+                    // Item Qty (Double Height + Double Width + Bold)
+                    rawData += "\x1d\x21\x11\x1b\x45\x01";
+                    rawData += `   JUMLAH: ${item.quantity} Qty\n`;
+                    rawData += "\x1d\x21\x00\x1b\x45\x00"; // Reset
+
+                    // Size/Dimensions (Bold)
+                    if ((item.uom === "m2" || item.uom === "m_lari") && item.length_cm && item.width_cm) {
+                      rawData += "\x1b\x45\x01";
+                      rawData += `   UKURAN: ${item.length_cm} x ${item.width_cm} cm (${item.uom})\n`;
+                      rawData += "\x1b\x45\x00";
+                    }
+
+                    // Production Notes (Bold)
+                    if (item.production_notes && item.production_notes !== "-" && item.production_notes !== "") {
+                      rawData += "\x1b\x45\x01";
+                      rawData += `   CATATAN: ${item.production_notes}\n`;
+                      rawData += "\x1b\x45\x00";
+                    }
+
+                    rawData += "------------------------------------------------\n";
+                  });
+
+                  rawData += "\n";
+                  // ESC/POS Command: Center Align
+                  rawData += "\x1b\x61\x01";
+                  rawData += "\x1b\x45\x01";
+                  rawData += "--- HARAP DIKERJAKAN SESUAI SPESIFIKASI ---\n";
+                  rawData += "Sistem ERP Digital Printing\n";
+                  rawData += "\x1b\x45\x00";
+                  rawData += "\n\n\n\n\n\n\n";
+
+                  // ESC/POS Command: Auto Cut
+                  rawData += "\x1d\x56\x00";
+
+                  try {
+                    const response = await fetch(
+                      "http://localhost:9876/print",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          printer_name: "PRINTER-POS",
+                          raw_data: rawData,
+                        }),
+                      },
+                    );
+
+                    if (!response.ok) {
+                      throw new Error(
+                        "Gagal memproses SPK melalui Print Agent lokal.",
+                      );
+                    }
+
+                    toast.success(
+                      "Mencetak SPK...",
+                      `SPK Divisi ${selectedSpkCategory} berhasil dikirim ke printer workshop produksi.`,
+                    );
+                    setIsSpkPreviewOpen(false);
+                  } catch (error) {
+                    console.error("Error printing SPK:", error);
+                    toast.error(
+                      "Gagal Cetak SPK",
+                      "Pastikan Print Agent lokal (localhost:9876) sudah berjalan.",
+                    );
+                  } finally {
+                    setIsPrinting(false);
+                  }
                 }}
-                className="h-10 px-6 rounded-xl font-black bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95"
+                className="h-10 px-6 rounded-xl font-black bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <LuPrinter size={16} />
-                Cetak SPK
+                {isPrinting ? (
+                  <div className="relative w-4 h-4">
+                    <div className="absolute inset-0 rounded-full border-2 border-primary-foreground/20" />
+                    <div className="absolute inset-0 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
+                  </div>
+                ) : (
+                  <LuPrinter size={16} />
+                )}
+                {isPrinting ? "Mencetak..." : "Cetak SPK"}
               </Button>
             </div>
           </div>
