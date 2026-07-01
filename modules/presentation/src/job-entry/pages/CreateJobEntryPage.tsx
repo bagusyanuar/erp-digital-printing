@@ -856,7 +856,7 @@ const CreateJobEntryPage = () => {
                     }}
                     className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border active:scale-95 ${
                       customerType === "reseller"
-                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
                         : "bg-background text-muted-foreground border-border hover:bg-muted/30"
                     }`}
                   >
