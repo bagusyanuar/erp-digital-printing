@@ -858,7 +858,7 @@ const InvoicePage = () => {
                       <div className="relative border-l border-border pl-4 space-y-4">
                         {(() => {
                           const standardPayments = groupedPayments.filter(
-                            (p) => p.payment_type !== "REFUND"
+                            (p) => p.payment_type !== "REFUND",
                           );
                           return groupedPayments.map((pay) => {
                             const isRefund = pay.payment_type === "REFUND";
@@ -882,9 +882,11 @@ const InvoicePage = () => {
                                         <span className="text-rose-600 dark:text-rose-400">
                                           Refund / Pengembalian Dana
                                         </span>
-                                      ) : pay.payment_type === "DOWN_PAYMENT" ? (
+                                      ) : pay.payment_type ===
+                                        "DOWN_PAYMENT" ? (
                                         "Pembayaran Awal (DP)"
-                                      ) : pay.payment_type === "FULL_PAYMENT" ? (
+                                      ) : pay.payment_type ===
+                                        "FULL_PAYMENT" ? (
                                         "Lunas / Pembayaran Langsung"
                                       ) : (
                                         `Pelunasan #${
@@ -893,7 +895,8 @@ const InvoicePage = () => {
                                       )}
                                     </span>
                                     <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">
-                                      {pay.created_at} • Kasir: {pay.cashier_name}
+                                      {pay.created_at} • Kasir:{" "}
+                                      {pay.cashier_name}
                                     </span>
                                   </div>
                                   <span
@@ -903,7 +906,8 @@ const InvoicePage = () => {
                                         : "text-emerald-600 dark:text-emerald-400"
                                     }`}
                                   >
-                                    {isRefund ? "-" : "+"} {formatCurrency(pay.totalAmount)}
+                                    {isRefund ? "-" : "+"}{" "}
+                                    {formatCurrency(pay.totalAmount)}
                                   </span>
                                 </div>
                                 {/* Detail Rincian Metode Pembayaran */}
@@ -1670,64 +1674,70 @@ const InvoicePage = () => {
                   // ESC/POS Command: Center Align
                   let rawData = "\x1b\x61\x01";
 
-                  // Title: SURAT PERINTAH KERJA (SPK) in Double Height + Double Width + Bold
-                  rawData += "\x1d\x21\x11\x1b\x45\x01";
-                  rawData += "SURAT PERINTAH KERJA\n";
-                  rawData += "      ( S P K )     \n";
-                  rawData += "\x1d\x21\x00\x1b\x45\x00"; // Reset
-
                   // Divisi: Double Height + Double Width + Bold
                   rawData += "\x1d\x21\x11\x1b\x45\x01";
-                  rawData += `DIVISI: ${selectedSpkCategory.toUpperCase()}\n`;
+                  rawData += `${selectedSpkCategory.toUpperCase()}\n`;
                   rawData += "\x1d\x21\x00\x1b\x45\x00"; // Reset
                   rawData += "\n";
 
                   // ESC/POS Command: Left Align
                   rawData += "\x1b\x61\x00";
-                  rawData += "------------------------------------------------\n";
+                  rawData +=
+                    "------------------------------------------------\n";
 
                   rawData += formatLine("No. Nota", selectedInvoice.invoiceNo);
-                  rawData += formatLine("No. Tiket / Job", selectedInvoice.jobNumber);
-                  rawData += formatLine("Pelanggan", selectedInvoice.customerName.toUpperCase());
+                  rawData += formatLine(
+                    "No. Tiket / Job",
+                    selectedInvoice.jobNumber,
+                  );
+                  rawData += formatLine(
+                    "Pelanggan",
+                    selectedInvoice.customerName.toUpperCase(),
+                  );
                   rawData += formatLine("Tanggal", selectedInvoice.createdAt);
 
-                  rawData += "------------------------------------------------\n";
-                  
+                  rawData +=
+                    "------------------------------------------------\n";
+
                   // Label: DAFTAR ITEM PRODUKSI (Bold)
                   rawData += "\x1b\x45\x01";
                   rawData += "DAFTAR ITEM PRODUKSI:\n";
                   rawData += "\x1b\x45\x00";
-                  rawData += "------------------------------------------------\n";
+                  rawData +=
+                    "------------------------------------------------\n";
 
                   activeSpkCategoryItems.forEach((item, idx) => {
-                    // Item Name (Double Height + Bold)
-                    rawData += "\x1d\x21\x01\x1b\x45\x01";
+                    // Item Name (Double Height, Not Bold)
+                    rawData += "\x1d\x21\x01";
                     const itemTitle = item.variant_name
                       ? `${idx + 1}. ${item.product_name} (${item.variant_name})`
                       : `${idx + 1}. ${item.product_name}`;
                     rawData += `${itemTitle}\n`;
-                    rawData += "\x1d\x21\x00\x1b\x45\x00"; // Reset
+                    rawData += "\x1d\x21\x00"; // Reset
 
-                    // Item Qty (Double Height + Double Width + Bold)
-                    rawData += "\x1d\x21\x11\x1b\x45\x01";
+                    // Item Qty (Normal size, Not Bold)
                     rawData += `   JUMLAH: ${item.quantity} Qty\n`;
-                    rawData += "\x1d\x21\x00\x1b\x45\x00"; // Reset
 
-                    // Size/Dimensions (Bold)
-                    if ((item.uom === "m2" || item.uom === "m_lari") && item.length_cm && item.width_cm) {
-                      rawData += "\x1b\x45\x01";
+                    // Size/Dimensions (Not Bold)
+                    if (
+                      (item.uom === "m2" || item.uom === "m_lari") &&
+                      item.length_cm &&
+                      item.width_cm
+                    ) {
                       rawData += `   UKURAN: ${item.length_cm} x ${item.width_cm} cm (${item.uom})\n`;
-                      rawData += "\x1b\x45\x00";
                     }
 
-                    // Production Notes (Bold)
-                    if (item.production_notes && item.production_notes !== "-" && item.production_notes !== "") {
-                      rawData += "\x1b\x45\x01";
+                    // Production Notes (Not Bold)
+                    if (
+                      item.production_notes &&
+                      item.production_notes !== "-" &&
+                      item.production_notes !== ""
+                    ) {
                       rawData += `   CATATAN: ${item.production_notes}\n`;
-                      rawData += "\x1b\x45\x00";
                     }
 
-                    rawData += "------------------------------------------------\n";
+                    rawData +=
+                      "------------------------------------------------\n";
                   });
 
                   rawData += "\n";
@@ -1864,14 +1874,14 @@ const InvoicePage = () => {
                     </span>
                     <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>
-                        {item.uom === "m2" && item.lengthCm && item.widthCm ? (
-                          `${item.lengthCm / 100}x${item.widthCm / 100} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
-                        ) : item.uom === "m_lari" && item.lengthCm ? (
-                          `${item.lengthCm / 100} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
-                        ) : (
-                          `${item.qty} x ${formatCurrency(item.pricePerUnit)}`
-                        )}
-                        {item.notes && item.notes !== "-" && ` [Notes: ${item.notes}]`}
+                        {item.uom === "m2" && item.lengthCm && item.widthCm
+                          ? `${item.lengthCm / 100}x${item.widthCm / 100} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                          : item.uom === "m_lari" && item.lengthCm
+                            ? `${item.lengthCm / 100} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                            : `${item.qty} x ${formatCurrency(item.pricePerUnit)}`}
+                        {item.notes &&
+                          item.notes !== "-" &&
+                          ` [Notes: ${item.notes}]`}
                       </span>
                       <span className="font-bold text-foreground">
                         {formatCurrency(item.subtotal)}
@@ -1974,59 +1984,82 @@ const InvoicePage = () => {
 
                   // ESC/POS Command: Center Align
                   let rawData = "\x1b\x61\x01";
-                  
+
                   // ESC/POS Command: Print NV Bit Image #1 (normal mode)
                   rawData += "\x1c\x70\x01\x00\n";
-                  
+
                   rawData += "            MADE DIGITAL PRINTING           \n";
                   rawData += " INDOOR - OUTDOOR - A3+ - DTF - SPANDUK KAIN \n";
                   rawData += "   Jl. Kali Sindang, Jagalan, Jebres - Solo  \n";
                   rawData += "     Buka : 08.00 (Pagi) - 01.00 (Malam)     \n";
                   rawData += "               WA. 082134305050              \n";
-                  
+
                   // ESC/POS Command: Left Align
                   rawData += "\x1b\x61\x00";
-                  rawData += "------------------------------------------------\n";
-                  
+                  rawData +=
+                    "------------------------------------------------\n";
+
                   rawData += formatLine("Tanggal", selectedInvoice.createdAt);
-                  rawData += formatLine("No. Transaksi", selectedInvoice.invoiceNo);
-                  rawData += formatLine("Pelanggan", selectedInvoice.customerName.toUpperCase());
+                  rawData += formatLine(
+                    "No. Transaksi",
+                    selectedInvoice.invoiceNo,
+                  );
+                  rawData += formatLine(
+                    "Pelanggan",
+                    selectedInvoice.customerName.toUpperCase(),
+                  );
                   rawData += formatLine("Kasir", "Kasir Utama");
-                  
-                  rawData += "------------------------------------------------\n";
+
+                  rawData +=
+                    "------------------------------------------------\n";
 
                   selectedInvoice.items.forEach((item) => {
                     rawData += `${item.productName}\n`;
                     if (item.notes && item.notes !== "-") {
                       rawData += `* ${item.notes}\n`;
                     }
-                    const leftDetail = (item.uom === "m2" && item.lengthCm && item.widthCm)
-                      ? `${item.lengthCm / 100}x${item.widthCm / 100} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
-                      : (item.uom === "m_lari" && item.lengthCm)
-                      ? `${item.lengthCm / 100} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
-                      : `${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`;
+                    const leftDetail =
+                      item.uom === "m2" && item.lengthCm && item.widthCm
+                        ? `${item.lengthCm / 100}x${item.widthCm / 100} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
+                        : item.uom === "m_lari" && item.lengthCm
+                          ? `${item.lengthCm / 100} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
+                          : `${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`;
                     const rightDetail = printFormatCurrency(item.subtotal);
                     rawData += formatLine(leftDetail, rightDetail);
                     rawData += "\n";
                   });
 
-                  rawData += "------------------------------------------------\n";
-                  
+                  rawData +=
+                    "------------------------------------------------\n";
+
                   const totalItemsText = `${selectedInvoice.items.length} item`;
                   rawData += formatLine("Total Item", totalItemsText);
-                  rawData += formatLine("Subtotal", printFormatCurrency(selectedInvoice.totalAmount));
-                  
-                  rawData += "================================================\n";
-                  rawData += formatLine("TOTAL", printFormatCurrency(selectedInvoice.totalAmount));
-                  rawData += "------------------------------------------------\n";
-                  
-                  const remaining = selectedInvoice.totalAmount - selectedInvoice.amountPaid;
+                  rawData += formatLine(
+                    "Subtotal",
+                    printFormatCurrency(selectedInvoice.totalAmount),
+                  );
+
+                  rawData +=
+                    "================================================\n";
+                  rawData += formatLine(
+                    "TOTAL",
+                    printFormatCurrency(selectedInvoice.totalAmount),
+                  );
+                  rawData +=
+                    "------------------------------------------------\n";
+
+                  const remaining =
+                    selectedInvoice.totalAmount - selectedInvoice.amountPaid;
                   const paymentMethod = remaining <= 0 ? "Lunas" : "Piutang";
                   rawData += formatLine("Metode Bayar", paymentMethod);
-                  rawData += formatLine("Bayar", printFormatCurrency(selectedInvoice.amountPaid));
-                  
-                  rawData += "------------------------------------------------\n";
-                  
+                  rawData += formatLine(
+                    "Bayar",
+                    printFormatCurrency(selectedInvoice.amountPaid),
+                  );
+
+                  rawData +=
+                    "------------------------------------------------\n";
+
                   // ESC/POS Command: Center Align
                   rawData += "\x1b\x61\x01";
                   rawData += "Terima kasih atas kunjungan Anda\n\n\n\n\n\n\n";
