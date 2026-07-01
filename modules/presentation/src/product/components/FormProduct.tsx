@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Typography } from "@erp-digital-printing/ui/Typography";
@@ -27,6 +27,7 @@ import { productKeys } from "@infrastructure/product/keys";
 import type { ProductModel } from "@core/product/domains/models/product.model";
 
 interface FormProductProps {
+  productId?: string;
   onBack: () => void;
 }
 
@@ -57,7 +58,7 @@ interface PriceTier {
   price: number;
 }
 
-const FormProduct: React.FC<FormProductProps> = ({ onBack }) => {
+const FormProduct: React.FC<FormProductProps> = ({ onBack, productId }) => {
   const [activeStep, setActiveStep] = useState<number>(1);
   const [hasVariants, setHasVariants] = useState<boolean>(true);
   const [selectedAttributeId, setSelectedAttributeId] = useState<string>("");
@@ -97,8 +98,16 @@ const FormProduct: React.FC<FormProductProps> = ({ onBack }) => {
 
   const { getCategoriesUseCase } = useCategoryDI();
   const { getAttributesUseCase } = useAttributeDI();
-  const { createProductUseCase } = useProductDI();
+  const { createProductUseCase, getProductByIdUseCase, updateProductUseCase } = useProductDI();
   const queryClient = useQueryClient();
+
+  const { data: product, isLoading: isLoadingProduct } = useQuery({
+    queryKey: productKeys.detail(productId || ""),
+    queryFn: () => getProductByIdUseCase.execute(productId!),
+    enabled: !!productId,
+    staleTime: 10_000,
+    refetchOnWindowFocus: false,
+  });
 
   const createMutation = useMutation({
     mutationFn: (input: ProductModel) => createProductUseCase.execute(input),
@@ -112,6 +121,24 @@ const FormProduct: React.FC<FormProductProps> = ({ onBack }) => {
     },
     onError: (err: Error) => {
       toast.error("Gagal Membuat Produk", err.message || "Terjadi kesalahan.");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (input: ProductModel) => {
+      if (!productId) throw new Error("Product ID is missing");
+      return updateProductUseCase.execute(productId, input);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: productKeys.all });
+      toast.success(
+        "Produk Berhasil Diubah",
+        "Perubahan produk telah berhasil disimpan.",
+      );
+      onBack();
+    },
+    onError: (err: Error) => {
+      toast.error("Gagal Mengubah Produk", err.message || "Terjadi kesalahan.");
     },
   });
 
@@ -139,6 +166,7 @@ const FormProduct: React.FC<FormProductProps> = ({ onBack }) => {
     handleSubmit,
     formState: { errors },
     getValues,
+    reset,
   } = useForm<Step1Inputs>({
     defaultValues: {
       name: "",
@@ -148,6 +176,110 @@ const FormProduct: React.FC<FormProductProps> = ({ onBack }) => {
     },
   });
 
+  useEffect(() => {
+    if (product) {
+      const matchedCat = categories.find((c) => c.id === product.category_id);
+      reset({
+        name: product.name || "",
+        category: matchedCat ? matchedCat.name : "",
+        uom: (product.uom as Step1Inputs["uom"]) || "m2",
+        description: product.description || "",
+      });
+    }
+  }, [product, categories, reset]);
+
+  useEffect(() => {
+    if (product && attributes.length > 0) {
+      const hasVars = product.variants && product.variants.length > 0;
+
+      const timer = setTimeout(() => {
+        setHasVariants(!!hasVars);
+
+        if (hasVars && product.variants) {
+          const firstVar = product.variants[0];
+          if (firstVar) {
+            const rawAttributes =
+              firstVar.attributes ||
+              (
+                firstVar as unknown as {
+                  attribute_values?: { attribute_id: string; value: string }[];
+                }
+              ).attribute_values;
+            const firstAttrId = rawAttributes?.[0]?.attribute_id || "";
+            setSelectedAttributeId(firstAttrId);
+          }
+
+          const opts = product.variants.map((v) => v.variant_name);
+          setSelectedOptions(opts);
+
+          const prices: Record<
+            string,
+            { reseller: PriceTier[]; endUser: PriceTier[] }
+          > = {};
+
+          const RESELLER_LEVEL_ID = "d2c67ef8-82e4-4d8b-968b-5a1e2f5b6154";
+          const END_USER_LEVEL_ID = "b3c8f3a3-b26a-4638-b7f2-841a54774844";
+
+          product.variants.forEach((v) => {
+            const optName = v.variant_name;
+            const resellerTiers: PriceTier[] = [];
+            const endUserTiers: PriceTier[] = [];
+
+            if (v.price_tiers) {
+              v.price_tiers.forEach((t, index) => {
+                const tier: PriceTier = {
+                  id:
+                    (t as unknown as { id?: string }).id ||
+                    `${t.customer_level_id}-${index}-${Math.random()}`,
+                  minQty: t.min_qty,
+                  maxQty: t.max_qty,
+                  price: t.price_per_unit,
+                };
+
+                if (t.customer_level_id === RESELLER_LEVEL_ID) {
+                  resellerTiers.push(tier);
+                } else if (t.customer_level_id === END_USER_LEVEL_ID) {
+                  endUserTiers.push(tier);
+                }
+              });
+            }
+
+            if (resellerTiers.length === 0) {
+              resellerTiers.push({
+                id: `res-${Date.now()}-${Math.random()}`,
+                minQty: 1,
+                maxQty: 999999,
+                price: 0,
+              });
+            }
+            if (endUserTiers.length === 0) {
+              endUserTiers.push({
+                id: `end-${Date.now()}-${Math.random()}`,
+                minQty: 1,
+                maxQty: 999999,
+                price: 0,
+              });
+            }
+
+            prices[optName] = {
+              reseller: resellerTiers,
+              endUser: endUserTiers,
+            };
+          });
+
+          setVariantPrices(prices);
+        } else {
+          setSelectedAttributeId("");
+          setSelectedOptions([]);
+          setVariantPrices({});
+        }
+      }, 0);
+
+      return () => clearTimeout(timer);
+    }
+    return;
+  }, [product, attributes]);
+
   const handleNextStep1 = handleSubmit((data) => {
     setActiveStep(2);
     toast.success(
@@ -155,6 +287,27 @@ const FormProduct: React.FC<FormProductProps> = ({ onBack }) => {
       "Informasi dasar produk telah terisi dengan benar.",
     );
   });
+
+  if (productId && isLoadingProduct) {
+    return (
+      <div className="h-[75vh] flex flex-col items-center justify-center p-6 bg-background text-foreground font-sans">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative w-12 h-12 flex-shrink-0">
+            <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+            <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          </div>
+          <div className="text-center space-y-1">
+            <Typography variant="p" weight="bold" className="text-foreground">
+              Memuat Data Produk...
+            </Typography>
+            <Typography variant="small" className="text-muted-foreground">
+              Mengambil informasi produk untuk pengubahan...
+            </Typography>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[90vh] flex flex-col font-sans w-full bg-background text-foreground overflow-hidden">
@@ -173,10 +326,12 @@ const FormProduct: React.FC<FormProductProps> = ({ onBack }) => {
           </Button>
           <div>
             <h1 className="text-2xl font-black tracking-tight text-foreground">
-              Tambah Produk Baru
+              {productId ? "Ubah Produk" : "Tambah Produk Baru"}
             </h1>
             <p className="text-muted-foreground font-semibold text-xs mt-0.5">
-              Buat produk baru dengan sistem varian dan harga grosir bertingkat.
+              {productId
+                ? "Ubah data produk dengan sistem varian dan harga grosir bertingkat."
+                : "Buat produk baru dengan sistem varian dan harga grosir bertingkat."}
             </p>
           </div>
         </div>
@@ -1127,17 +1282,23 @@ const FormProduct: React.FC<FormProductProps> = ({ onBack }) => {
                   "color: #10b981; font-weight: bold; font-size: 13px;",
                   payload,
                 );
-                createMutation.mutate(payload);
+                if (productId) {
+                  updateMutation.mutate(payload);
+                } else {
+                  createMutation.mutate(payload);
+                }
               }}
               className="h-10 px-5 rounded-xl font-bold bg-primary hover:bg-primary/95 text-white active:scale-95 transition-all flex items-center gap-2"
               type="button"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
             >
-              {createMutation.isPending ? (
+              {createMutation.isPending || updateMutation.isPending ? (
                 <>
                   <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
                   Menyimpan...
                 </>
+              ) : productId ? (
+                "Simpan Perubahan"
               ) : (
                 "Simpan Produk"
               )}

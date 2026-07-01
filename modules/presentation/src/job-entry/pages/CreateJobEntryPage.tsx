@@ -189,7 +189,7 @@ const CreateJobEntryPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedVariant, setSelectedVariant] = useState("");
-  const [qty, setQty] = useState<number>(1);
+  const [qty, setQty] = useState<number | "">(1);
   const [lengthCm, setLengthCm] = useState<string>("");
   const [widthCm, setWidthCm] = useState<string>("");
   const [productionNotes, setProductionNotes] = useState("");
@@ -298,6 +298,10 @@ const CreateJobEntryPage = () => {
       toast.error("Validasi Gagal", "Silakan pilih produk terlebih dahulu");
       return;
     }
+    if (!qty || qty < 1) {
+      toast.error("Validasi Gagal", "Quantity minimal harus 1");
+      return;
+    }
     if (showSizeFields && (!lengthCm || !widthCm)) {
       toast.error(
         "Validasi Gagal",
@@ -349,7 +353,7 @@ const CreateJobEntryPage = () => {
                 product_variant_id: variantId,
                 productName: `${selectedProduct}${selectedVariant ? ` (${selectedVariant})` : ""}`,
                 dimension: dimensionText,
-                qty: qty,
+                qty,
                 uom: activeProductUoM,
                 production_notes: productionNotes,
                 length_cm: lengthNum,
@@ -370,7 +374,7 @@ const CreateJobEntryPage = () => {
         product_variant_id: variantId,
         productName: `${selectedProduct}${selectedVariant ? ` (${selectedVariant})` : ""}`,
         dimension: dimensionText,
-        qty: qty,
+        qty,
         uom: activeProductUoM,
         production_notes: productionNotes,
         finishing_ids: [],
@@ -717,9 +721,20 @@ const CreateJobEntryPage = () => {
                   type="number"
                   min={1}
                   value={qty}
-                  onChange={(e) =>
-                    setQty(Math.max(1, parseInt(e.target.value) || 1))
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setQty("");
+                    } else {
+                      const parsed = parseInt(val, 10);
+                      setQty(isNaN(parsed) ? "" : parsed);
+                    }
+                  }}
+                  onBlur={() => {
+                    if (qty === "" || qty < 1) {
+                      setQty(1);
+                    }
+                  }}
                   className="h-10"
                 />
               </div>
@@ -749,7 +764,7 @@ const CreateJobEntryPage = () => {
                 <div className="flex gap-3 mt-2 animate-in fade-in duration-300">
                   <Button
                     onClick={handleAddItemToCart}
-                    disabled={!selectedProduct}
+                    disabled={!selectedProduct || !qty || qty < 1}
                     className="flex-1 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 flex items-center justify-center gap-2 active:scale-95 transition-all"
                   >
                     <LuPencil size={16} />
@@ -778,7 +793,7 @@ const CreateJobEntryPage = () => {
               ) : (
                 <Button
                   onClick={handleAddItemToCart}
-                  disabled={!selectedProduct}
+                  disabled={!selectedProduct || !qty || qty < 1}
                   className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md shadow-primary/10 flex items-center justify-center gap-2 active:scale-95 transition-all mt-2"
                 >
                   <LuPlus size={16} />

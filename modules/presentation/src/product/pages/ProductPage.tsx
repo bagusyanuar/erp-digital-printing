@@ -60,6 +60,7 @@ const columnHelper = createColumnHelper<Product>();
 const ProductPage = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedDetailProductId, setSelectedDetailProductId] = useState<string | null>(null);
+  const [selectedEditProductId, setSelectedEditProductId] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("Semua");
   const [pagination, setPagination] = useState({
@@ -194,7 +195,7 @@ const ProductPage = () => {
                   <LuInfo className="h-3.5 w-3.5 text-primary" />
                   <span>Detail</span>
                 </DropdownItem>
-                <DropdownItem>
+                <DropdownItem onClick={() => setSelectedEditProductId(info.row.original.id)}>
                   <LuPencil className="h-3.5 w-3.5 text-blue-600" />
                   <span>Ubah</span>
                 </DropdownItem>
@@ -374,6 +375,22 @@ const ProductPage = () => {
         showCloseButton={false}
       >
         <FormProduct onBack={() => setIsAdding(false)} />
+      </Dialog>
+
+      {/* Edit Product Modal (Stepper Form) */}
+      <Dialog
+        isOpen={!!selectedEditProductId}
+        onClose={() => setSelectedEditProductId(null)}
+        size="xl"
+        className="h-[90vh] max-h-[90vh] overflow-hidden flex flex-col"
+        showCloseButton={false}
+      >
+        {selectedEditProductId && (
+          <FormProduct
+            productId={selectedEditProductId}
+            onBack={() => setSelectedEditProductId(null)}
+          />
+        )}
       </Dialog>
 
       {/* Detail Product Modal */}

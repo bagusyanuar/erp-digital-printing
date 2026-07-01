@@ -77,6 +77,8 @@ const OrderPage = () => {
     handleProcessPayment,
   } = useOrder();
 
+  const [isPrinting, setIsPrinting] = React.useState(false);
+
   return (
     <div className="p-6 space-y-6 font-sans bg-background min-h-screen animate-in fade-in duration-500">
       {/* Header POS Dashboard */}
@@ -1076,21 +1078,156 @@ const OrderPage = () => {
                 Tutup Preview
               </Button>
               <Button
-                onClick={() => {
-                  toast.success(
-                    isTemporaryReceipt
-                      ? "Mencetak Nota Sementara..."
-                      : "Mencetak Struk...",
-                    isTemporaryReceipt
-                      ? "Dokumen nota sementara dikirim ke mesin thermal printer."
-                      : "Dokumen struk dikirim ke mesin thermal printer.",
-                  );
-                  setIsReceiptOpen(false);
+                onClick={async () => {
+                  setIsPrinting(true);
+
+                  const printFormatCurrency = (val: number): string => {
+                    const formattedNumber = new Intl.NumberFormat("id-ID", {
+                      maximumFractionDigits: 0,
+                    }).format(val);
+                    return `Rp ${formattedNumber}`;
+                  };
+
+                  const formatLine = (
+                    left: string,
+                    right: string,
+                    charWidth = 32,
+                  ): string => {
+                    const spacesNeeded = charWidth - left.length - right.length;
+                    if (spacesNeeded > 0) {
+                      return left + " ".repeat(spacesNeeded) + right + "\n";
+                    }
+                    return (
+                      left +
+                      "\n" +
+                      " ".repeat(charWidth - right.length) +
+                      right +
+                      "\n"
+                    );
+                  };
+
+                  // ESC/POS Command: Center Align
+                  let rawData = "\x1b\x61\x01";
+                  
+                  // ESC/POS Command: Print NV Bit Image #1 (normal mode)
+                  rawData += "\x1c\x70\x01\x00\n";
+                  
+                  rawData += "      DIGITAL PRINTING ERP      \n";
+                  if (isTemporaryReceipt) {
+                    rawData += "     NOTA SEMENTARA (DRAFT)     \n";
+                  }
+                  rawData += "Jl. Percetakan Keren No. 88, Jkt\n";
+                  rawData += "       Telp: 021-555-9081       \n";
+                  
+                  // ESC/POS Command: Left Align
+                  rawData += "\x1b\x61\x00";
+                  rawData += "--------------------------------\n";
+                  
+                  if (!isTemporaryReceipt) {
+                    rawData += formatLine("No. Tiket", lastCompletedOrder.ticketNo);
+                  }
+                  rawData += formatLine("Tanggal", lastCompletedOrder.createdAt);
+                  rawData += formatLine("Pelanggan", lastCompletedOrder.customerName.toUpperCase());
+                  rawData += formatLine("Kasir", "Sistem Kasir Utama");
+                  
+                  rawData += "--------------------------------\n";
+
+                  lastCompletedOrder.items.forEach((item) => {
+                    rawData += `${item.productName}\n`;
+                    const leftDetail = `${item.qty} x ${printFormatCurrency(item.pricePerUnit)} (${item.dimension})`;
+                    const rightDetail = printFormatCurrency(item.subtotal);
+                    rawData += formatLine(leftDetail, rightDetail);
+                  });
+
+                  rawData += "--------------------------------\n";
+                  
+                  const totalItemsText = `${lastCompletedOrder.items.length} item`;
+                  rawData += formatLine("Total Item", totalItemsText);
+                  
+                  const subtotalValue = lastCompletedOrder.items.reduce((s, i) => s + i.subtotal, 0);
+                  rawData += formatLine("Subtotal", printFormatCurrency(subtotalValue));
+                  
+                  rawData += "================================\n";
+                  const grandTotalValue = isTemporaryReceipt ? subtotalValue : (lastCompletedOrder.grandTotal || 0);
+                  rawData += formatLine("TOTAL BELANJA", printFormatCurrency(grandTotalValue));
+                  rawData += "--------------------------------\n";
+                  
+                  if (!isTemporaryReceipt) {
+                    rawData += formatLine("Metode Bayar", lastCompletedOrder.paymentMethod || "-");
+                    rawData += formatLine("Bayar", printFormatCurrency(lastCompletedOrder.totalPaid || 0));
+                    
+                    if (lastCompletedOrder.status === "PARTIAL_PAID") {
+                      rawData += formatLine("SISA (UTANG)", printFormatCurrency(lastCompletedOrder.remainingAmount || 0));
+                    } else if (lastCompletedOrder.status === "LUNAS") {
+                      rawData += formatLine("Kembalian", printFormatCurrency(lastCompletedOrder.changeAmount || 0));
+                    }
+                    rawData += "--------------------------------\n";
+                  }
+                  
+                  // ESC/POS Command: Center Align
+                  rawData += "\x1b\x61\x01";
+                  rawData += "      --- TERIMA KASIH ---      \n";
+                  rawData += "  Barang yang sudah dibeli tidak \n";
+                  rawData += "    dapat ditukar/dikembalikan   \n";
+                  rawData += "          Sukses Selalu!         \n\n\n\n\n\n";
+
+                  // ESC/POS Command: Auto Cut
+                  rawData += "\x1d\x56\x00";
+
+                  try {
+                    const response = await fetch(
+                      "http://localhost:9876/print",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          printer_name: "PRINTER-POS",
+                          raw_data: rawData,
+                        }),
+                      }
+                    );
+
+                    if (!response.ok) {
+                      throw new Error(
+                        "Gagal memproses struk melalui Print Agent lokal."
+                      );
+                    }
+
+                    toast.success(
+                      isTemporaryReceipt
+                        ? "Mencetak Nota Sementara..."
+                        : "Mencetak Struk...",
+                      isTemporaryReceipt
+                        ? "Dokumen nota sementara dikirim ke mesin thermal printer lokal."
+                        : "Dokumen struk dikirim ke mesin thermal printer lokal."
+                    );
+                    setIsReceiptOpen(false);
+                  } catch (error) {
+                    console.error("Error printing:", error);
+                    toast.error(
+                      "Gagal Cetak",
+                      "Pastikan Print Agent lokal (localhost:9876) sudah berjalan."
+                    );
+                  } finally {
+                    setIsPrinting(false);
+                  }
                 }}
-                className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95"
+                disabled={isPrinting}
+                className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <LuPrinter size={16} />
-                {isTemporaryReceipt
+                {isPrinting ? (
+                  <div className="relative w-4 h-4">
+                    <div className="absolute inset-0 rounded-full border-2 border-primary-foreground/20" />
+                    <div className="absolute inset-0 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
+                  </div>
+                ) : (
+                  <LuPrinter size={16} />
+                )}
+                {isPrinting
+                  ? "Mencetak..."
+                  : isTemporaryReceipt
                   ? "Cetak Nota Sementara"
                   : "Cetak ke Thermal Printer"}
               </Button>
