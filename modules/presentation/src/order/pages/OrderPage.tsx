@@ -511,8 +511,8 @@ const OrderPage = () => {
                           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
                             Metode Pembayaran
                           </span>
-                          <div className="grid grid-cols-3 gap-2">
-                            {["CASH", "TRANSFER", "QRIS"].map((method) => {
+                          <div className="grid grid-cols-4 gap-2">
+                            {["CASH", "TRANSFER", "QRIS", "PIUTANG"].map((method) => {
                               const isSelected = paymentMethod === method;
                               return (
                                 <Button
@@ -520,7 +520,11 @@ const OrderPage = () => {
                                   variant={isSelected ? "default" : "outline"}
                                   onClick={() => {
                                     setPaymentMethod(method);
-                                    setSingleAmount(null); // reset to full payment of selected order
+                                    if (method === "PIUTANG") {
+                                      setSingleAmount(0);
+                                    } else {
+                                      setSingleAmount(null); // reset to full payment of selected order
+                                    }
                                   }}
                                   className={`h-10 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
                                     isSelected
@@ -532,8 +536,10 @@ const OrderPage = () => {
                                     <LuDollarSign size={13} />
                                   ) : method === "TRANSFER" ? (
                                     <LuCreditCard size={13} />
-                                  ) : (
+                                  ) : method === "QRIS" ? (
                                     <LuQrCode size={13} />
+                                  ) : (
+                                    <LuCoins size={13} />
                                   )}
                                   {method}
                                 </Button>
@@ -543,56 +549,65 @@ const OrderPage = () => {
                         </div>
 
                         {/* Single Payment Amount Input */}
-                        <div className="space-y-1.5">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
-                            Nominal Pembayaran
-                          </span>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
-                              Rp
+                        {paymentMethod !== "PIUTANG" ? (
+                          <div className="space-y-1.5 animate-in fade-in duration-200">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                              Nominal Pembayaran
                             </span>
-                            <input
-                              type="number"
-                              min="0"
-                              value={
-                                singleAmount === null
-                                  ? grandTotal
-                                  : singleAmount
-                              }
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                if (raw === "") {
-                                  setSingleAmount(null);
-                                } else {
-                                  const val = parseFloat(raw);
-                                  setSingleAmount(isNaN(val) ? 0 : val);
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
+                                Rp
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={
+                                  singleAmount === null
+                                    ? grandTotal
+                                    : singleAmount
                                 }
-                              }}
-                              placeholder="Masukkan nominal..."
-                              className="w-full h-10 pl-9 pr-3 text-xs font-mono font-bold bg-card border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
-                            />
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  if (raw === "") {
+                                    setSingleAmount(null);
+                                  } else {
+                                    const val = parseFloat(raw);
+                                    setSingleAmount(isNaN(val) ? 0 : val);
+                                  }
+                                }}
+                                placeholder="Masukkan nominal..."
+                                className="w-full h-10 pl-9 pr-3 text-xs font-mono font-bold bg-card border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                              />
+                            </div>
+                            {remainingAmount > 0 && (
+                              <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-2.5 rounded-xl flex items-center gap-2 animate-in slide-in-from-top-1 duration-200">
+                                <LuInfo size={14} className="shrink-0" />
+                                <span>
+                                  Sisa Tagihan (Tempo):{" "}
+                                  <strong>
+                                    {formatCurrency(remainingAmount)}
+                                  </strong>
+                                </span>
+                              </div>
+                            )}
+                            {changeAmount > 0 && (
+                              <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 p-2.5 rounded-xl flex items-center gap-2 animate-in slide-in-from-top-1 duration-200">
+                                <LuCheck size={14} className="shrink-0" />
+                                <span>
+                                  Kembalian Tunai:{" "}
+                                  <strong>{formatCurrency(changeAmount)}</strong>
+                                </span>
+                              </div>
+                            )}
                           </div>
-                          {remainingAmount > 0 && (
-                            <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-2.5 rounded-xl flex items-center gap-2 animate-in slide-in-from-top-1 duration-200">
-                              <LuInfo size={14} className="shrink-0" />
-                              <span>
-                                Sisa Tagihan (Tempo):{" "}
-                                <strong>
-                                  {formatCurrency(remainingAmount)}
-                                </strong>
-                              </span>
-                            </div>
-                          )}
-                          {changeAmount > 0 && (
-                            <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 p-2.5 rounded-xl flex items-center gap-2 animate-in slide-in-from-top-1 duration-200">
-                              <LuCheck size={14} className="shrink-0" />
-                              <span>
-                                Kembalian Tunai:{" "}
-                                <strong>{formatCurrency(changeAmount)}</strong>
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                        ) : (
+                          <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-2.5 rounded-xl flex items-center gap-2 animate-in slide-in-from-top-1 duration-200">
+                            <LuInfo size={14} className="shrink-0" />
+                            <span>
+                              Transaksi dicatat sebagai <strong>Piutang/Hutang Penuh</strong>. Sisa Tagihan (Tempo): <strong>{formatCurrency(grandTotal)}</strong>.
+                            </span>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <>

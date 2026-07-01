@@ -219,7 +219,7 @@ export const useOrder = () => {
     }
     const currentSingleAmount = singleAmount === null ? grandTotal : singleAmount;
     if (currentSingleAmount < 0) return false;
-    if (paymentMethod === "CASH") return true;
+    if (paymentMethod === "CASH" || paymentMethod === "PIUTANG") return true;
     return currentSingleAmount <= grandTotal;
   }, [grandTotal, isSplitPayment, splitAmounts, singleAmount, paymentMethod]);
 
