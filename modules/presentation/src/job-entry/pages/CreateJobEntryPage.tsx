@@ -1033,10 +1033,17 @@ const CreateJobEntryPage = () => {
 
                               {/* 2. Product name & technical specifications */}
                               <TableCell className="py-2.5 min-w-[150px]">
-                                <div className="space-y-0.5">
+                                <div className="space-y-1">
                                   <span className="text-xs font-black text-foreground block leading-tight">
                                     {item.productName}
                                   </span>
+                                  {item.production_notes &&
+                                    item.production_notes !== "-" &&
+                                    item.production_notes !== "" && (
+                                      <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/30 px-2 py-0.5 rounded border border-rose-100 dark:border-rose-900/30 inline-block">
+                                        Catatan: {item.production_notes}
+                                      </span>
+                                    )}
                                 </div>
                               </TableCell>
 
