@@ -29,6 +29,8 @@ import {
   type DateRange,
 } from "@erp-digital-printing/ui/DateRangePicker";
 
+import { useDashboardWidgets } from "../hooks/useDashboardWidgets";
+
 // Dummy Data for Revenue Chart
 const revenueData = [
   { name: "Mon", revenue: 4500000 },
@@ -72,11 +74,71 @@ const recentOrders = [
   },
 ];
 
+const formatDate = (date?: Date) => {
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const formatCurrency = (val: number) => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(val);
+};
+
+const formatNumber = (val: number) => {
+  return new Intl.NumberFormat("id-ID").format(val);
+};
+
 export default function DashboardPage() {
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
     from: new Date(),
     to: new Date(),
   });
+
+  const startDateStr = dateRange?.from ? formatDate(dateRange.from) : undefined;
+  const endDateStr = dateRange?.to ? formatDate(dateRange.to) : undefined;
+
+  const { data: widgetsData, isLoading } = useDashboardWidgets(startDateStr, endDateStr);
+
+  const stats = [
+    {
+      label: "Total Omzet",
+      value: isLoading ? "..." : formatCurrency(widgetsData?.totalOmzet ?? 0),
+      icon: LuTrendingUp,
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
+      to: "/report/selling",
+    },
+    {
+      label: "Total Pendapatan",
+      value: isLoading ? "..." : formatCurrency(widgetsData?.totalPendapatan ?? 0),
+      icon: LuWallet,
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      to: "/report/cash-flow",
+    },
+    {
+      label: "Total Pengeluaran",
+      value: isLoading ? "..." : formatCurrency(widgetsData?.totalPengeluaran ?? 0),
+      icon: LuCreditCard,
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      to: "/report/cash-flow",
+    },
+    {
+      label: "Volume Transaksi",
+      value: isLoading ? "..." : formatNumber(widgetsData?.volumeTransaksi ?? 0),
+      icon: LuShoppingCart,
+      color: "text-primary",
+      bg: "bg-primary/10",
+      to: "/report/selling",
+    },
+  ];
 
   return (
     <div className="p-6 space-y-8 font-sans bg-background min-h-screen">
@@ -103,40 +165,7 @@ export default function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          {
-            label: "Total Omzet",
-            value: "Rp 40.8M",
-            icon: LuTrendingUp,
-            color: "text-emerald-500",
-            bg: "bg-emerald-500/10",
-            to: "/report/selling",
-          },
-          {
-            label: "Total Pendapatan",
-            value: "Rp 32.5M",
-            icon: LuWallet,
-            color: "text-blue-500",
-            bg: "bg-blue-500/10",
-            to: "/report/cash-flow",
-          },
-          {
-            label: "Total Pengeluaran",
-            value: "Rp 18.5M",
-            icon: LuCreditCard,
-            color: "text-rose-500",
-            bg: "bg-rose-500/10",
-            to: "/report/cash-flow",
-          },
-          {
-            label: "Volume Transaksi",
-            value: "1,284",
-            icon: LuShoppingCart,
-            color: "text-primary",
-            bg: "bg-primary/10",
-            to: "/report/selling",
-          },
-        ].map((stat, i) => (
+        {stats.map((stat, i) => (
           <Link
             key={stat.label}
             to={stat.to}
