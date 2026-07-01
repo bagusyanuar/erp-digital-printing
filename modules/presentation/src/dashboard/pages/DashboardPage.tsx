@@ -30,6 +30,7 @@ import {
 } from "@erp-digital-printing/ui/DateRangePicker";
 
 import { useDashboardWidgets } from "../hooks/useDashboardWidgets";
+import { usePaymentSales } from "../hooks/usePaymentSales";
 
 // Dummy Data for Revenue Chart
 const revenueData = [
@@ -42,12 +43,7 @@ const revenueData = [
   { name: "Sun", revenue: 6900000 },
 ];
 
-// Dummy Data for Payment Distribution
-const paymentDistributionData = [
-  { name: "Cash", value: 40, amount: "Rp 13.0M", color: "#10b981" },
-  { name: "Transfer", value: 35, amount: "Rp 11.375M", color: "#3b82f6" },
-  { name: "QRIS", value: 25, amount: "Rp 8.125M", color: "#eb1b33" }, // Using our primary red
-];
+
 
 // Dummy Data for Recent Orders
 const recentOrders = [
@@ -104,6 +100,38 @@ export default function DashboardPage() {
   const endDateStr = dateRange?.to ? formatDate(dateRange.to) : undefined;
 
   const { data: widgetsData, isLoading } = useDashboardWidgets(startDateStr, endDateStr);
+  const { data: paymentSalesData, isLoading: isLoadingPaymentSales } = usePaymentSales(startDateStr, endDateStr);
+
+  const totalAmount = React.useMemo(() => {
+    return paymentSalesData?.reduce((sum, item) => sum + item.total_amount, 0) ?? 0;
+  }, [paymentSalesData]);
+
+  const paymentDistributionData = React.useMemo(() => {
+    if (!paymentSalesData || paymentSalesData.length === 0) return [];
+    return paymentSalesData.map((item) => {
+      const name =
+        item.payment_method.charAt(0).toUpperCase() +
+        item.payment_method.slice(1).toLowerCase();
+      const value = totalAmount > 0 ? (item.total_amount / totalAmount) * 100 : 0;
+
+      let color = "#cbd5e1";
+      const lowerMethod = item.payment_method.toLowerCase();
+      if (lowerMethod === "cash") {
+        color = "#10b981";
+      } else if (lowerMethod === "transfer") {
+        color = "#3b82f6";
+      } else if (lowerMethod === "qris") {
+        color = "#eb1b33";
+      }
+
+      return {
+        name,
+        value,
+        amount: formatCurrency(item.total_amount),
+        color,
+      };
+    });
+  }, [paymentSalesData, totalAmount]);
 
   const stats = [
     {
@@ -295,66 +323,86 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="h-[250px] w-full relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={paymentDistributionData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={8}
-                  dataKey="value"
-                >
-                  {paymentDistributionData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={entry.color}
-                      stroke="none"
+            {isLoadingPaymentSales ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+              </div>
+            ) : paymentDistributionData.length === 0 ? (
+              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm font-medium">
+                Tidak ada data pembayaran
+              </div>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={paymentDistributionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={8}
+                      dataKey="value"
+                    >
+                      {paymentDistributionData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.color}
+                          stroke="none"
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: "12px",
+                        border: "none",
+                        boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+                      }}
                     />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "12px",
-                    border: "none",
-                    boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-black text-foreground">
-                Rp 32.5M
-              </span>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                Total Masuk
-              </span>
-            </div>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-sm font-black text-foreground max-w-[120px] text-center truncate">
+                    {formatCurrency(totalAmount)}
+                  </span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Total Masuk
+                  </span>
+                </div>
+              </>
+            )}
           </div>
           <div className="space-y-3">
-            {paymentDistributionData.map((item) => (
-              <div
-                key={item.name}
-                className="flex items-center justify-between text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="font-bold text-muted-foreground">
-                    {item.name}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 font-black">
-                  <span className="text-foreground">{item.amount}</span>
-                  <span className="text-muted-foreground text-xs">
-                    ({item.value}%)
-                  </span>
-                </div>
+            {isLoadingPaymentSales ? (
+              <div className="space-y-2 animate-pulse">
+                <div className="h-4 bg-muted rounded w-full" />
+                <div className="h-4 bg-muted rounded w-full" />
+                <div className="h-4 bg-muted rounded w-full" />
               </div>
-            ))}
+            ) : (
+              paymentDistributionData.map((item) => (
+                <div
+                  key={item.name}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="h-3 w-3 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="font-bold text-muted-foreground">
+                      {item.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 font-black">
+                    <span className="text-foreground">{item.amount}</span>
+                    <span className="text-muted-foreground text-xs">
+                      ({item.value.toFixed(1)}%)
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </motion.div>
       </div>
