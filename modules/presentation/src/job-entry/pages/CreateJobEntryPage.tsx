@@ -665,6 +665,26 @@ const CreateJobEntryPage = () => {
                 </Combobox>
               </div>
 
+              {/* Catatan Produksi / Deskripsi Item Input */}
+              <div className="space-y-1.5">
+                <Typography
+                  variant="small"
+                  weight="bold"
+                  className="text-xs text-foreground/80"
+                >
+                  Deskripsi{" "}
+                  <span className="text-xs text-muted-foreground font-normal">
+                    (Instruksi Khusus Operator)
+                  </span>
+                </Typography>
+                <TextField
+                  placeholder="-"
+                  value={productionNotes}
+                  onChange={(e) => setProductionNotes(e.target.value)}
+                  className="h-10 font-semibold"
+                />
+              </div>
+
               {/* Dynamic Size Inputs (Panjang x Lebar) */}
               {showSizeFields && (
                 <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-primary/5 border border-primary/10 animate-in slide-in-from-top-3 duration-300">
@@ -736,26 +756,6 @@ const CreateJobEntryPage = () => {
                     }
                   }}
                   className="h-10"
-                />
-              </div>
-
-              {/* Catatan Produksi Item Input */}
-              <div className="space-y-1.5">
-                <Typography
-                  variant="small"
-                  weight="bold"
-                  className="text-xs text-foreground/80"
-                >
-                  Catatan Produksi{" "}
-                  <span className="text-xs text-muted-foreground font-normal">
-                    (Instruksi Khusus Operator)
-                  </span>
-                </Typography>
-                <TextField
-                  placeholder="Contoh: Laminating glossy saja, potong pas"
-                  value={productionNotes}
-                  onChange={(e) => setProductionNotes(e.target.value)}
-                  className="h-10 font-semibold"
                 />
               </div>
 
@@ -980,7 +980,7 @@ const CreateJobEntryPage = () => {
                   </span>
                 </Typography>
                 <TextField
-                  placeholder="Contoh: Spanduk Warung Padang Pak Anto"
+                  placeholder="-"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="h-10 font-semibold"

@@ -51,7 +51,7 @@ const ResellerPage = () => {
       email: "",
       phone: "",
       address: "",
-      creditLimit: 0,
+      creditLimit: 1000000,
     },
   });
 
@@ -62,7 +62,7 @@ const ResellerPage = () => {
       email: "",
       phone: "",
       address: "",
-      creditLimit: 0,
+      creditLimit: 1000000,
     },
   });
 

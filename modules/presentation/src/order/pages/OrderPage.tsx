@@ -1111,7 +1111,7 @@ const OrderPage = () => {
                   const formatLine = (
                     left: string,
                     right: string,
-                    charWidth = 32,
+                    charWidth = 48,
                   ): string => {
                     const spacesNeeded = charWidth - left.length - right.length;
                     if (spacesNeeded > 0) {
@@ -1132,16 +1132,19 @@ const OrderPage = () => {
                   // ESC/POS Command: Print NV Bit Image #1 (normal mode)
                   rawData += "\x1c\x70\x01\x00\n";
                   
-                  rawData += "      DIGITAL PRINTING ERP      \n";
+                  rawData += "            MADE DIGITAL PRINTING           \n";
+                  rawData += " INDOOR - OUTDOOR - A3+ - DTF - SPANDUK KAIN \n";
+                  rawData += "   Jl. Kali Sindang, Jagalan, Jebres - Solo  \n";
+                  rawData += "     Buka : 08.00 (Pagi) - 01.00 (Malam)     \n";
+                  rawData += "               WA. 082134305050              \n";
+                  
                   if (isTemporaryReceipt) {
-                    rawData += "     NOTA SEMENTARA (DRAFT)     \n";
+                    rawData += "\n          * NOTA SEMENTARA (DRAFT) *          \n";
                   }
-                  rawData += "Jl. Percetakan Keren No. 88, Jkt\n";
-                  rawData += "       Telp: 021-555-9081       \n";
                   
                   // ESC/POS Command: Left Align
                   rawData += "\x1b\x61\x00";
-                  rawData += "--------------------------------\n";
+                  rawData += "------------------------------------------------\n";
                   
                   if (!isTemporaryReceipt) {
                     rawData += formatLine("No. Tiket", lastCompletedOrder.ticketNo);
@@ -1150,7 +1153,7 @@ const OrderPage = () => {
                   rawData += formatLine("Pelanggan", lastCompletedOrder.customerName.toUpperCase());
                   rawData += formatLine("Kasir", "Sistem Kasir Utama");
                   
-                  rawData += "--------------------------------\n";
+                  rawData += "------------------------------------------------\n";
 
                   lastCompletedOrder.items.forEach((item) => {
                     rawData += `${item.productName}\n`;
@@ -1164,7 +1167,7 @@ const OrderPage = () => {
                     rawData += "\n";
                   });
 
-                  rawData += "--------------------------------\n";
+                  rawData += "------------------------------------------------\n";
                   
                   const totalItemsText = `${lastCompletedOrder.items.length} item`;
                   rawData += formatLine("Total Item", totalItemsText);
@@ -1172,10 +1175,10 @@ const OrderPage = () => {
                   const subtotalValue = lastCompletedOrder.items.reduce((s, i) => s + i.subtotal, 0);
                   rawData += formatLine("Subtotal", printFormatCurrency(subtotalValue));
                   
-                  rawData += "================================\n";
+                  rawData += "================================================\n";
                   const grandTotalValue = isTemporaryReceipt ? subtotalValue : (lastCompletedOrder.grandTotal || 0);
                   rawData += formatLine("TOTAL BELANJA", printFormatCurrency(grandTotalValue));
-                  rawData += "--------------------------------\n";
+                  rawData += "------------------------------------------------\n";
                   
                   if (!isTemporaryReceipt) {
                     rawData += formatLine("Metode Bayar", lastCompletedOrder.paymentMethod || "-");
@@ -1186,15 +1189,15 @@ const OrderPage = () => {
                     } else if (lastCompletedOrder.status === "LUNAS") {
                       rawData += formatLine("Kembalian", printFormatCurrency(lastCompletedOrder.changeAmount || 0));
                     }
-                    rawData += "--------------------------------\n";
+                    rawData += "------------------------------------------------\n";
                   }
                   
                   // ESC/POS Command: Center Align
                   rawData += "\x1b\x61\x01";
-                  rawData += "      --- TERIMA KASIH ---      \n";
-                  rawData += "  Barang yang sudah dibeli tidak \n";
-                  rawData += "    dapat ditukar/dikembalikan   \n";
-                  rawData += "          Sukses Selalu!         \n\n\n\n\n\n";
+                  rawData += "               --- TERIMA KASIH ---             \n";
+                  rawData += "         Barang yang sudah dibeli tidak         \n";
+                  rawData += "           dapat ditukar/dikembalikan           \n";
+                  rawData += "                 Sukses Selalu!                 \n\n\n\n\n\n";
 
                   // ESC/POS Command: Auto Cut
                   rawData += "\x1d\x56\x00";

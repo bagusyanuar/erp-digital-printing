@@ -8,8 +8,8 @@ export interface ResellerParams extends PaginationParams {
 
 export interface CreateResellerInput {
   name: string;
-  email: string;
-  phone: string;
-  address: string;
-  creditLimit: number;
+  email?: string;
+  phone?: string;
+  address?: string;
+  creditLimit?: number;
 }

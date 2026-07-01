@@ -3,11 +3,11 @@ import type { CreateResellerInput } from "@core/reseller/applications/inputs";
 
 export const resellerInputSchema = z.object({
   name: z.string().min(1, "Nama reseller wajib diisi"),
-  email: z.string().min(1, "Email wajib diisi").email("Format email tidak valid"),
-  phone: z.string().min(1, "Nomor telepon wajib diisi"),
-  address: z.string().min(1, "Alamat wajib diisi"),
-  creditLimit: z.number({
-    required_error: "Limit kredit wajib diisi",
-    invalid_type_error: "Limit kredit harus berupa angka",
-  }).min(0, "Limit kredit tidak boleh kurang dari 0"),
+  email: z.string().email("Format email tidak valid").optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+  address: z.string().optional().or(z.literal("")),
+  creditLimit: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined) ? undefined : Number(val),
+    z.number().min(0, "Limit kredit tidak boleh kurang dari 0").optional()
+  ),
 }) as z.ZodType<CreateResellerInput>;
