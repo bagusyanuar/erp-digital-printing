@@ -1137,6 +1137,7 @@ const OrderPage = () => {
                     const leftDetail = `${item.qty} x ${printFormatCurrency(item.pricePerUnit)} (${item.dimension})`;
                     const rightDetail = printFormatCurrency(item.subtotal);
                     rawData += formatLine(leftDetail, rightDetail);
+                    rawData += "\n";
                   });
 
                   rawData += "--------------------------------\n";

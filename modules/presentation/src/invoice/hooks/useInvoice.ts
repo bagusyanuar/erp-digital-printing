@@ -25,6 +25,7 @@ export interface InvoiceItem {
   pricePerUnit: number;
   subtotal: number;
   notes?: string;
+  dimension?: string;
 }
 
 export interface Invoice {
@@ -376,16 +377,28 @@ export const useInvoice = () => {
         customerPhone: order.customer_phone || "-",
         isReseller: !!order.reseller_id,
         createdAt: formattedDate,
-        items: (order.order_items ?? []).map((item) => ({
-          id: item.id,
-          productName: item.variant_name
-            ? `${item.product_name} (${item.variant_name})`
-            : item.product_name,
-          qty: item.quantity,
-          pricePerUnit: item.price_per_unit || 0,
-          subtotal: item.subtotal || 0,
-          notes: item.production_notes || "-",
-        })),
+        items: (order.order_items ?? []).map((item) => {
+          let dimensionText = "Pcs";
+          if (item.uom === "m2" || item.uom === "m_lari") {
+            dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
+          } else if (item.uom === "box") {
+            dimensionText = "Box";
+          } else if (item.uom === "lembar") {
+            dimensionText = "Lembar A3+";
+          }
+
+          return {
+            id: item.id,
+            productName: item.variant_name
+              ? `${item.product_name} (${item.variant_name})`
+              : item.product_name,
+            qty: item.quantity,
+            pricePerUnit: item.price_per_unit || 0,
+            subtotal: item.subtotal || 0,
+            notes: item.production_notes || "-",
+            dimension: dimensionText,
+          };
+        }),
         totalAmount: order.grand_total || 0,
         amountPaid: order.amount_paid || 0,
         paymentMethods: Array.from(
