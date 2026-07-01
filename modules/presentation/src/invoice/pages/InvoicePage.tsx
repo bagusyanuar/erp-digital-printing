@@ -1730,8 +1730,13 @@ const InvoicePage = () => {
                     </span>
                     <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>
-                        {item.qty} x {formatCurrency(item.pricePerUnit)}
-                        {item.dimension && ` (${item.dimension})`}
+                        {item.uom === "m2" && item.lengthCm && item.widthCm ? (
+                          `${item.lengthCm / 100}x${item.widthCm / 100} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                        ) : item.uom === "m_lari" && item.lengthCm ? (
+                          `${item.lengthCm / 100} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                        ) : (
+                          `${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                        )}
                         {item.notes && item.notes !== "-" && ` [Notes: ${item.notes}]`}
                       </span>
                       <span className="font-bold text-foreground">
@@ -1861,8 +1866,10 @@ const InvoicePage = () => {
                     if (item.notes && item.notes !== "-") {
                       rawData += `* ${item.notes}\n`;
                     }
-                    const leftDetail = item.dimension
-                      ? `${item.qty} x ${printFormatCurrency(item.pricePerUnit)} (${item.dimension})`
+                    const leftDetail = (item.uom === "m2" && item.lengthCm && item.widthCm)
+                      ? `${item.lengthCm / 100}x${item.widthCm / 100} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
+                      : (item.uom === "m_lari" && item.lengthCm)
+                      ? `${item.lengthCm / 100} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
                       : `${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`;
                     const rightDetail = printFormatCurrency(item.subtotal);
                     rawData += formatLine(leftDetail, rightDetail);

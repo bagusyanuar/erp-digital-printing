@@ -26,6 +26,9 @@ export interface InvoiceItem {
   subtotal: number;
   notes?: string;
   dimension?: string;
+  lengthCm?: number;
+  widthCm?: number;
+  uom?: string;
 }
 
 export interface Invoice {
@@ -397,6 +400,9 @@ export const useInvoice = () => {
             subtotal: item.subtotal || 0,
             notes: item.production_notes || "-",
             dimension: dimensionText,
+            lengthCm: item.length_cm,
+            widthCm: item.width_cm,
+            uom: item.uom,
           };
         }),
         totalAmount: order.grand_total || 0,
