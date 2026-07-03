@@ -27,8 +27,8 @@ export class ApiOrderRepository implements OrderRepository {
           design_file_url: item.design_file_url,
           production_notes: item.production_notes,
           finishing_ids: item.finishing_ids,
-          length_cm: item.length_cm,
-          width_cm: item.width_cm,
+          length_m: item.length_m,
+          width_m: item.width_m,
         })),
       };
       await this.http.post("/orders/draft", payload);
@@ -103,8 +103,8 @@ export class ApiOrderRepository implements OrderRepository {
             price_per_unit: item.price_per_unit,
             additional_cost: item.additional_cost,
             subtotal: item.subtotal,
-            length_cm: item.length_cm,
-            width_cm: item.width_cm,
+            length_m: item.length_m,
+            width_m: item.width_m,
           })),
           order_payments: (order.order_payments ?? []).map((pay) => ({
             id: pay.id,
@@ -177,8 +177,8 @@ export class ApiOrderRepository implements OrderRepository {
             quantity: item.quantity,
             design_file_url: item.design_file_url,
             production_notes: item.production_notes,
-            length_cm: item.length_cm,
-            width_cm: item.width_cm,
+            length_m: item.length_m,
+            width_m: item.width_m,
           })),
         })),
       };
@@ -244,8 +244,8 @@ export class ApiOrderRepository implements OrderRepository {
           price_per_unit: item.price_per_unit,
           additional_cost: item.additional_cost,
           subtotal: item.subtotal,
-          length_cm: item.length_cm,
-          width_cm: item.width_cm,
+          length_m: item.length_m,
+          width_m: item.width_m,
         })),
         order_payments: (order.order_payments ?? []).map((pay) => ({
           id: pay.id,
@@ -278,8 +278,8 @@ export class ApiOrderRepository implements OrderRepository {
           design_file_url: item.design_file_url,
           production_notes: item.production_notes,
           finishing_ids: item.finishing_ids,
-          length_cm: item.length_cm,
-          width_cm: item.width_cm,
+          length_m: item.length_m,
+          width_m: item.width_m,
         })),
       };
       await this.http.put(`/orders/${id}`, payload);

@@ -58,8 +58,8 @@ interface JobItem {
   uom: string;
   production_notes: string;
   finishing_ids: string[];
-  length_cm?: number;
-  width_cm?: number;
+  length_m?: number;
+  width_m?: number;
 }
 
 const CreateJobEntryPage = () => {
@@ -150,7 +150,7 @@ const CreateJobEntryPage = () => {
           (item): JobItem => {
             let dimensionText = "Pcs";
             if (item.uom === "m2" || item.uom === "m_lari") {
-              dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
+              dimensionText = `${item.length_m || 0} x ${item.width_m || 0} m (${item.uom})`;
             } else if (item.uom === "box") {
               dimensionText = "Box";
             } else if (item.uom === "lembar") {
@@ -167,8 +167,8 @@ const CreateJobEntryPage = () => {
               uom: item.uom,
               production_notes: item.production_notes || "",
               finishing_ids: [],
-              length_cm: item.length_cm,
-              width_cm: item.width_cm,
+              length_m: item.length_m,
+              width_m: item.width_m,
             };
           },
         );
@@ -190,8 +190,8 @@ const CreateJobEntryPage = () => {
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedVariant, setSelectedVariant] = useState("");
   const [qty, setQty] = useState<number | "">(1);
-  const [lengthCm, setLengthCm] = useState<string>("");
-  const [widthCm, setWidthCm] = useState<string>("");
+  const [lengthM, setLengthM] = useState<string>("");
+  const [widthM, setWidthM] = useState<string>("");
   const [productionNotes, setProductionNotes] = useState("");
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -231,18 +231,12 @@ const CreateJobEntryPage = () => {
     }
 
     // Parse dimensions if meteran
-    if (item.dimension.includes("x")) {
-      const parts = item.dimension.split("x");
-      if (parts[0] && parts[1]) {
-        setLengthCm(parts[0].trim());
-        const widthPart = parts[1].split("cm")[0];
-        if (widthPart) {
-          setWidthCm(widthPart.trim());
-        }
-      }
+    if (item.length_m !== undefined && item.width_m !== undefined) {
+      setLengthM(item.length_m.toString());
+      setWidthM(item.width_m.toString());
     } else {
-      setLengthCm("");
-      setWidthCm("");
+      setLengthM("");
+      setWidthM("");
     }
 
     setQty(item.qty);
@@ -302,7 +296,7 @@ const CreateJobEntryPage = () => {
       toast.error("Validasi Gagal", "Quantity minimal harus 1");
       return;
     }
-    if (showSizeFields && (!lengthCm || !widthCm)) {
+    if (showSizeFields && (!lengthM || !widthM)) {
       toast.error(
         "Validasi Gagal",
         "Panjang & Lebar wajib diisi untuk produk meteran",
@@ -313,9 +307,9 @@ const CreateJobEntryPage = () => {
     // Format dimension text based on UoM
     let dimensionText = "Pcs";
     if (activeProductUoM === "m2") {
-      dimensionText = `${lengthCm} x ${widthCm} cm (m²)`;
+      dimensionText = `${lengthM} x ${widthM} m (m²)`;
     } else if (activeProductUoM === "m_lari") {
-      dimensionText = `${lengthCm} x ${widthCm} cm (m_lari)`;
+      dimensionText = `${lengthM} x ${widthM} m (m_lari)`;
     } else if (activeProductUoM === "box") {
       dimensionText = "Box";
     } else if (activeProductUoM === "lembar") {
@@ -339,9 +333,9 @@ const CreateJobEntryPage = () => {
     }
 
     const lengthNum =
-      showSizeFields && lengthCm ? parseFloat(lengthCm) : undefined;
+      showSizeFields && lengthM ? parseFloat(lengthM) : undefined;
     const widthNum =
-      showSizeFields && widthCm ? parseFloat(widthCm) : undefined;
+      showSizeFields && widthM ? parseFloat(widthM) : undefined;
 
     if (editingItemId) {
       // Edit Mode: update the existing item in the cart
@@ -356,8 +350,8 @@ const CreateJobEntryPage = () => {
                 qty,
                 uom: activeProductUoM,
                 production_notes: productionNotes,
-                length_cm: lengthNum,
-                width_cm: widthNum,
+                length_m: lengthNum,
+                width_m: widthNum,
               }
             : item,
         ),
@@ -378,8 +372,8 @@ const CreateJobEntryPage = () => {
         uom: activeProductUoM,
         production_notes: productionNotes,
         finishing_ids: [],
-        length_cm: lengthNum,
-        width_cm: widthNum,
+        length_m: lengthNum,
+        width_m: widthNum,
       };
       setCartItems((prev) => [...prev, newItem]);
       toast.success(
@@ -393,8 +387,8 @@ const CreateJobEntryPage = () => {
     setSelectedProduct("");
     setSelectedVariant("");
     setQty(1);
-    setLengthCm("");
-    setWidthCm("");
+    setLengthM("");
+    setWidthM("");
     setProductionNotes("");
   };
 
@@ -464,8 +458,8 @@ const CreateJobEntryPage = () => {
         design_file_url: "", // Left empty as requested
         production_notes: item.production_notes || "",
         finishing_ids: [], // Left empty as requested
-        length_cm: item.length_cm,
-        width_cm: item.width_cm,
+        length_m: item.length_m,
+        width_m: item.width_m,
       })),
     };
 
@@ -694,13 +688,14 @@ const CreateJobEntryPage = () => {
                       weight="bold"
                       className="text-xs text-primary"
                     >
-                      Panjang (cm) <span className="text-rose-500">*</span>
+                      Panjang (m) <span className="text-rose-500">*</span>
                     </Typography>
                     <TextField
                       type="number"
-                      placeholder="Contoh: 300"
-                      value={lengthCm}
-                      onChange={(e) => setLengthCm(e.target.value)}
+                      step="0.01"
+                      placeholder="Contoh: 3.0"
+                      value={lengthM}
+                      onChange={(e) => setLengthM(e.target.value)}
                       className="h-10 bg-card border-primary/20 focus:bg-background font-semibold"
                     />
                   </div>
@@ -710,13 +705,14 @@ const CreateJobEntryPage = () => {
                       weight="bold"
                       className="text-xs text-primary"
                     >
-                      Lebar (cm) <span className="text-rose-500">*</span>
+                      Lebar (m) <span className="text-rose-500">*</span>
                     </Typography>
                     <TextField
                       type="number"
-                      placeholder="Contoh: 100"
-                      value={widthCm}
-                      onChange={(e) => setWidthCm(e.target.value)}
+                      step="0.01"
+                      placeholder="Contoh: 1.0"
+                      value={widthM}
+                      onChange={(e) => setWidthM(e.target.value)}
                       className="h-10 bg-card border-primary/20 focus:bg-background font-semibold"
                     />
                   </div>
@@ -778,8 +774,8 @@ const CreateJobEntryPage = () => {
                       setSelectedProduct("");
                       setSelectedVariant("");
                       setQty(1);
-                      setLengthCm("");
-                      setWidthCm("");
+                      setLengthM("");
+                      setWidthM("");
                       toast.info(
                         "Ubah Dibatalkan",
                         "Perubahan item dibatalkan.",

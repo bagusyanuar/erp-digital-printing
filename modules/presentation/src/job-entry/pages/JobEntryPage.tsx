@@ -145,7 +145,7 @@ const JobEntryPage = () => {
           (item: OrderItemModel): JobItem => {
             let dimensionText = "Pcs";
             if (item.uom === "m2" || item.uom === "m_lari") {
-              dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
+              dimensionText = `${item.length_m || 0} x ${item.width_m || 0} m (${item.uom})`;
             } else if (item.uom === "box") {
               dimensionText = "Box";
             } else if (item.uom === "lembar") {

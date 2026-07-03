@@ -823,8 +823,14 @@ const InvoicePage = () => {
                               Spesifikasi: {item.notes}
                             </span>
                           )}
+                          {((item.uom === "m2" && item.lengthM && item.widthM) || (item.uom === "m_lari" && item.lengthM)) && (
+                            <span className="text-[10px] text-muted-foreground block font-medium mt-1">
+                              Dimensi: {item.uom === "m2" ? `${item.lengthM} x ${item.widthM} m` : `${item.lengthM} m`}
+                            </span>
+                          )}
                           <span className="text-[10px] text-primary font-bold block mt-1">
-                            {formatCurrency(item.pricePerUnit)} x {item.qty} Qty
+                            {formatCurrency(item.pricePerUnit)} x {item.qty}{" "}
+                            {item.uom === "m2" || item.uom === "m_lari" ? "pcs" : (item.uom || "Qty")}
                           </span>
                         </div>
                         <span className="font-black text-foreground shrink-0 self-center">
@@ -1610,10 +1616,10 @@ const InvoicePage = () => {
                       </span>
                     </div>
                     {(item.uom === "m2" || item.uom === "m_lari") &&
-                      item.length_cm &&
-                      item.width_cm && (
+                      item.length_m &&
+                      item.width_m && (
                         <div className="text-[10px] text-primary font-black mt-0.5">
-                          Ukuran: {item.length_cm} x {item.width_cm} cm (
+                          Ukuran: {item.length_m} x {item.width_m} m (
                           {item.uom})
                         </div>
                       )}
@@ -1712,8 +1718,8 @@ const InvoicePage = () => {
 
                     const hasDimensions =
                       (item.uom === "m2" || item.uom === "m_lari") &&
-                      item.length_cm &&
-                      item.width_cm;
+                      item.length_m &&
+                      item.width_m;
 
                     if (hasDimensions) {
                       // 1. Catatan
@@ -1726,8 +1732,8 @@ const InvoicePage = () => {
                       }
 
                       // 2. Ukuran (in meters)
-                      const lengthM = (item.length_cm ?? 0) / 100;
-                      const widthM = (item.width_cm ?? 0) / 100;
+                      const lengthM = item.length_m ?? 0;
+                      const widthM = item.width_m ?? 0;
                       rawData += `   UKURAN: ${lengthM} x ${widthM} meter\n`;
 
                       // 3. Quantity
@@ -1882,10 +1888,10 @@ const InvoicePage = () => {
                     </span>
                     <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>
-                        {item.uom === "m2" && item.lengthCm && item.widthCm
-                          ? `${item.lengthCm / 100}x${item.widthCm / 100} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
-                          : item.uom === "m_lari" && item.lengthCm
-                            ? `${item.lengthCm / 100} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                        {item.uom === "m2" && item.lengthM && item.widthM
+                          ? `${item.lengthM}x${item.widthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                          : item.uom === "m_lari" && item.lengthM
+                            ? `${item.lengthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
                             : `${item.qty} x ${formatCurrency(item.pricePerUnit)}`}
                         {item.notes &&
                           item.notes !== "-" &&
@@ -2029,10 +2035,10 @@ const InvoicePage = () => {
                       rawData += `* ${item.notes}\n`;
                     }
                     const leftDetail =
-                      item.uom === "m2" && item.lengthCm && item.widthCm
-                        ? `${item.lengthCm / 100}x${item.widthCm / 100} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
-                        : item.uom === "m_lari" && item.lengthCm
-                          ? `${item.lengthCm / 100} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
+                      item.uom === "m2" && item.lengthM && item.widthM
+                        ? `${item.lengthM}x${item.widthM} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
+                        : item.uom === "m_lari" && item.lengthM
+                          ? `${item.lengthM} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
                           : `${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`;
                     const rightDetail = printFormatCurrency(item.subtotal);
                     rawData += formatLine(leftDetail, rightDetail);

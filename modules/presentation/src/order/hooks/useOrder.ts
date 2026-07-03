@@ -16,8 +16,8 @@ export interface OrderItem {
   qty: number;
   finishing: string;
   pricePerUnit: number;
-  lengthCm?: number;
-  widthCm?: number;
+  lengthM?: number;
+  widthM?: number;
   uom?: string;
   subtotal: number;
 }
@@ -100,7 +100,7 @@ export const useOrder = () => {
         items: (order.order_items ?? []).map((item) => {
           let dimensionText = "Pcs";
           if (item.uom === "m2" || item.uom === "m_lari") {
-            dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
+            dimensionText = `${item.length_m || 0} x ${item.width_m || 0} m (${item.uom})`;
           } else if (item.uom === "box") {
             dimensionText = "Box";
           } else if (item.uom === "lembar") {
@@ -118,10 +118,10 @@ export const useOrder = () => {
           if (itemOverride) {
             if (item.uom === "m2") {
               const area =
-                ((item.length_cm || 0) * (item.width_cm || 0)) / 10000;
+                (item.length_m || 0) * (item.width_m || 0);
               itemSubtotal = pricePerUnit * item.quantity * area;
             } else if (item.uom === "m_lari") {
-              const length = (item.length_cm || 0) / 100;
+              const length = item.length_m || 0;
               itemSubtotal = pricePerUnit * item.quantity * length;
             } else {
               itemSubtotal = pricePerUnit * item.quantity;
@@ -137,8 +137,8 @@ export const useOrder = () => {
             qty: item.quantity,
             finishing: item.production_notes || "-",
             pricePerUnit,
-            lengthCm: item.length_cm,
-            widthCm: item.width_cm,
+            lengthM: item.length_m,
+            widthM: item.width_m,
             uom: item.uom,
             subtotal: itemSubtotal,
           };

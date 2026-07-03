@@ -26,8 +26,8 @@ export interface InvoiceItem {
   subtotal: number;
   notes?: string;
   dimension?: string;
-  lengthCm?: number;
-  widthCm?: number;
+  lengthM?: number;
+  widthM?: number;
   uom?: string;
 }
 
@@ -383,7 +383,7 @@ export const useInvoice = () => {
         items: (order.order_items ?? []).map((item) => {
           let dimensionText = "Pcs";
           if (item.uom === "m2" || item.uom === "m_lari") {
-            dimensionText = `${item.length_cm || 0} x ${item.width_cm || 0} cm (${item.uom})`;
+            dimensionText = `${item.length_m || 0} x ${item.width_m || 0} m (${item.uom})`;
           } else if (item.uom === "box") {
             dimensionText = "Box";
           } else if (item.uom === "lembar") {
@@ -400,8 +400,8 @@ export const useInvoice = () => {
             subtotal: item.subtotal || 0,
             notes: item.production_notes || "-",
             dimension: dimensionText,
-            lengthCm: item.length_cm,
-            widthCm: item.width_cm,
+            lengthM: item.length_m,
+            widthM: item.width_m,
             uom: item.uom,
           };
         }),

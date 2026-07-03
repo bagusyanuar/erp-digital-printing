@@ -5,8 +5,8 @@ export interface DraftOrderItemRequest {
   design_file_url: string;
   production_notes: string;
   finishing_ids: string[];
-  length_cm?: number;
-  width_cm?: number;
+  length_m?: number;
+  width_m?: number;
 }
 
 export interface DraftOrderRequest {

@@ -10,8 +10,8 @@ export interface OrderItemResponse {
   price_per_unit: number;
   additional_cost: number;
   subtotal: number;
-  length_cm?: number;
-  width_cm?: number;
+  length_m?: number;
+  width_m?: number;
 }
 
 export interface OrderResponse {
@@ -44,8 +44,8 @@ export interface SpkItemResponse {
   quantity: number;
   design_file_url: string;
   production_notes: string;
-  length_cm?: number | null;
-  width_cm?: number | null;
+  length_m?: number | null;
+  width_m?: number | null;
 }
 
 export interface SpkCategoryResponse {

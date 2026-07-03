@@ -319,9 +319,9 @@ const OrderPage = () => {
                         <span className="text-[10px] font-bold text-primary block">
                           {formatCurrency(item.pricePerUnit)}
                           {item.uom === "m2" &&
-                            ` x ${(((item.lengthCm || 0) * (item.widthCm || 0)) / 10000).toFixed(2)} m²`}
+                            ` x ${((item.lengthM || 0) * (item.widthM || 0)).toFixed(2)} m²`}
                           {item.uom === "m_lari" &&
-                            ` x ${((item.lengthCm || 0) / 100).toFixed(2)} m`}
+                            ` x ${(item.lengthM || 0).toFixed(2)} m`}
                           {` x ${item.qty}`}
                         </span>
                       ) : (
@@ -346,9 +346,9 @@ const OrderPage = () => {
                           />
                           <span className="text-[10px] text-muted-foreground font-black">
                             {item.uom === "m2" &&
-                              ` x ${(((item.lengthCm || 0) * (item.widthCm || 0)) / 10000).toFixed(2)} m²`}
+                              ` x ${((item.lengthM || 0) * (item.widthM || 0)).toFixed(2)} m²`}
                             {item.uom === "m_lari" &&
-                              ` x ${((item.lengthCm || 0) / 100).toFixed(2)} m`}
+                              ` x ${(item.lengthM || 0).toFixed(2)} m`}
                             {` x ${item.qty}`}
                           </span>
                         </div>
@@ -996,10 +996,10 @@ const OrderPage = () => {
                     </span>
                     <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>
-                        {item.uom === "m2" && item.lengthCm && item.widthCm ? (
-                          `${item.lengthCm / 100}x${item.widthCm / 100} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
-                        ) : item.uom === "m_lari" && item.lengthCm ? (
-                          `${item.lengthCm / 100} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                        {item.uom === "m2" && item.lengthM && item.widthM ? (
+                          `${item.lengthM}x${item.widthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                        ) : item.uom === "m_lari" && item.lengthM ? (
+                          `${item.lengthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
                         ) : (
                           `${item.qty} x ${formatCurrency(item.pricePerUnit)}`
                         )}
@@ -1157,10 +1157,10 @@ const OrderPage = () => {
 
                   lastCompletedOrder.items.forEach((item) => {
                     rawData += `${item.productName}\n`;
-                    const leftDetail = (item.uom === "m2" && item.lengthCm && item.widthCm)
-                      ? `${item.lengthCm / 100}x${item.widthCm / 100} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
-                      : (item.uom === "m_lari" && item.lengthCm)
-                      ? `${item.lengthCm / 100} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
+                    const leftDetail = (item.uom === "m2" && item.lengthM && item.widthM)
+                      ? `${item.lengthM}x${item.widthM} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
+                      : (item.uom === "m_lari" && item.lengthM)
+                      ? `${item.lengthM} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
                       : `${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`;
                     const rightDetail = printFormatCurrency(item.subtotal);
                     rawData += formatLine(leftDetail, rightDetail);

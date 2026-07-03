@@ -120,6 +120,9 @@ const DetailReportSelling: React.FC<DetailReportSellingProps> = ({
       pricePerUnit: item.price_per_unit || 0,
       qty: item.quantity,
       subtotal: item.subtotal || 0,
+      lengthM: item.length_m,
+      widthM: item.width_m,
+      uom: item.uom,
     }));
   }, [sale]);
 
@@ -266,8 +269,14 @@ const DetailReportSelling: React.FC<DetailReportSellingProps> = ({
                           Spesifikasi: {item.notes}
                         </span>
                       )}
+                      {((item.uom === "m2" && item.lengthM && item.widthM) || (item.uom === "m_lari" && item.lengthM)) && (
+                        <span className="text-[10px] text-muted-foreground block font-medium mt-1">
+                          Dimensi: {item.uom === "m2" ? `${item.lengthM} x ${item.widthM} m` : `${item.lengthM} m`}
+                        </span>
+                      )}
                       <span className="text-[10px] text-primary font-bold block mt-1">
-                        {formatCurrency(item.pricePerUnit)} x {item.qty} Qty
+                        {formatCurrency(item.pricePerUnit)} x {item.qty}{" "}
+                        {item.uom === "m2" || item.uom === "m_lari" ? "pcs" : (item.uom || "Qty")}
                       </span>
                     </div>
                     <span className="font-black text-foreground shrink-0 self-center">
