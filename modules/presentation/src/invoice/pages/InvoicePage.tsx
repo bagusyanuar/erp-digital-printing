@@ -34,6 +34,8 @@ import {
   LuCircleCheck,
   LuCircleX,
   LuCalendar,
+  LuShare2,
+  LuCopy,
 } from "@erp-digital-printing/ui/icons";
 import { useInvoice } from "../hooks/useInvoice";
 
@@ -134,6 +136,50 @@ const InvoicePage = () => {
     // Helpers
     formatCurrency,
   } = useInvoice();
+
+  const [isShareWADialogOpen, setIsShareWADialogOpen] = React.useState(false);
+  const [isCapturingInvoice, setIsCapturingInvoice] = React.useState(false);
+  const invoiceDetailRef = React.useRef<HTMLDivElement>(null);
+
+  const handleShareWA = async () => {
+    try {
+      setIsCapturingInvoice(true);
+      let canvas: HTMLCanvasElement | undefined;
+      try {
+        const html2canvas = (await import('html2canvas')).default;
+        if (invoiceDetailRef.current) {
+           canvas = await html2canvas(invoiceDetailRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+        }
+      } catch (err) {
+        console.warn("html2canvas not installed, simulating capture");
+        canvas = document.createElement("canvas");
+        canvas.width = 400; canvas.height = 300;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,400,300);
+          ctx.fillStyle = "#000000"; ctx.font = "16px sans-serif"; ctx.fillText("Simulasi Struk (Install html2canvas)", 20, 50);
+        }
+      }
+
+      if (canvas) {
+        canvas.toBlob(async (blob) => {
+          if (blob) {
+            const item = new ClipboardItem({ "image/png": blob });
+            await navigator.clipboard.write([item]);
+            toast.success("Gambar disalin!", "Silakan paste di chat WA.");
+            setIsShareWADialogOpen(true);
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(`Halo Kak ${selectedInvoice?.customerName || ''},\nBerikut adalah rincian nota transaksinya ya. Terima kasih!`)}`;
+            window.open(waUrl, "_blank");
+          }
+        }, 'image/png');
+      }
+    } catch (err) {
+      console.error("Gagal menyalin gambar:", err);
+      toast.error("Gagal Menyalin", "Browser Anda mungkin tidak mendukung fitur ini.");
+    } finally {
+      setIsCapturingInvoice(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6 font-sans bg-background min-h-screen animate-in fade-in duration-500">
@@ -743,7 +789,8 @@ const InvoicePage = () => {
             {/* Two-Column Layout */}
             <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-2 gap-6 h-full min-h-0">
               {/* LEFT COLUMN: Dokumen, Produk & Desain (Scrollable) */}
-              <div className="flex flex-col h-full overflow-y-auto pr-1 scrollbar-thin space-y-5">
+              <div className="flex flex-col h-full overflow-y-auto pr-1 scrollbar-thin">
+                <div ref={invoiceDetailRef} className="space-y-5 bg-card p-1">
                 {/* Utama & Pelanggan Box */}
                 <div className="bg-muted/30 p-4 rounded-2xl border border-border/40 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -839,6 +886,7 @@ const InvoicePage = () => {
                       </div>
                     ))}
                   </div>
+                </div>
                 </div>
               </div>
 
@@ -1020,6 +1068,19 @@ const InvoicePage = () => {
                 onClick={() => setIsDetailOpen(false)}
               >
                 Tutup
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl text-xs font-bold px-4 border-border/50 h-10 hover:bg-muted flex items-center gap-1.5"
+                onClick={handleShareWA}
+                disabled={isCapturingInvoice}
+              >
+                {isCapturingInvoice ? (
+                  <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                ) : (
+                  <LuShare2 size={13} />
+                )}
+                Bagikan ke WA
               </Button>
               <Button
                 className="rounded-xl text-xs font-black px-4 bg-primary text-primary-foreground flex items-center gap-1.5 h-10 shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
@@ -2269,6 +2330,46 @@ const InvoicePage = () => {
             </div>
           </div>
         )}
+      </Dialog>
+
+      <Dialog
+        isOpen={isShareWADialogOpen}
+        onClose={() => setIsShareWADialogOpen(false)}
+        className="rounded-3xl p-6 bg-card border border-border/50 text-foreground max-w-sm w-full"
+        showCloseButton={true}
+      >
+        <div className="flex flex-col items-center justify-center space-y-4 text-center py-4">
+          <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center">
+            <LuShare2 size={32} />
+          </div>
+          <h3 className="text-lg font-black text-foreground">
+            Menunggu Pengiriman WA
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Gambar nota sudah disalin. Silakan buka tab WhatsApp dan tekan <strong>Ctrl + V</strong> (Paste) pada kolom chat.
+          </p>
+          <div className="pt-4 w-full flex flex-col gap-2">
+            <Button
+              onClick={handleShareWA}
+              disabled={isCapturingInvoice}
+              className="w-full rounded-xl font-bold flex items-center justify-center gap-2"
+            >
+              {isCapturingInvoice ? (
+                <div className="w-4 h-4 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
+              ) : (
+                <LuCopy size={16} />
+              )}
+              Salin Ulang Gambar
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setIsShareWADialogOpen(false)}
+              className="w-full rounded-xl font-bold"
+            >
+              Tutup
+            </Button>
+          </div>
+        </div>
       </Dialog>
     </div>
   );
