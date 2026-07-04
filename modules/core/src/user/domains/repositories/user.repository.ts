@@ -10,5 +10,6 @@ export interface UserRepository {
   getUsers(): Promise<UserModel[]>;
   createUser(input: CreateUserInput): Promise<UserModel>;
   getRoles(): Promise<RoleModel[]>;
+  getProfile(): Promise<UserModel>;
 }
 

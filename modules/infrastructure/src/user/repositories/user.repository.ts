@@ -33,5 +33,12 @@ export class ApiUserRepository implements UserRepository {
       return response.data;
     });
   }
+
+  async getProfile(): Promise<UserModel> {
+    return safeApiCall(async () => {
+      const response = await this.http.get<ApiResponse<UserResponse>>("/me");
+      return mapUserResponseToModel(response.data);
+    });
+  }
 }
 

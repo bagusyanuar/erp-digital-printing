@@ -1,4 +1,5 @@
 import React from "react";
+import html2canvas from "html2canvas-pro";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Card, CardContent } from "@erp-digital-printing/ui/Card";
@@ -140,42 +141,44 @@ const InvoicePage = () => {
   const [isShareWADialogOpen, setIsShareWADialogOpen] = React.useState(false);
   const [isCapturingInvoice, setIsCapturingInvoice] = React.useState(false);
   const invoiceDetailRef = React.useRef<HTMLDivElement>(null);
+  const shareReceiptRef = React.useRef<HTMLDivElement>(null);
 
   const handleShareWA = async () => {
     try {
       setIsCapturingInvoice(true);
-      let canvas: HTMLCanvasElement | undefined;
-      try {
-        const html2canvas = (await import('html2canvas')).default;
-        if (invoiceDetailRef.current) {
-           canvas = await html2canvas(invoiceDetailRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-        }
-      } catch (err) {
-        console.warn("html2canvas not installed, simulating capture");
-        canvas = document.createElement("canvas");
-        canvas.width = 400; canvas.height = 300;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,400,300);
-          ctx.fillStyle = "#000000"; ctx.font = "16px sans-serif"; ctx.fillText("Simulasi Struk (Install html2canvas)", 20, 50);
-        }
+      const targetElement = shareReceiptRef.current || invoiceDetailRef.current;
+      if (!targetElement) {
+        throw new Error("Elemen target untuk capture tidak ditemukan.");
       }
 
-      if (canvas) {
-        canvas.toBlob(async (blob) => {
-          if (blob) {
-            const item = new ClipboardItem({ "image/png": blob });
-            await navigator.clipboard.write([item]);
-            toast.success("Gambar disalin!", "Silakan paste di chat WA.");
-            setIsShareWADialogOpen(true);
-            const waUrl = `https://wa.me/?text=${encodeURIComponent(`Halo Kak ${selectedInvoice?.customerName || ''},\nBerikut adalah rincian nota transaksinya ya. Terima kasih!`)}`;
-            window.open(waUrl, "_blank");
-          }
-        }, 'image/png');
-      }
-    } catch (err) {
+      const canvas = await html2canvas(targetElement, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          const item = new ClipboardItem({ "image/png": blob });
+          await navigator.clipboard.write([item]);
+          toast.success("Gambar disalin!", "Silakan paste di chat WA.");
+          setIsShareWADialogOpen(true);
+
+          const customerPhone = selectedInvoice?.customerPhone || "";
+          const cleanPhone = customerPhone.replace(/\D/g, "");
+          const waNumber = cleanPhone.startsWith("0")
+            ? "62" + cleanPhone.slice(1)
+            : cleanPhone;
+          const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(`Halo Kak ${selectedInvoice?.customerName || ""},\nBerikut adalah rincian nota transaksinya ya. Terima kasih!`)}`;
+          window.open(waUrl, "_blank");
+        }
+      }, "image/png");
+    } catch (err: unknown) {
       console.error("Gagal menyalin gambar:", err);
-      toast.error("Gagal Menyalin", "Browser Anda mungkin tidak mendukung fitur ini.");
+      toast.error(
+        "Gagal Menyalin",
+        err instanceof Error ? err.message : "Browser Anda mungkin tidak mendukung fitur ini.",
+      );
     } finally {
       setIsCapturingInvoice(false);
     }
@@ -791,102 +794,110 @@ const InvoicePage = () => {
               {/* LEFT COLUMN: Dokumen, Produk & Desain (Scrollable) */}
               <div className="flex flex-col h-full overflow-y-auto pr-1 scrollbar-thin">
                 <div ref={invoiceDetailRef} className="space-y-5 bg-card p-1">
-                {/* Utama & Pelanggan Box */}
-                <div className="bg-muted/30 p-4 rounded-2xl border border-border/40 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
-                        Pelanggan
-                      </span>
-                      <span className="font-bold text-foreground text-xs block">
-                        {selectedInvoice.customerName}
-                      </span>
-                      <span
-                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none ${
-                          selectedInvoice.isReseller
-                            ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
-                            : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
-                        }`}
-                      >
-                        {selectedInvoice.isReseller
-                          ? "Biro / Reseller"
-                          : "Retail"}
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
-                        Staff Kasir
-                      </span>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center">
-                          <LuUser size={10} className="text-primary" />
-                        </div>
-                        <span className="font-bold text-foreground text-xs">
-                          {groupedPayments[0]?.cashier_name || "Sistem"}
+                  {/* Utama & Pelanggan Box */}
+                  <div className="bg-muted/30 p-4 rounded-2xl border border-border/40 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                          Pelanggan
                         </span>
+                        <span className="font-bold text-foreground text-xs block">
+                          {selectedInvoice.customerName}
+                        </span>
+                        <span
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none ${
+                            selectedInvoice.isReseller
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
+                              : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
+                          }`}
+                        >
+                          {selectedInvoice.isReseller
+                            ? "Biro / Reseller"
+                            : "Retail"}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                          Staff Kasir
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center">
+                            <LuUser size={10} className="text-primary" />
+                          </div>
+                          <span className="font-bold text-foreground text-xs">
+                            {groupedPayments[0]?.cashier_name || "Sistem"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Info Tiket Kerja (Desain) */}
+                    <div className="border-t border-border/30 pt-3 grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                          Nomor Tiket Pesanan
+                        </span>
+                        <span className="font-mono font-black text-foreground text-xs bg-muted px-2 py-0.5 rounded border border-border inline-block">
+                          {selectedInvoice.jobNumber}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                          Tanggal Transaksi
+                        </span>
+                        <div className="flex items-center gap-1.5 text-xs text-foreground font-bold mt-1">
+                          <LuCalendar size={13} className="text-primary/70" />
+                          {selectedInvoice.createdAt}
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Info Tiket Kerja (Desain) */}
-                  <div className="border-t border-border/30 pt-3 grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
-                        Nomor Tiket Pesanan
-                      </span>
-                      <span className="font-mono font-black text-foreground text-xs bg-muted px-2 py-0.5 rounded border border-border inline-block">
-                        {selectedInvoice.jobNumber}
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
-                        Tanggal Transaksi
-                      </span>
-                      <div className="flex items-center gap-1.5 text-xs text-foreground font-bold mt-1">
-                        <LuCalendar size={13} className="text-primary/70" />
-                        {selectedInvoice.createdAt}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Item List */}
-                <div className="space-y-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
-                    Daftar Item Cetak
-                  </span>
-                  <div className="border border-border/40 rounded-xl overflow-hidden divide-y divide-border/20">
-                    {selectedInvoice.items.map((item, idx) => (
-                      <div
-                        key={item.id}
-                        className="p-3.5 bg-card flex justify-between gap-4 text-xs font-semibold hover:bg-muted/10 transition-colors"
-                      >
-                        <div>
-                          <span className="text-foreground block font-bold">
-                            {idx + 1}. {item.productName}
-                          </span>
-                          {item.notes && item.notes !== "-" && (
-                            <span className="text-[10px] text-muted-foreground block font-medium mt-1">
-                              Spesifikasi: {item.notes}
+                  {/* Item List */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
+                      Daftar Item Cetak
+                    </span>
+                    <div className="border border-border/40 rounded-xl overflow-hidden divide-y divide-border/20">
+                      {selectedInvoice.items.map((item, idx) => (
+                        <div
+                          key={item.id}
+                          className="p-3.5 bg-card flex justify-between gap-4 text-xs font-semibold hover:bg-muted/10 transition-colors"
+                        >
+                          <div>
+                            <span className="text-foreground block font-bold">
+                              {idx + 1}. {item.productName}
                             </span>
-                          )}
-                          {((item.uom === "m2" && item.lengthM && item.widthM) || (item.uom === "m_lari" && item.lengthM)) && (
-                            <span className="text-[10px] text-muted-foreground block font-medium mt-1">
-                              Dimensi: {item.uom === "m2" ? `${item.lengthM} x ${item.widthM} m` : `${item.lengthM} m`}
+                            {item.notes && item.notes !== "-" && (
+                              <span className="text-[10px] text-muted-foreground block font-medium mt-1">
+                                Spesifikasi: {item.notes}
+                              </span>
+                            )}
+                            {((item.uom === "m2" &&
+                              item.lengthM &&
+                              item.widthM) ||
+                              (item.uom === "m_lari" && item.lengthM)) && (
+                              <span className="text-[10px] text-muted-foreground block font-medium mt-1">
+                                Dimensi:{" "}
+                                {item.uom === "m2"
+                                  ? `${item.lengthM} x ${item.widthM} m`
+                                  : `${item.lengthM} m`}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-primary font-bold block mt-1">
+                              {formatCurrency(item.pricePerUnit)} x {item.qty}{" "}
+                              {item.uom === "m2" || item.uom === "m_lari"
+                                ? "pcs"
+                                : item.uom || "Qty"}
                             </span>
-                          )}
-                          <span className="text-[10px] text-primary font-bold block mt-1">
-                            {formatCurrency(item.pricePerUnit)} x {item.qty}{" "}
-                            {item.uom === "m2" || item.uom === "m_lari" ? "pcs" : (item.uom || "Qty")}
+                          </div>
+                          <span className="font-black text-foreground shrink-0 self-center">
+                            {formatCurrency(item.subtotal)}
                           </span>
                         </div>
-                        <span className="font-black text-foreground shrink-0 self-center">
-                          {formatCurrency(item.subtotal)}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
                 </div>
               </div>
 
@@ -1680,8 +1691,8 @@ const InvoicePage = () => {
                       item.length_m &&
                       item.width_m && (
                         <div className="text-[10px] text-primary font-black mt-0.5">
-                          Ukuran: {item.length_m} x {item.width_m} m (
-                          {item.uom})
+                          Ukuran: {item.length_m} x {item.width_m} m ({item.uom}
+                          )
                         </div>
                       )}
                     {item.production_notes &&
@@ -2346,7 +2357,8 @@ const InvoicePage = () => {
             Menunggu Pengiriman WA
           </h3>
           <p className="text-sm text-muted-foreground">
-            Gambar nota sudah disalin. Silakan buka tab WhatsApp dan tekan <strong>Ctrl + V</strong> (Paste) pada kolom chat.
+            Gambar nota sudah disalin. Silakan buka tab WhatsApp dan tekan{" "}
+            <strong>Ctrl + V</strong> (Paste) pada kolom chat.
           </p>
           <div className="pt-4 w-full flex flex-col gap-2">
             <Button
@@ -2371,6 +2383,139 @@ const InvoicePage = () => {
           </div>
         </div>
       </Dialog>
+
+      {/* Off-screen receipt container for html2canvas WhatsApp sharing */}
+      <div
+        ref={shareReceiptRef}
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          top: "0",
+          width: "380px",
+          backgroundColor: "#ffffff",
+          color: "#000000",
+          padding: "24px",
+          fontFamily: "monospace",
+          fontSize: "12px",
+          lineHeight: "1.5",
+          boxSizing: "border-box",
+        }}
+      >
+        {selectedInvoice && (
+          <div>
+            <div className="text-center space-y-1 pb-4 border-b border-dashed border-gray-400">
+              <span className="font-bold text-sm block">
+                MADE DIGITAL PRINTING
+              </span>
+              <span className="block text-[10px] text-gray-600">
+                Jl. Kali Sindang, Jagalan, Jebres - Solo
+              </span>
+              <span className="block text-[10px] text-gray-600">
+                WA. 082134305050
+              </span>
+            </div>
+
+            {/* Receipt metadata */}
+            <div className="py-3 space-y-1 border-b border-dashed border-gray-400">
+              <div className="flex justify-between">
+                <span>No. Nota:</span>
+                <span className="font-bold">{selectedInvoice.invoiceNo}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>No. Tiket/Job:</span>
+                <span className="font-bold">{selectedInvoice.jobNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tanggal:</span>
+                <span>{selectedInvoice.createdAt}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Pelanggan:</span>
+                <span className="font-bold uppercase">
+                  {selectedInvoice.customerName}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Kasir:</span>
+                <span>Kasir Utama</span>
+              </div>
+            </div>
+
+            {/* Items listing */}
+            <div className="py-3 border-b border-dashed border-gray-400 space-y-2.5">
+              {selectedInvoice.items.map((item) => (
+                <div key={item.id} className="space-y-0.5">
+                  <span className="font-bold block">{item.productName}</span>
+                  <div className="flex justify-between text-[11px] text-gray-600">
+                    <span>
+                      {item.uom === "m2" && item.lengthM && item.widthM
+                        ? `${item.lengthM}x${item.widthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                        : item.uom === "m_lari" && item.lengthM
+                          ? `${item.lengthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                          : `${item.qty} x ${formatCurrency(item.pricePerUnit)}`}
+                      {item.notes &&
+                        item.notes !== "-" &&
+                        ` [Notes: ${item.notes}]`}
+                    </span>
+                    <span className="font-bold text-black">
+                      {formatCurrency(item.subtotal)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Grand summary */}
+            <div className="py-3 space-y-1.5 text-[11px]">
+              <div className="flex justify-between">
+                <span>Subtotal:</span>
+                <span>
+                  {formatCurrency(
+                    selectedInvoice.items.reduce((s, i) => s + i.subtotal, 0),
+                  )}
+                </span>
+              </div>
+
+              <div className="flex justify-between font-bold text-xs border-t border-dotted border-gray-400 pt-2">
+                <span>TOTAL BELANJA:</span>
+                <span>{formatCurrency(selectedInvoice.totalAmount)}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Jumlah Bayar:</span>
+                <span>{formatCurrency(selectedInvoice.amountPaid)}</span>
+              </div>
+
+              {selectedInvoice.totalAmount - selectedInvoice.amountPaid > 0 && (
+                <div className="flex justify-between font-bold text-red-600">
+                  <span>SISA TAGIHAN (UTANG):</span>
+                  <span>
+                    {formatCurrency(
+                      selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {selectedInvoice.totalAmount - selectedInvoice.amountPaid ===
+                0 && (
+                <div className="flex justify-between font-bold text-green-600">
+                  <span>Status:</span>
+                  <span>LUNAS</span>
+                </div>
+              )}
+            </div>
+
+            <div className="text-center pt-5 border-t border-dashed border-gray-400 text-[10px] text-gray-500 space-y-0.5">
+              <span className="block font-bold">--- TERIMA KASIH ---</span>
+              <span className="block">
+                Barang yang sudah dibeli tidak dapat ditukar
+              </span>
+              <span className="block">atau dikembalikan. Sukses Selalu!</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

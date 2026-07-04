@@ -12,15 +12,11 @@ import type { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteP
 import { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, RefundOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder, GetOrderReportWidgets, GetSalesReportWidgets, GetSalesTrend, GetCategorySales, GetPaymentSales } from "@core/order/applications/usecases/order.usecase";
 
 import type { GetCashFlowReport, GetCashFlowSummary, CreateCashFlowAdjustment, GetCashAccounts } from "@core/cash-flow/applications/usecases/cash-flow.usecase";
-import type { GetUsers, CreateUser, GetRoles } from "@core/user/applications/usecases/user.usecase";
+import type { GetUsers, CreateUser, GetRoles, GetProfile } from "@core/user/applications/usecases/user.usecase";
 import type { GetSuppliers, CreateSupplier, GetSupplierById, UpdateSupplier, DeleteSupplier } from "@core/supplier/applications/usecases/supplier.usecase";
 import type { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAnalyticsSummary, PayExpense } from "@core/expense/applications/usecases/expense.usecase";
-
-
-
 import type { GetCapitalTransactions, CreateCapitalTransaction, DeleteCapitalTransaction } from "@core/capital/applications/usecases/capital.usecase";
 import type { GetFundTransfers, CreateFundTransfer, GetFundTransferWidgets } from "@core/fund-transfer/applications/usecases/fund-transfer.usecase";
-
 import type { GetDashboardWidgets } from "@core/dashboard/applications/usecases/dashboard.usecase";
 
 // ──────────────────────────────────────────────
@@ -130,6 +126,7 @@ export interface UserUseCases {
   getUsersUseCase: GetUsers;
   createUserUseCase: CreateUser;
   getRolesUseCase: GetRoles;
+  getProfileUseCase: GetProfile;
 }
 
 export interface ExpenseUseCases {

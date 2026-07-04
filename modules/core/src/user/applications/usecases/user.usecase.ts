@@ -22,3 +22,10 @@ export class GetRoles {
   }
 }
 
+export class GetProfile {
+  constructor(private readonly repository: UserRepository) {}
+  async execute(): Promise<UserModel> {
+    return await this.repository.getProfile();
+  }
+}
+

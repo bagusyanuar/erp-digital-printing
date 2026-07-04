@@ -26,9 +26,12 @@ import {
   LuUsers,
 } from "@erp-digital-printing/ui/icons";
 import { useLogout } from "@presentation/auth/hooks/useLogout";
+import { useProfile } from "@presentation/user/hooks/useProfile";
 
 export const NavSidebar = () => {
   const { logout } = useLogout();
+  const { data: userProfile, isLoading } = useProfile();
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -69,7 +72,6 @@ export const NavSidebar = () => {
               </SidebarItem>
             )}
           </NavLink>
-          {/* <SidebarItem icon={<LuGauge />} label="Status Antrean" badge="12" /> */}
         </SidebarGroup>
 
         <SidebarGroup label="Transaksi">
@@ -101,8 +103,8 @@ export const NavSidebar = () => {
             {({ isActive }) => (
               <SidebarItem
                 asChild
-                icon={<LuBanknote />}
-                label="Invoice & Piutang"
+                icon={<LuReceipt />}
+                label="Invoice"
                 active={isActive}
               >
                 <button />
@@ -312,8 +314,8 @@ export const NavSidebar = () => {
 
       <SidebarFooter
         user={{
-          name: "Bagus Yanuar",
-          role: "Administrator",
+          name: isLoading ? "Loading..." : (userProfile?.username || "Guest"),
+          role: isLoading ? "..." : (userProfile?.roles?.[0]?.name || "User"),
         }}
         onLogout={logout}
       />
