@@ -304,7 +304,7 @@ export default function DashboardPage() {
                       boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                     }}
                     itemStyle={{ fontWeight: "bold" }}
-                    formatter={(value: any) => [formatCurrency(Number(value || 0)), "Omzet"]}
+                    formatter={(value: unknown) => [formatCurrency(Number(value || 0)), "Omzet"]}
                   />
                   <Area
                     type="monotone"
