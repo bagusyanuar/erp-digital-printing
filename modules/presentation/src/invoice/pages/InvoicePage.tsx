@@ -177,7 +177,9 @@ const InvoicePage = () => {
       console.error("Gagal menyalin gambar:", err);
       toast.error(
         "Gagal Menyalin",
-        err instanceof Error ? err.message : "Browser Anda mungkin tidak mendukung fitur ini.",
+        err instanceof Error
+          ? err.message
+          : "Browser Anda mungkin tidak mendukung fitur ini.",
       );
     } finally {
       setIsCapturingInvoice(false);
@@ -1933,10 +1935,6 @@ const InvoicePage = () => {
                   <span className="font-bold">{selectedInvoice.invoiceNo}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>No. Tiket / Job:</span>
-                  <span className="font-bold">{selectedInvoice.jobNumber}</span>
-                </div>
-                <div className="flex justify-between">
                   <span>Tanggal:</span>
                   <span>{selectedInvoice.createdAt}</span>
                 </div>
@@ -1947,7 +1945,7 @@ const InvoicePage = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Kasir:</span>
-                  <span>Sistem Kasir Utama</span>
+                  <span>{groupedPayments[0]?.cashier_name || "Sistem"}</span>
                 </div>
               </div>
 
@@ -2090,7 +2088,10 @@ const InvoicePage = () => {
                     "No. Transaksi",
                     selectedInvoice.invoiceNo,
                   );
-                  rawData += formatLine("Kasir", "Kasir Utama");
+                  rawData += formatLine(
+                    "Kasir",
+                    groupedPayments[0]?.cashier_name || "Sistem",
+                  );
                   rawData +=
                     "------------------------------------------------\n\n";
                   rawData += formatLine(
@@ -2437,7 +2438,7 @@ const InvoicePage = () => {
               </div>
               <div className="flex justify-between">
                 <span>Kasir:</span>
-                <span>Kasir Utama</span>
+                <span>{groupedPayments[0]?.cashier_name || "Sistem"}</span>
               </div>
             </div>
 

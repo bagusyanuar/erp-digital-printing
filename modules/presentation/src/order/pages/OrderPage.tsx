@@ -1,4 +1,5 @@
 import React from "react";
+import html2canvas from "html2canvas-pro";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import { Card, CardContent } from "@erp-digital-printing/ui/Card";
@@ -22,8 +23,11 @@ import {
   LuQrCode,
   LuCornerUpLeft,
   LuTrash2,
+  LuShare2,
+  LuCopy,
 } from "@erp-digital-printing/ui/icons";
 import { useOrder } from "../hooks/useOrder";
+import { useProfile } from "../../user/hooks/useProfile";
 
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -34,6 +38,7 @@ const formatCurrency = (val: number) => {
 };
 
 const OrderPage = () => {
+  const { data: profile } = useProfile();
   const {
     setLocalOverrides,
     selectedOrderId,
@@ -78,6 +83,58 @@ const OrderPage = () => {
   } = useOrder();
 
   const [isPrinting, setIsPrinting] = React.useState(false);
+  const [isCapturingReceipt, setIsCapturingReceipt] = React.useState(false);
+  const [isShareWADialogOpen, setIsShareWADialogOpen] = React.useState(false);
+  const shareReceiptRef = React.useRef<HTMLDivElement>(null);
+
+  const handleShareWA = async () => {
+    try {
+      setIsCapturingReceipt(true);
+      const targetElement = shareReceiptRef.current;
+      if (!targetElement) {
+        throw new Error("Elemen target untuk capture tidak ditemukan.");
+      }
+
+      const canvas = await html2canvas(targetElement, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          const item = new ClipboardItem({ "image/png": blob });
+          await navigator.clipboard.write([item]);
+          toast.success("Gambar disalin!", "Silakan paste di chat WA.");
+          setIsShareWADialogOpen(true);
+
+          const customerPhone = lastCompletedOrder?.customerPhone || "";
+          const cleanPhone = customerPhone.replace(/\D/g, "");
+          const waNumber = cleanPhone.startsWith("0")
+            ? "62" + cleanPhone.slice(1)
+            : cleanPhone;
+
+          const isTemp = isTemporaryReceipt;
+          const messageText = isTemp
+            ? `Halo Kak ${lastCompletedOrder?.customerName || ""},\nBerikut adalah rincian nota sementara (Draft) transaksinya ya. Terima kasih!`
+            : `Halo Kak ${lastCompletedOrder?.customerName || ""},\nBerikut adalah rincian nota transaksinya ya. Terima kasih!`;
+
+          const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(messageText)}`;
+          window.open(waUrl, "_blank");
+        }
+      }, "image/png");
+    } catch (err: unknown) {
+      console.error("Gagal menyalin gambar:", err);
+      toast.error(
+        "Gagal Menyalin",
+        err instanceof Error
+          ? err.message
+          : "Browser Anda mungkin tidak mendukung fitur ini.",
+      );
+    } finally {
+      setIsCapturingReceipt(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6 font-sans bg-background min-h-screen animate-in fade-in duration-500">
@@ -512,39 +569,41 @@ const OrderPage = () => {
                             Metode Pembayaran
                           </span>
                           <div className="grid grid-cols-4 gap-2">
-                            {["CASH", "TRANSFER", "QRIS", "PIUTANG"].map((method) => {
-                              const isSelected = paymentMethod === method;
-                              return (
-                                <Button
-                                  key={method}
-                                  variant={isSelected ? "default" : "outline"}
-                                  onClick={() => {
-                                    setPaymentMethod(method);
-                                    if (method === "PIUTANG") {
-                                      setSingleAmount(0);
-                                    } else {
-                                      setSingleAmount(null); // reset to full payment of selected order
-                                    }
-                                  }}
-                                  className={`h-10 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
-                                    isSelected
-                                      ? "bg-primary text-primary-foreground shadow-md"
-                                      : "hover:bg-muted text-muted-foreground border-border/50"
-                                  }`}
-                                >
-                                  {method === "CASH" ? (
-                                    <LuDollarSign size={13} />
-                                  ) : method === "TRANSFER" ? (
-                                    <LuCreditCard size={13} />
-                                  ) : method === "QRIS" ? (
-                                    <LuQrCode size={13} />
-                                  ) : (
-                                    <LuCoins size={13} />
-                                  )}
-                                  {method}
-                                </Button>
-                              );
-                            })}
+                            {["CASH", "TRANSFER", "QRIS", "PIUTANG"].map(
+                              (method) => {
+                                const isSelected = paymentMethod === method;
+                                return (
+                                  <Button
+                                    key={method}
+                                    variant={isSelected ? "default" : "outline"}
+                                    onClick={() => {
+                                      setPaymentMethod(method);
+                                      if (method === "PIUTANG") {
+                                        setSingleAmount(0);
+                                      } else {
+                                        setSingleAmount(null); // reset to full payment of selected order
+                                      }
+                                    }}
+                                    className={`h-10 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
+                                      isSelected
+                                        ? "bg-primary text-primary-foreground shadow-md"
+                                        : "hover:bg-muted text-muted-foreground border-border/50"
+                                    }`}
+                                  >
+                                    {method === "CASH" ? (
+                                      <LuDollarSign size={13} />
+                                    ) : method === "TRANSFER" ? (
+                                      <LuCreditCard size={13} />
+                                    ) : method === "QRIS" ? (
+                                      <LuQrCode size={13} />
+                                    ) : (
+                                      <LuCoins size={13} />
+                                    )}
+                                    {method}
+                                  </Button>
+                                );
+                              },
+                            )}
                           </div>
                         </div>
 
@@ -595,7 +654,9 @@ const OrderPage = () => {
                                 <LuCheck size={14} className="shrink-0" />
                                 <span>
                                   Kembalian Tunai:{" "}
-                                  <strong>{formatCurrency(changeAmount)}</strong>
+                                  <strong>
+                                    {formatCurrency(changeAmount)}
+                                  </strong>
                                 </span>
                               </div>
                             )}
@@ -604,7 +665,10 @@ const OrderPage = () => {
                           <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-2.5 rounded-xl flex items-center gap-2 animate-in slide-in-from-top-1 duration-200">
                             <LuInfo size={14} className="shrink-0" />
                             <span>
-                              Transaksi dicatat sebagai <strong>Piutang/Hutang Penuh</strong>. Sisa Tagihan (Tempo): <strong>{formatCurrency(grandTotal)}</strong>.
+                              Transaksi dicatat sebagai{" "}
+                              <strong>Piutang/Hutang Penuh</strong>. Sisa
+                              Tagihan (Tempo):{" "}
+                              <strong>{formatCurrency(grandTotal)}</strong>.
                             </span>
                           </div>
                         )}
@@ -944,10 +1008,12 @@ const OrderPage = () => {
             </div>
 
             {/* Simulated Receipt Paper container */}
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl font-mono text-[11px] leading-relaxed text-slate-800 dark:text-slate-200 overflow-y-auto max-h-[50vh] shadow-inner">
+            <div
+              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl font-mono text-[11px] leading-relaxed text-slate-800 dark:text-slate-200 overflow-y-auto max-h-[50vh] shadow-inner"
+            >
               <div className="text-center space-y-1 pb-4 border-b border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center">
                 <span className="font-bold text-sm block">
-                  DIGITAL PRINTING ERP
+                  MADE DIGITAL PRINTING
                 </span>
                 {isTemporaryReceipt && (
                   <span className="inline-block bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-bold px-2 py-0.5 rounded text-[9px] uppercase tracking-wider my-1">
@@ -955,10 +1021,10 @@ const OrderPage = () => {
                   </span>
                 )}
                 <span className="block text-[10px] text-muted-foreground">
-                  Jl. Percetakan Keren No. 88, Jakarta
+                  Jl. Kali Sindang, Jagalan, Jebres - Solo
                 </span>
                 <span className="block text-[10px] text-muted-foreground">
-                  Telp: 021-555-9081
+                  WA. 082134305050
                 </span>
               </div>
 
@@ -981,9 +1047,9 @@ const OrderPage = () => {
                     {lastCompletedOrder.customerName}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                 <div className="flex justify-between">
                   <span>Kasir:</span>
-                  <span>Sistem Kasir Utama</span>
+                  <span>{profile?.username || "Sistem Kasir Utama"}</span>
                 </div>
               </div>
 
@@ -996,13 +1062,11 @@ const OrderPage = () => {
                     </span>
                     <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>
-                        {item.uom === "m2" && item.lengthM && item.widthM ? (
-                          `${item.lengthM}x${item.widthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
-                        ) : item.uom === "m_lari" && item.lengthM ? (
-                          `${item.lengthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
-                        ) : (
-                          `${item.qty} x ${formatCurrency(item.pricePerUnit)}`
-                        )}
+                        {item.uom === "m2" && item.lengthM && item.widthM
+                          ? `${item.lengthM}x${item.widthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                          : item.uom === "m_lari" && item.lengthM
+                            ? `${item.lengthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                            : `${item.qty} x ${formatCurrency(item.pricePerUnit)}`}
                       </span>
                       <span className="font-bold text-foreground">
                         {formatCurrency(item.subtotal)}
@@ -1087,16 +1151,30 @@ const OrderPage = () => {
                 <span className="block">atau dikembalikan. Sukses Selalu!</span>
               </div>
             </div>
-
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsReceiptOpen(false)}
-                className="h-10 px-5 rounded-xl font-bold border-border/60 hover:bg-muted/50"
-              >
-                Tutup Preview
-              </Button>
+            <div className="flex flex-col gap-3 border-t border-border/30 pt-4 mt-2 w-full">
+              <div className="flex gap-2 w-full">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsReceiptOpen(false)}
+                  className="h-10 px-5 rounded-xl font-bold border-border/60 hover:bg-muted/50 w-full flex items-center justify-center"
+                >
+                  Tutup Preview
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-10 px-5 rounded-xl font-bold border-border/60 hover:bg-muted/50 flex items-center justify-center gap-1.5 w-full"
+                  onClick={handleShareWA}
+                  disabled={isCapturingReceipt}
+                >
+                  {isCapturingReceipt ? (
+                    <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  ) : (
+                    <LuShare2 size={13} />
+                  )}
+                  Bagikan ke WA
+                </Button>
+              </div>
               <Button
                 onClick={async () => {
                   setIsPrinting(true);
@@ -1128,76 +1206,107 @@ const OrderPage = () => {
 
                   // ESC/POS Command: Center Align
                   let rawData = "\x1b\x61\x01";
-                  
+
                   // ESC/POS Command: Print NV Bit Image #1 (normal mode)
                   rawData += "\x1c\x70\x01\x00\n";
-                  
+
                   rawData += "            MADE DIGITAL PRINTING           \n";
                   rawData += " INDOOR - OUTDOOR - A3+ - DTF - SPANDUK KAIN \n";
                   rawData += "   Jl. Kali Sindang, Jagalan, Jebres - Solo  \n";
                   rawData += "     Buka : 08.00 (Pagi) - 01.00 (Malam)     \n";
                   rawData += "               WA. 082134305050              \n";
-                  
+
                   if (isTemporaryReceipt) {
-                    rawData += "\n          * NOTA SEMENTARA (DRAFT) *          \n";
+                    rawData +=
+                      "\n          * NOTA SEMENTARA (DRAFT) *          \n";
                   }
-                  
+
                   // ESC/POS Command: Left Align
                   rawData += "\x1b\x61\x00";
-                  rawData += "------------------------------------------------\n";
-                  
+                  rawData +=
+                    "------------------------------------------------\n";
+
                   if (!isTemporaryReceipt) {
-                    rawData += formatLine("No. Tiket", lastCompletedOrder.ticketNo);
+                    rawData += formatLine(
+                      "No. Tiket",
+                      lastCompletedOrder.ticketNo,
+                    );
                   }
-                  rawData += formatLine("Tanggal", lastCompletedOrder.createdAt);
-                  rawData += formatLine("Pelanggan", lastCompletedOrder.customerName.toUpperCase());
-                  rawData += formatLine("Kasir", "Sistem Kasir Utama");
-                  
-                  rawData += "------------------------------------------------\n";
+                  rawData += formatLine(
+                    "Tanggal",
+                    lastCompletedOrder.createdAt,
+                  );
+                  rawData += formatLine(
+                    "Pelanggan",
+                    lastCompletedOrder.customerName.toUpperCase(),
+                  );
+                  rawData += formatLine("Kasir", profile?.username || "Sistem Kasir Utama");
+
+                  rawData +=
+                    "------------------------------------------------\n";
 
                   lastCompletedOrder.items.forEach((item) => {
                     rawData += `${item.productName}\n`;
-                    const leftDetail = (item.uom === "m2" && item.lengthM && item.widthM)
-                      ? `${item.lengthM}x${item.widthM} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
-                      : (item.uom === "m_lari" && item.lengthM)
-                      ? `${item.lengthM} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
-                      : `${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`;
+                    const leftDetail =
+                      item.uom === "m2" && item.lengthM && item.widthM
+                        ? `${item.lengthM}x${item.widthM} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
+                        : item.uom === "m_lari" && item.lengthM
+                          ? `${item.lengthM} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
+                          : `${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`;
                     const rightDetail = printFormatCurrency(item.subtotal);
                     rawData += formatLine(leftDetail, rightDetail);
                     rawData += "\n";
                   });
 
-                  rawData += "------------------------------------------------\n";
-                  
+                  rawData +=
+                    "------------------------------------------------\n";
+
                   const totalItemsText = `${lastCompletedOrder.items.length} item`;
                   rawData += formatLine("Total Item", totalItemsText);
-                  
-                  const subtotalValue = lastCompletedOrder.items.reduce((s, i) => s + i.subtotal, 0);
-                  rawData += formatLine("Subtotal", printFormatCurrency(subtotalValue));
-                  
-                  rawData += "================================================\n";
-                  const grandTotalValue = isTemporaryReceipt ? subtotalValue : (lastCompletedOrder.grandTotal || 0);
-                  rawData += formatLine("TOTAL BELANJA", printFormatCurrency(grandTotalValue));
-                  rawData += "------------------------------------------------\n";
-                  
-                  if (!isTemporaryReceipt) {
-                    rawData += formatLine("Metode Bayar", lastCompletedOrder.paymentMethod || "-");
-                    rawData += formatLine("Bayar", printFormatCurrency(lastCompletedOrder.totalPaid || 0));
-                    
-                    if (lastCompletedOrder.status === "PARTIAL_PAID") {
-                      rawData += formatLine("SISA (UTANG)", printFormatCurrency(lastCompletedOrder.remainingAmount || 0));
-                    } else if (lastCompletedOrder.status === "LUNAS") {
-                      rawData += formatLine("Kembalian", printFormatCurrency(lastCompletedOrder.changeAmount || 0));
-                    }
-                    rawData += "------------------------------------------------\n";
-                  }
-                  
+
+                  const subtotalValue = lastCompletedOrder.items.reduce(
+                    (s, i) => s + i.subtotal,
+                    0,
+                  );
+                  rawData += formatLine(
+                    "Subtotal",
+                    printFormatCurrency(subtotalValue),
+                  );
+
+                  rawData +=
+                    "================================================\n";
+                  const grandTotalValue = isTemporaryReceipt
+                    ? subtotalValue
+                    : lastCompletedOrder.grandTotal || 0;
+                  rawData += formatLine(
+                    "TOTAL BELANJA",
+                    printFormatCurrency(grandTotalValue),
+                  );
+                  rawData +=
+                    "------------------------------------------------\n";
+
+                  const remaining = isTemporaryReceipt
+                    ? 0
+                    : lastCompletedOrder.remainingAmount || 0;
+                  const totalPaidValue = isTemporaryReceipt
+                    ? subtotalValue
+                    : lastCompletedOrder.totalPaid || 0;
+                  const paymentMethod =
+                    remaining > 0
+                      ? "Piutang"
+                      : lastCompletedOrder.paymentMethod || "-";
+                  rawData += formatLine("Metode Bayar", paymentMethod);
+                  rawData += formatLine(
+                    "Bayar",
+                    printFormatCurrency(totalPaidValue),
+                  );
+
+                  rawData +=
+                    "------------------------------------------------\n";
+
                   // ESC/POS Command: Center Align
                   rawData += "\x1b\x61\x01";
-                  rawData += "               --- TERIMA KASIH ---             \n";
-                  rawData += "         Barang yang sudah dibeli tidak         \n";
-                  rawData += "           dapat ditukar/dikembalikan           \n";
-                  rawData += "                 Sukses Selalu!                 \n\n\n\n\n\n";
+                  rawData += "Terima kasih atas kunjungan Anda\n\n\n\n\n\n\n";
 
                   // ESC/POS Command: Auto Cut
                   rawData += "\x1d\x56\x00";
@@ -1214,12 +1323,12 @@ const OrderPage = () => {
                           printer_name: "PRINTER-POS",
                           raw_data: rawData,
                         }),
-                      }
+                      },
                     );
 
                     if (!response.ok) {
                       throw new Error(
-                        "Gagal memproses struk melalui Print Agent lokal."
+                        "Gagal memproses struk melalui Print Agent lokal.",
                       );
                     }
 
@@ -1229,21 +1338,21 @@ const OrderPage = () => {
                         : "Mencetak Struk...",
                       isTemporaryReceipt
                         ? "Dokumen nota sementara dikirim ke mesin thermal printer lokal."
-                        : "Dokumen struk dikirim ke mesin thermal printer lokal."
+                        : "Dokumen struk dikirim ke mesin thermal printer lokal.",
                     );
                     setIsReceiptOpen(false);
                   } catch (error) {
                     console.error("Error printing:", error);
                     toast.error(
                       "Gagal Cetak",
-                      "Pastikan Print Agent lokal (localhost:9876) sudah berjalan."
+                      "Pastikan Print Agent lokal (localhost:9876) sudah berjalan.",
                     );
                   } finally {
                     setIsPrinting(false);
                   }
                 }}
                 disabled={isPrinting}
-                className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed w-full"
               >
                 {isPrinting ? (
                   <div className="relative w-4 h-4">
@@ -1256,12 +1365,53 @@ const OrderPage = () => {
                 {isPrinting
                   ? "Mencetak..."
                   : isTemporaryReceipt
-                  ? "Cetak Nota Sementara"
-                  : "Cetak ke Thermal Printer"}
+                    ? "Cetak Nota Sementara"
+                    : "Cetak ke Thermal Printer"}
               </Button>
             </div>
           </div>
         )}
+      </Dialog>
+
+      <Dialog
+        isOpen={isShareWADialogOpen}
+        onClose={() => setIsShareWADialogOpen(false)}
+        className="rounded-3xl p-6 bg-card border border-border/50 text-foreground max-w-sm w-full"
+        showCloseButton={true}
+      >
+        <div className="flex flex-col items-center justify-center space-y-4 text-center py-4">
+          <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center">
+            <LuShare2 size={32} />
+          </div>
+          <h3 className="text-lg font-black text-foreground">
+            Menunggu Pengiriman WA
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Gambar nota sudah disalin. Silakan buka tab WhatsApp dan tekan{" "}
+            <strong>Ctrl + V</strong> (Paste) pada kolom chat.
+          </p>
+          <div className="pt-4 w-full flex flex-col gap-2">
+            <Button
+              onClick={handleShareWA}
+              disabled={isCapturingReceipt}
+              className="w-full rounded-xl font-bold flex items-center justify-center gap-2"
+            >
+              {isCapturingReceipt ? (
+                <div className="w-4 h-4 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
+              ) : (
+                <LuCopy size={16} />
+              )}
+              Salin Ulang Gambar
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setIsShareWADialogOpen(false)}
+              className="w-full rounded-xl font-bold"
+            >
+              Tutup
+            </Button>
+          </div>
+        </div>
       </Dialog>
 
       {/* Confirmation Dialog: Send Back to Draft */}
@@ -1377,6 +1527,153 @@ const OrderPage = () => {
           </div>
         </div>
       )}
+
+      {/* Off-screen receipt container for html2canvas WhatsApp sharing */}
+      <div
+        ref={shareReceiptRef}
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          top: "0",
+          width: "380px",
+          backgroundColor: "#ffffff",
+          color: "#000000",
+          padding: "24px",
+          fontFamily: "monospace",
+          fontSize: "12px",
+          lineHeight: "1.5",
+          boxSizing: "border-box",
+        }}
+      >
+        {lastCompletedOrder && (
+          <div>
+            <div className="text-center space-y-1 pb-4 border-b border-dashed border-gray-400">
+              <span className="font-bold text-sm block">
+                MADE DIGITAL PRINTING
+              </span>
+              {isTemporaryReceipt && (
+                <span className="inline-block bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-[9px] uppercase tracking-wider my-1">
+                  NOTA SEMENTARA (DRAFT)
+                </span>
+              )}
+              <span className="block text-[10px] text-gray-600">
+                Jl. Kali Sindang, Jagalan, Jebres - Solo
+              </span>
+              <span className="block text-[10px] text-gray-600">
+                WA. 082134305050
+              </span>
+            </div>
+
+            {/* Receipt metadata */}
+            <div className="py-3 space-y-1 border-b border-dashed border-gray-400">
+              {!isTemporaryReceipt && (
+                <div className="flex justify-between">
+                  <span>No. Tiket:</span>
+                  <span className="font-bold">{lastCompletedOrder.ticketNo}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span>Tanggal:</span>
+                <span>{lastCompletedOrder.createdAt}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Pelanggan:</span>
+                <span className="font-bold uppercase">
+                  {lastCompletedOrder.customerName}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Kasir:</span>
+                <span>{profile?.username || "Sistem Kasir Utama"}</span>
+              </div>
+            </div>
+
+            {/* Items listing */}
+            <div className="py-3 border-b border-dashed border-gray-400 space-y-2.5">
+              {lastCompletedOrder.items.map((item) => (
+                <div key={item.id} className="space-y-0.5">
+                  <span className="font-bold block text-black">{item.productName}</span>
+                  <div className="flex justify-between text-[11px] text-gray-600">
+                    <span>
+                      {item.uom === "m2" && item.lengthM && item.widthM
+                        ? `${item.lengthM}x${item.widthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                        : item.uom === "m_lari" && item.lengthM
+                          ? `${item.lengthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                          : `${item.qty} x ${formatCurrency(item.pricePerUnit)}`}
+                    </span>
+                    <span className="font-bold text-black">
+                      {formatCurrency(item.subtotal)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Grand summary */}
+            <div className="py-3 space-y-1.5 text-[11px]">
+              <div className="flex justify-between">
+                <span>Subtotal:</span>
+                <span>
+                  {formatCurrency(
+                    lastCompletedOrder.items.reduce((s, i) => s + i.subtotal, 0),
+                  )}
+                </span>
+              </div>
+
+              <div className="flex justify-between font-bold text-xs border-t border-dotted border-gray-400 pt-2 text-black">
+                <span>TOTAL BELANJA:</span>
+                <span>
+                  {formatCurrency(
+                    isTemporaryReceipt
+                      ? lastCompletedOrder.items.reduce((s, i) => s + i.subtotal, 0)
+                      : lastCompletedOrder.grandTotal || 0,
+                  )}
+                </span>
+              </div>
+
+              {!isTemporaryReceipt && (
+                <>
+                  <div className="flex justify-between pt-1.5">
+                    <span>Metode Bayar:</span>
+                    <span className="font-bold">{lastCompletedOrder.paymentMethod}</span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span>Jumlah Bayar:</span>
+                    <span>{formatCurrency(lastCompletedOrder.totalPaid || 0)}</span>
+                  </div>
+
+                  {lastCompletedOrder.status === "PARTIAL_PAID" && (
+                    <div className="flex justify-between font-bold text-red-600">
+                      <span>SISA TAGIHAN (UTANG):</span>
+                      <span>
+                        {formatCurrency(lastCompletedOrder.remainingAmount || 0)}
+                      </span>
+                    </div>
+                  )}
+
+                  {lastCompletedOrder.status === "LUNAS" && (
+                    <div className="flex justify-between font-bold text-green-600">
+                      <span>Kembalian:</span>
+                      <span>
+                        {formatCurrency(lastCompletedOrder.changeAmount || 0)}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="text-center pt-5 border-t border-dashed border-gray-400 text-[10px] text-gray-500 space-y-0.5">
+              <span className="block font-bold">--- TERIMA KASIH ---</span>
+              <span className="block">
+                Barang yang sudah dibeli tidak dapat ditukar
+              </span>
+              <span className="block">atau dikembalikan. Sukses Selalu!</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
