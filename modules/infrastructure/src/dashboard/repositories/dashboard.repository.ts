@@ -1,4 +1,4 @@
-import type { DashboardWidgets } from "@core/dashboard/domains/models/dashboard.model";
+import type { DashboardWidgets, WeeklyRevenue } from "@core/dashboard/domains/models/dashboard.model";
 import type { DashboardRepository } from "@core/dashboard/domains/repositories/dashboard.repository";
 import { safeApiCall } from "@infrastructure/libs/error";
 import { mapDashboardWidgetsResponseToModel } from "../mappers/dashboard.mapper";
@@ -20,6 +20,19 @@ export class ApiDashboardRepository implements DashboardRepository {
         { params },
       );
       return mapDashboardWidgetsResponseToModel(response.data);
+    });
+  }
+
+  async getWeeklyRevenue(date?: string): Promise<WeeklyRevenue> {
+    return safeApiCall(async () => {
+      const params: Record<string, string> = {};
+      if (date) params.date = date;
+
+      const response = await this.http.get<ApiResponse<WeeklyRevenue>>(
+        "/dashboard/weekly-revenue",
+        { params },
+      );
+      return response.data;
     });
   }
 }

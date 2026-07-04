@@ -11,7 +11,7 @@ import { getSupplierUseCase, createSupplierUseCase, getSupplierByIdUseCase, upda
 import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCase, getExpenseAnalyticsSummaryUseCase, payExpenseUseCase } from "@infrastructure/expense/containers/expense.container";
 import { getCapitalTransactionsUseCase, createCapitalTransactionUseCase, deleteCapitalTransactionUseCase } from "@infrastructure/capital/containers/capital.container";
 import { getFundTransfersUseCase, createFundTransferUseCase, getFundTransferWidgetsUseCase } from "@infrastructure/fund-transfer/containers/fund-transfer.container";
-import { getDashboardWidgetsUseCase } from "@infrastructure/dashboard/containers/dashboard.container";
+import { getDashboardWidgetsUseCase, getWeeklyRevenueUseCase } from "@infrastructure/dashboard/containers/dashboard.container";
 
 
 import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, deleteCategoryUseCase } from "@infrastructure/category/containers/category.container";
@@ -138,6 +138,7 @@ export function createAppContainer(): AppContainer {
     },
     dashboard: {
       getDashboardWidgetsUseCase: getDashboardWidgetsUseCase(httpClient),
+      getWeeklyRevenueUseCase: getWeeklyRevenueUseCase(httpClient),
     },
   };
 }

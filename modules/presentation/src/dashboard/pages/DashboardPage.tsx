@@ -31,44 +31,8 @@ import {
 
 import { useDashboardWidgets } from "../hooks/useDashboardWidgets";
 import { usePaymentSales } from "../hooks/usePaymentSales";
-
-// Dummy Data for Revenue Chart
-const revenueData = [
-  { name: "Mon", revenue: 4500000 },
-  { name: "Tue", revenue: 5200000 },
-  { name: "Wed", revenue: 4800000 },
-  { name: "Thu", revenue: 6100000 },
-  { name: "Fri", revenue: 5500000 },
-  { name: "Sat", revenue: 7800000 },
-  { name: "Sun", revenue: 6900000 },
-];
-
-
-
-// Dummy Data for Recent Orders
-const recentOrders = [
-  {
-    id: "ORD-001",
-    customer: "Bagus Yanuar",
-    project: "Banner HUT RI",
-    total: "Rp 750.000",
-    status: "Proses",
-  },
-  {
-    id: "ORD-002",
-    customer: "Digital Print Inc",
-    project: "Brosur A4 1000pcs",
-    total: "Rp 1.200.000",
-    status: "Selesai",
-  },
-  {
-    id: "ORD-003",
-    customer: "Toko Berkah",
-    project: "Stiker Vinyl",
-    total: "Rp 350.000",
-    status: "Menunggu",
-  },
-];
+import { useRecentOrders } from "../hooks/useRecentOrders";
+import { useWeeklyRevenue } from "../hooks/useWeeklyRevenue";
 
 const formatDate = (date?: Date) => {
   if (!date) return "";
@@ -101,6 +65,36 @@ export default function DashboardPage() {
 
   const { data: widgetsData, isLoading } = useDashboardWidgets(startDateStr, endDateStr);
   const { data: paymentSalesData, isLoading: isLoadingPaymentSales } = usePaymentSales(startDateStr, endDateStr);
+  const { data: recentOrdersResponse, isLoading: isLoadingRecentOrders } = useRecentOrders();
+  const { data: weeklyRevenueData, isLoading: isLoadingWeeklyRevenue } = useWeeklyRevenue(startDateStr);
+
+  const recentOrders = recentOrdersResponse?.data ?? [];
+
+  const mappedWeeklyData = React.useMemo(() => {
+    if (!weeklyRevenueData?.weekly_data) return [];
+    return weeklyRevenueData.weekly_data.map((item) => {
+      let name = item.day_name.slice(0, 3);
+      if (item.day_name === "Monday") name = "Sen";
+      else if (item.day_name === "Tuesday") name = "Sel";
+      else if (item.day_name === "Wednesday") name = "Rab";
+      else if (item.day_name === "Thursday") name = "Kam";
+      else if (item.day_name === "Friday") name = "Jum";
+      else if (item.day_name === "Saturday") name = "Sab";
+      else if (item.day_name === "Sunday") name = "Min";
+
+      return {
+        name,
+        revenue: item.revenue,
+      };
+    });
+  }, [weeklyRevenueData]);
+
+  const percentageChange = weeklyRevenueData?.percentage_change ?? 0;
+  const isPositive = percentageChange >= 0;
+  const changeText = `${isPositive ? "+" : ""}${percentageChange}% vs Minggu Lalu`;
+  const changeClass = isPositive
+    ? "text-emerald-500 bg-emerald-500/10"
+    : "text-rose-500 bg-rose-500/10";
 
   const totalAmount = React.useMemo(() => {
     return paymentSalesData?.reduce((sum, item) => sum + item.total_amount, 0) ?? 0;
@@ -238,72 +232,91 @@ export default function DashboardPage() {
             <h3 className="text-lg font-black tracking-tight text-foreground">
               Grafik Omzet Mingguan
             </h3>
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full">
-              <LuTrendingUp size={14} />
-              +12.5% vs Minggu Lalu
-            </div>
+            {!isLoadingWeeklyRevenue && (
+              <div className={`flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full ${changeClass}`}>
+                <LuTrendingUp size={14} className={!isPositive ? "rotate-180" : ""} />
+                {changeText}
+              </div>
+            )}
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor="var(--color-primary)"
-                      stopOpacity={0.3}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="var(--color-primary)"
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="rgba(var(--foreground-rgb), 0.05)"
-                />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{
-                    fill: "rgba(var(--foreground-rgb), 0.5)",
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{
-                    fill: "rgba(var(--foreground-rgb), 0.5)",
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
-                  tickFormatter={(value) => `${value / 1000000}jt`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "16px",
-                    boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
-                  }}
-                  itemStyle={{ fontWeight: "bold" }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="var(--color-primary)"
-                  strokeWidth={4}
-                  fillOpacity={1}
-                  fill="url(#colorRevenue)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="h-[300px] w-full relative">
+            {isLoadingWeeklyRevenue ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+              </div>
+            ) : mappedWeeklyData.length === 0 ? (
+              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm font-medium">
+                Tidak ada data omzet
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={mappedWeeklyData}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop
+                        offset="5%"
+                        stopColor="var(--color-primary)"
+                        stopOpacity={0.3}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="var(--color-primary)"
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="rgba(var(--foreground-rgb), 0.05)"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    stroke="currentColor"
+                    className="text-muted-foreground text-[10px] font-bold"
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="currentColor"
+                    className="text-muted-foreground text-[10px] font-bold"
+                    tickLine={false}
+                    axisLine={false}
+                    width={55}
+                    tickFormatter={(value) => {
+                      const num = Number(value);
+                      if (isNaN(num)) return "";
+                      if (num === 0) return "0";
+                      if (num >= 1000000) {
+                        return `${Number((num / 1000000).toFixed(1))}jt`;
+                      }
+                      if (num >= 1000) {
+                        return `${Number((num / 1000).toFixed(1))}rb`;
+                      }
+                      return String(num);
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "var(--card)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "16px",
+                      boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+                    }}
+                    itemStyle={{ fontWeight: "bold" }}
+                    formatter={(value: any) => [formatCurrency(Number(value || 0)), "Omzet"]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="var(--color-primary)"
+                    strokeWidth={4}
+                    fillOpacity={1}
+                    fill="url(#colorRevenue)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </motion.div>
 
@@ -417,56 +430,84 @@ export default function DashboardPage() {
           <h3 className="text-lg font-black tracking-tight text-foreground">
             Order Terbaru
           </h3>
-          <button className="text-sm font-bold text-primary hover:underline transition-all">
+          <Link to="/invoice" className="text-sm font-bold text-primary hover:underline transition-all">
             Lihat Semua
-          </button>
+          </Link>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-muted/30 text-xs font-black uppercase tracking-wider text-muted-foreground">
-                <th className="px-6 py-4">Order ID</th>
-                <th className="px-6 py-4">Pelanggan</th>
-                <th className="px-6 py-4">Project</th>
-                <th className="px-6 py-4">Total</th>
-                <th className="px-6 py-4">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/30">
-              {recentOrders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="hover:bg-muted/10 transition-all group"
-                >
-                  <td className="px-6 py-4 font-bold text-foreground">
-                    {order.id}
-                  </td>
-                  <td className="px-6 py-4 text-muted-foreground font-medium">
-                    {order.customer}
-                  </td>
-                  <td className="px-6 py-4 text-foreground font-bold">
-                    {order.project}
-                  </td>
-                  <td className="px-6 py-4 text-foreground font-black">
-                    {order.total}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                        order.status === "Selesai"
-                          ? "bg-emerald-500/10 text-emerald-500"
-                          : order.status === "Proses"
-                            ? "bg-primary/10 text-primary"
-                            : "bg-amber-500/10 text-amber-500"
-                      }`}
-                    >
-                      {order.status}
-                    </span>
-                  </td>
+          {isLoadingRecentOrders ? (
+            <div className="p-8 flex items-center justify-center">
+              <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+            </div>
+          ) : recentOrders.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-sm font-medium">
+              Tidak ada data order terbaru
+            </div>
+          ) : (
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-muted/30 text-xs font-black uppercase tracking-wider text-muted-foreground">
+                  <th className="px-6 py-4">Order ID</th>
+                  <th className="px-6 py-4">Pelanggan</th>
+                  <th className="px-6 py-4">Project</th>
+                  <th className="px-6 py-4">Total</th>
+                  <th className="px-6 py-4">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {recentOrders.map((order) => {
+                  const projectNames =
+                    order.order_items?.map((item) => item.product_name).join(", ") ||
+                    order.notes ||
+                    "-";
+                  const statusLabel =
+                    order.status === "COMPLETED"
+                      ? "Selesai"
+                      : order.status === "READY_FOR_PICKUP"
+                      ? "Siap Diambil"
+                      : order.status === "IN_PRODUCTION"
+                      ? "Proses"
+                      : order.status;
+
+                  const statusClass =
+                    order.status === "COMPLETED"
+                      ? "bg-emerald-500/10 text-emerald-500"
+                      : order.status === "READY_FOR_PICKUP"
+                      ? "bg-blue-500/10 text-blue-500"
+                      : order.status === "IN_PRODUCTION"
+                      ? "bg-amber-500/10 text-amber-500"
+                      : "bg-slate-500/10 text-slate-500";
+
+                  return (
+                    <tr
+                      key={order.id}
+                      className="hover:bg-muted/10 transition-all group"
+                    >
+                      <td className="px-6 py-4 font-bold text-foreground">
+                        {order.invoice_number || order.job_number || order.id}
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground font-medium">
+                        {order.customer_name || "Customer Walk In"}
+                      </td>
+                      <td className="px-6 py-4 text-foreground font-bold max-w-[200px] truncate" title={projectNames}>
+                        {projectNames}
+                      </td>
+                      <td className="px-6 py-4 text-foreground font-black">
+                        {formatCurrency(order.grand_total)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusClass}`}
+                        >
+                          {statusLabel}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </motion.div>
     </div>

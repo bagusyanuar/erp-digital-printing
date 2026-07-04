@@ -17,7 +17,7 @@ import type { GetSuppliers, CreateSupplier, GetSupplierById, UpdateSupplier, Del
 import type { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAnalyticsSummary, PayExpense } from "@core/expense/applications/usecases/expense.usecase";
 import type { GetCapitalTransactions, CreateCapitalTransaction, DeleteCapitalTransaction } from "@core/capital/applications/usecases/capital.usecase";
 import type { GetFundTransfers, CreateFundTransfer, GetFundTransferWidgets } from "@core/fund-transfer/applications/usecases/fund-transfer.usecase";
-import type { GetDashboardWidgets } from "@core/dashboard/applications/usecases/dashboard.usecase";
+import type { GetDashboardWidgets, GetWeeklyRevenue } from "@core/dashboard/applications/usecases/dashboard.usecase";
 
 // ──────────────────────────────────────────────
 // Module Use Case Types
@@ -26,6 +26,7 @@ import type { GetDashboardWidgets } from "@core/dashboard/applications/usecases/
 
 export interface DashboardUseCases {
   getDashboardWidgetsUseCase: GetDashboardWidgets;
+  getWeeklyRevenueUseCase: GetWeeklyRevenue;
 }
 
 export interface FundTransferUseCases {
