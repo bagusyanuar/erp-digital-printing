@@ -1,5 +1,5 @@
 import { type HttpClient } from "@erp-digital-printing/http";
-import { GetCategories, CreateCategory, GetCategoryById, UpdateCategory, DeleteCategory } from "@core/category/applications/usecases/category.usecase";
+import { GetCategories, CreateCategory, GetCategoryById, UpdateCategory, DeleteCategory, ReorderCategory } from "@core/category/applications/usecases/category.usecase";
 import { ApiCategoryRepository } from "../repositories/category.repository";
 
 export function getCategoryUseCase(http: HttpClient): GetCategories {
@@ -25,4 +25,9 @@ export function updateCategoryUseCase(http: HttpClient): UpdateCategory {
 export function deleteCategoryUseCase(http: HttpClient): DeleteCategory {
   const repository = new ApiCategoryRepository(http);
   return new DeleteCategory(repository);
+}
+
+export function reorderCategoryUseCase(http: HttpClient): ReorderCategory {
+  const repository = new ApiCategoryRepository(http);
+  return new ReorderCategory(repository);
 }

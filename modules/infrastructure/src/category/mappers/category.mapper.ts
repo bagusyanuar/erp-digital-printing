@@ -7,8 +7,8 @@ export function mapCategoryParamToQuery(params: CategoryParams): CategoryQuery {
     page: params.page ?? 1,
     limit: params.limit ?? 10,
     search: params.search,
-    sort: params.sort,
-    order: params.sortBy,
+    sort_by: params.sort || "sequence",
+    sort_order: params.sortBy || "asc",
   };
 }
 
@@ -18,6 +18,7 @@ export function mapCategoryResponseToModel(
   return {
     id: response.id,
     name: response.name,
+    sequence: response.sequence,
   };
 }
 

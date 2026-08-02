@@ -26,5 +26,6 @@ export interface ProductModel {
   uom: string;
   base_price: number;
   description?: string;
+  sequence?: number;
   variants?: ProductVariantModel[];
 }

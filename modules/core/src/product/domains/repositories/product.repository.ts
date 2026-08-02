@@ -1,5 +1,5 @@
 import type { ProductModel } from "../models/product.model";
-import type { CreateProductInput, ProductParams } from "../../applications/inputs/product.input";
+import type { CreateProductInput, ProductParams, ReorderProductInput } from "../../applications/inputs/product.input";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 export interface ProductRepository {
@@ -8,4 +8,5 @@ export interface ProductRepository {
   create(input: CreateProductInput): Promise<ProductModel>;
   update(id: string, input: CreateProductInput): Promise<ProductModel>;
   delete(id: string): Promise<void>;
+  reorder(input: ReorderProductInput): Promise<void>;
 }

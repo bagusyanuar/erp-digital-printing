@@ -27,6 +27,7 @@ export interface ProductResponse {
   sku: string;
   uom: string;
   base_price: number;
+  sequence?: number;
   description?: string;
   variants?: ProductVariantResponse[];
 }

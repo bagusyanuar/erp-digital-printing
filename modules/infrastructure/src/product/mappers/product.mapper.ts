@@ -7,8 +7,8 @@ export function mapProductParamToQuery(params: ProductParams): ProductQuery {
     page: params.page ?? 1,
     limit: params.limit ?? 10,
     search: params.search,
-    sort: params.sort,
-    order: params.sortBy,
+    sort_by: params.sort || "sequence",
+    sort_order: params.sortBy || "asc",
     category_id: params.category_id,
   };
 }
@@ -23,6 +23,7 @@ export function mapProductResponseToModel(
     sku: response.sku,
     uom: response.uom,
     base_price: response.base_price,
+    sequence: response.sequence,
     description: response.description,
     variants: response.variants?.map(v => ({
       id: v.id,

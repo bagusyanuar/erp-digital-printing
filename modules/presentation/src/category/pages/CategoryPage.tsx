@@ -41,6 +41,8 @@ const CategoryPage = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     null,
   );
+  const [isChangeSequenceDialogOpen, setIsChangeSequenceDialogOpen] = useState(false);
+  const [sequenceValue, setSequenceValue] = useState<number | "">("");
 
   const addForm = useForm<CreateCategoryInput>({
     resolver: zodResolver(categoryInputSchema),
@@ -66,6 +68,8 @@ const CategoryPage = () => {
     addCategory,
     updateCategory,
     deleteCategory,
+    reorderCategories,
+    isReordering,
     totalEntries,
   } = useCategoryTable({
     onEdit: (category) => {
@@ -76,6 +80,11 @@ const CategoryPage = () => {
     onDelete: (category) => {
       setSelectedCategory(category);
       setIsDeleteDialogOpen(true);
+    },
+    onChangeSequence: (category) => {
+      setSelectedCategory(category);
+      setSequenceValue(category.sequence ?? 0);
+      setIsChangeSequenceDialogOpen(true);
     },
   });
 
@@ -152,7 +161,7 @@ const CategoryPage = () => {
         </CardHeader>
 
         {/* Table Body */}
-        <CardContent className="p-0 overflow-x-auto">
+        <CardContent className={`p-0 overflow-x-auto ${isReordering ? 'opacity-50 pointer-events-none' : 'transition-opacity duration-300'}`}>
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -397,6 +406,70 @@ const CategoryPage = () => {
           >
             <LuTrash2 className="h-4 w-4" />
             {isDeleting ? "Menghapus..." : "Hapus Kategori"}
+          </Button>
+        </CardFooter>
+      </Dialog>
+
+      {/* Change Sequence Dialog */}
+      <Dialog
+        isOpen={isChangeSequenceDialogOpen}
+        onClose={() => setIsChangeSequenceDialogOpen(false)}
+        size="sm"
+        showCloseButton={false}
+      >
+        <CardHeader className="px-6 py-4 border-b border-border/50 flex flex-row items-start justify-between gap-4">
+          <div className="space-y-0.5">
+            <CardTitle variant="h4" weight="semibold" className="text-lg tracking-tight">
+              Ubah Urutan
+            </CardTitle>
+            <CardDescription className="text-sm">
+              Tentukan urutan baru untuk kategori ini.
+            </CardDescription>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-md text-muted-foreground hover:bg-muted active:scale-90 transition-all -mr-2 -mt-0.5"
+            onClick={() => setIsChangeSequenceDialogOpen(false)}
+          >
+            <LuX className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="px-6 py-4 space-y-4">
+          <div className="space-y-2">
+            <Typography variant="small" weight="medium" className="text-sm">
+              Nomor Urutan
+            </Typography>
+            <TextField
+              type="number"
+              placeholder="Contoh: 1, 2, 3..."
+              className="border-border/50 focus:bg-background transition-all"
+              value={sequenceValue}
+              onChange={(e) => setSequenceValue(e.target.value ? Number(e.target.value) : "")}
+            />
+          </div>
+        </CardContent>
+        <CardFooter className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            className="h-10 px-4 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
+            onClick={() => setIsChangeSequenceDialogOpen(false)}
+          >
+            Batal
+          </Button>
+          <Button
+            className="h-10 px-4 rounded-md font-medium bg-primary hover:bg-primary/90 active:scale-95 transition-all text-white"
+            onClick={() => {
+              if (selectedCategory && typeof sequenceValue === "number") {
+                reorderCategories(
+                  [{ id: selectedCategory.id, sequence: sequenceValue }],
+                  () => setIsChangeSequenceDialogOpen(false)
+                );
+              }
+            }}
+            disabled={isReordering}
+          >
+            {isReordering ? "Menyimpan..." : "Simpan Urutan"}
           </Button>
         </CardFooter>
       </Dialog>

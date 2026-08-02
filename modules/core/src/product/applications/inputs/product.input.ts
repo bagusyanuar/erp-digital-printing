@@ -9,3 +9,10 @@ export interface ProductParams extends PaginationParams {
 }
 
 export type CreateProductInput = ProductModel;
+
+export interface ReorderProductInput {
+  items: {
+    id: string;
+    sequence: number;
+  }[];
+}

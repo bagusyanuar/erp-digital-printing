@@ -1,6 +1,6 @@
 import type { CategoryRepository } from "../../domains/repositories";
 import type { CategoryModel } from "../../domains/models";
-import type { CategoryParams, CreateCategoryInput } from "../inputs";
+import type { CategoryParams, CreateCategoryInput, ReorderCategoryInput } from "../inputs";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 export class GetCategories {
@@ -42,5 +42,13 @@ export class DeleteCategory {
 
   async execute(id: string): Promise<void> {
     await this.categoryRepository.delete(id);
+  }
+}
+
+export class ReorderCategory {
+  constructor(private readonly categoryRepository: CategoryRepository) {}
+
+  async execute(input: ReorderCategoryInput): Promise<void> {
+    await this.categoryRepository.reorder(input);
   }
 }

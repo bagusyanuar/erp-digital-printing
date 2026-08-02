@@ -14,7 +14,7 @@ import { getFundTransfersUseCase, createFundTransferUseCase, getFundTransferWidg
 import { getDashboardWidgetsUseCase, getWeeklyRevenueUseCase } from "@infrastructure/dashboard/containers/dashboard.container";
 
 
-import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, deleteCategoryUseCase } from "@infrastructure/category/containers/category.container";
+import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, deleteCategoryUseCase, reorderCategoryUseCase } from "@infrastructure/category/containers/category.container";
 import {
   getExpenseCategoriesUseCase,
   createExpenseCategoryUseCase,
@@ -23,7 +23,7 @@ import {
   deleteExpenseCategoryUseCase,
 } from "@infrastructure/expense-category/containers/expense-category.container";
 import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, updateAttributeUseCase, deleteAttributeUseCase } from "@infrastructure/attribute/containers/attribute.container";
-import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase } from "@infrastructure/product/containers/product.container";
+import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase, reorderProductUseCase } from "@infrastructure/product/containers/product.container";
 import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, refundOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase, getOrderReportWidgetsUseCase, getSalesReportWidgetsUseCase, getSalesTrendUseCase, getCategorySalesUseCase, getPaymentSalesUseCase } from "@infrastructure/order/containers/order.container";
 import { getCashFlowReportUseCase, getCashFlowSummaryUseCase, createCashFlowAdjustmentUseCase, getCashAccountsUseCase } from "@infrastructure/cash-flow/containers/cash-flow.container";
 import { getUsersUseCase, createUserUseCase, getRolesUseCase, getProfileUseCase } from "@infrastructure/user/containers/user.container";
@@ -60,6 +60,7 @@ export function createAppContainer(): AppContainer {
       getCategoryByIdUseCase: getCategoryByIdUseCase(httpClient),
       updateCategoryUseCase: updateCategoryUseCase(httpClient),
       deleteCategoryUseCase: deleteCategoryUseCase(httpClient),
+      reorderCategoryUseCase: reorderCategoryUseCase(httpClient),
     },
     expenseCategory: {
       getExpenseCategoriesUseCase: getExpenseCategoriesUseCase(httpClient),
@@ -81,6 +82,7 @@ export function createAppContainer(): AppContainer {
       getProductByIdUseCase: getProductByIdUseCase(httpClient),
       updateProductUseCase: updateProductUseCase(httpClient),
       deleteProductUseCase: deleteProductUseCase(httpClient),
+      reorderProductUseCase: reorderProductUseCase(httpClient),
     },
     order: {
       saveDraftOrderUseCase: saveDraftUseCase(httpClient),

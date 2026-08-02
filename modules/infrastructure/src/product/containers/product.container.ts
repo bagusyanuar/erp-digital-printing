@@ -1,5 +1,5 @@
 import { type HttpClient } from "@erp-digital-printing/http";
-import { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteProduct } from "@core/product/applications/usecases/product.usecase";
+import { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteProduct, ReorderProduct } from "@core/product/applications/usecases/product.usecase";
 import { ApiProductRepository } from "../repositories/product.repository";
 
 export function getProductUseCase(http: HttpClient): GetProducts {
@@ -25,4 +25,9 @@ export function updateProductUseCase(http: HttpClient): UpdateProduct {
 export function deleteProductUseCase(http: HttpClient): DeleteProduct {
   const repository = new ApiProductRepository(http);
   return new DeleteProduct(repository);
+}
+
+export function reorderProductUseCase(http: HttpClient): ReorderProduct {
+  const repository = new ApiProductRepository(http);
+  return new ReorderProduct(repository);
 }

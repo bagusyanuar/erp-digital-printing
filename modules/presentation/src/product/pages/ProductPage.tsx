@@ -14,7 +14,12 @@ import {
   LuPencil,
   LuTrash2,
   LuInfo,
+  LuArrowUp,
+  LuArrowDown,
+  LuHash,
+  LuX,
 } from "@erp-digital-printing/ui/icons";
+import { Typography } from "@erp-digital-printing/ui/Typography";
 import {
   Dropdown,
   DropdownTrigger,
@@ -41,18 +46,21 @@ import {
 import { Dialog } from "@erp-digital-printing/ui/Dialog";
 import FormProduct from "../components/FormProduct";
 import DetailProduct from "../components/DetailProduct";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "@erp-digital-printing/ui/Toast";
 import { useProductDI } from "../hooks/useProductDI";
 import { productKeys } from "@infrastructure/product/keys";
 import { useCategoryDI } from "@presentation/category/hooks/useCategoryDI";
 import { categoryKeys } from "@infrastructure/category/keys";
 import { useDebounce } from "../../shared/hooks/useDebounce";
+import type { AppError } from "@core/shared/errors/domain.error";
 
 interface Product {
   id: string;
   name: string;
   category: string;
   uom: string;
+  sequence?: number;
 }
 
 const columnHelper = createColumnHelper<Product>();
@@ -61,6 +69,8 @@ const ProductPage = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedDetailProductId, setSelectedDetailProductId] = useState<string | null>(null);
   const [selectedEditProductId, setSelectedEditProductId] = useState<string | null>(null);
+  const [selectedChangeSequenceProductId, setSelectedChangeSequenceProductId] = useState<string | null>(null);
+  const [sequenceValue, setSequenceValue] = useState<number | "">("");
   const [globalFilter, setGlobalFilter] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("Semua");
   const [pagination, setPagination] = useState({
@@ -76,7 +86,37 @@ const ProductPage = () => {
   }, [debouncedSearch, selectedCategoryFilter]);
 
   const { getCategoriesUseCase } = useCategoryDI();
-  const { getProductsUseCase } = useProductDI();
+  const { getProductsUseCase, reorderProductUseCase } = useProductDI();
+  const queryClient = useQueryClient();
+
+  const reorderMutation = useMutation({
+    mutationFn: (input: { items: { id: string; sequence: number }[] }) =>
+      reorderProductUseCase.execute(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: productKeys.all });
+      toast.success(
+        "Urutan Berhasil Diperbarui",
+        "Urutan produk telah berhasil disimpan.",
+      );
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Memperbarui Urutan",
+        error.message || "Terjadi kesalahan.",
+      );
+    },
+  });
+
+  const reorderProducts = (items: { id: string; sequence: number }[], onSuccess?: () => void) => {
+    reorderMutation.mutate(
+      { items },
+      {
+        onSuccess: () => {
+          onSuccess?.();
+        },
+      }
+    );
+  };
 
   // Fetch categories dynamically for filter tabs
   const { data: categoryResponse } = useQuery({
@@ -131,6 +171,7 @@ const ProductPage = () => {
         id: model.id || "",
         name: model.name,
         category: catObj?.name || "Kategori Lain",
+        sequence: model.sequence ?? 0,
         uom: model.uom === "pcs"
           ? "PCS (pcs)"
           : model.uom === "m2"
@@ -143,6 +184,32 @@ const ProductPage = () => {
       };
     });
   }, [productResponse, categories]);
+
+  const handleMoveUp = (index: number) => {
+    if (index <= 0) return;
+    const current = products[index];
+    const above = products[index - 1];
+
+    if (!current || !above) return;
+
+    reorderProducts([
+      { id: current.id, sequence: above.sequence ?? 0 },
+      { id: above.id, sequence: current.sequence ?? 0 },
+    ]);
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index >= products.length - 1) return;
+    const current = products[index];
+    const below = products[index + 1];
+
+    if (!current || !below) return;
+
+    reorderProducts([
+      { id: current.id, sequence: below.sequence ?? 0 },
+      { id: below.id, sequence: current.sequence ?? 0 },
+    ]);
+  };
 
   const columns = useMemo(
     () => [
@@ -175,6 +242,14 @@ const ProductPage = () => {
           </span>
         ),
       }),
+      columnHelper.accessor("sequence", {
+        header: "Urutan",
+        cell: (info) => (
+          <span className="font-semibold text-sm text-foreground/80">
+            {info.getValue()}
+          </span>
+        ),
+      }),
       columnHelper.display({
         id: "actions",
         header: "Aksi",
@@ -190,7 +265,28 @@ const ProductPage = () => {
                   <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </DropdownTrigger>
-              <DropdownContent align="end" className="w-36">
+              <DropdownContent align="end" className="w-48">
+                <DropdownItem 
+                  onClick={() => handleMoveUp(info.row.index)}
+                  disabled={info.row.index === 0}
+                >
+                  <LuArrowUp className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Pindah Atas</span>
+                </DropdownItem>
+                <DropdownItem 
+                  onClick={() => handleMoveDown(info.row.index)}
+                  disabled={info.row.index === products.length - 1}
+                >
+                  <LuArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Pindah Bawah</span>
+                </DropdownItem>
+                <DropdownItem onClick={() => {
+                  setSelectedChangeSequenceProductId(info.row.original.id);
+                  setSequenceValue(info.row.original.sequence ?? 0);
+                }}>
+                  <LuHash className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Ubah Urutan...</span>
+                </DropdownItem>
                 <DropdownItem onClick={() => setSelectedDetailProductId(info.row.original.id)}>
                   <LuInfo className="h-3.5 w-3.5 text-primary" />
                   <span>Detail</span>
@@ -295,7 +391,7 @@ const ProductPage = () => {
         </CardHeader>
 
         {/* Table Body */}
-        <CardContent className="p-0 overflow-x-auto">
+        <CardContent className={`p-0 overflow-x-auto ${reorderMutation.isPending ? 'opacity-50 pointer-events-none' : 'transition-opacity duration-300'}`}>
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -407,6 +503,70 @@ const ProductPage = () => {
             onClose={() => setSelectedDetailProductId(null)}
           />
         )}
+      </Dialog>
+
+      {/* Change Sequence Dialog */}
+      <Dialog
+        isOpen={!!selectedChangeSequenceProductId}
+        onClose={() => setSelectedChangeSequenceProductId(null)}
+        size="sm"
+        showCloseButton={false}
+      >
+        <CardHeader className="px-6 py-4 border-b border-border/50 flex flex-row items-start justify-between gap-4">
+          <div className="space-y-0.5">
+            <h4 className="font-semibold text-lg tracking-tight">
+              Ubah Urutan
+            </h4>
+            <p className="text-sm text-muted-foreground">
+              Tentukan urutan baru untuk produk ini.
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-md text-muted-foreground hover:bg-muted active:scale-90 transition-all -mr-2 -mt-0.5"
+            onClick={() => setSelectedChangeSequenceProductId(null)}
+          >
+            <LuX className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="px-6 py-4 space-y-4">
+          <div className="space-y-2">
+            <Typography variant="small" weight="medium" className="text-sm">
+              Nomor Urutan
+            </Typography>
+            <TextField
+              type="number"
+              placeholder="Contoh: 1, 2, 3..."
+              className="border-border/50 focus:bg-background transition-all"
+              value={sequenceValue}
+              onChange={(e) => setSequenceValue(e.target.value ? Number(e.target.value) : "")}
+            />
+          </div>
+        </CardContent>
+        <div className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            className="h-10 px-4 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
+            onClick={() => setSelectedChangeSequenceProductId(null)}
+          >
+            Batal
+          </Button>
+          <Button
+            className="h-10 px-4 rounded-md font-medium bg-primary hover:bg-primary/90 active:scale-95 transition-all text-white"
+            onClick={() => {
+              if (selectedChangeSequenceProductId && typeof sequenceValue === "number") {
+                reorderProducts(
+                  [{ id: selectedChangeSequenceProductId, sequence: sequenceValue }],
+                  () => setSelectedChangeSequenceProductId(null)
+                );
+              }
+            }}
+            disabled={reorderMutation.isPending}
+          >
+            {reorderMutation.isPending ? "Menyimpan..." : "Simpan Urutan"}
+          </Button>
+        </div>
       </Dialog>
     </div>
   );

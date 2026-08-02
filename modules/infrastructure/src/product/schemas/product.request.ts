@@ -2,8 +2,8 @@ import type { PaginationQuery } from "@infrastructure/libs/api-response";
 
 export interface ProductQuery extends PaginationQuery {
   search?: string;
-  sort?: string;
-  order?: string;
+  sort_by?: string;
+  sort_order?: string;
   category_id?: string;
 }
 

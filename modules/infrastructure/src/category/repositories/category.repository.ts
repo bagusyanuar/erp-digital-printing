@@ -1,4 +1,4 @@
-import type { CategoryParams, CreateCategoryInput } from "@core/category/applications/inputs";
+import type { CategoryParams, CreateCategoryInput, ReorderCategoryInput } from "@core/category/applications/inputs";
 import type { CategoryModel } from "@core/category/domains/models";
 import type { CategoryRepository } from "@core/category/domains/repositories";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
@@ -67,6 +67,12 @@ export class ApiCategoryRepository implements CategoryRepository {
   async delete(id: string): Promise<void> {
     return safeApiCall(async () => {
       await this.http.delete(`/categories/${id}`);
+    });
+  }
+
+  async reorder(input: ReorderCategoryInput): Promise<void> {
+    return safeApiCall(async () => {
+      await this.http.put("/categories/reorder", input);
     });
   }
 }

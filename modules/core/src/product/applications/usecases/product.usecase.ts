@@ -1,6 +1,6 @@
 import type { ProductRepository } from "../../domains/repositories/product.repository";
 import type { ProductModel } from "../../domains/models/product.model";
-import type { CreateProductInput, ProductParams } from "../inputs/product.input";
+import type { CreateProductInput, ProductParams, ReorderProductInput } from "../inputs/product.input";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 export class GetProducts {
@@ -40,5 +40,13 @@ export class DeleteProduct {
 
   async execute(id: string): Promise<void> {
     await this.productRepository.delete(id);
+  }
+}
+
+export class ReorderProduct {
+  constructor(private readonly productRepository: ProductRepository) {}
+
+  async execute(input: ReorderProductInput): Promise<void> {
+    await this.productRepository.reorder(input);
   }
 }

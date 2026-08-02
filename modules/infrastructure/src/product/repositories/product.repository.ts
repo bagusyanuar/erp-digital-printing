@@ -1,4 +1,4 @@
-import type { ProductParams, CreateProductInput } from "@core/product/applications/inputs";
+import type { ProductParams, CreateProductInput, ReorderProductInput } from "@core/product/applications/inputs";
 import type { ProductModel } from "@core/product/domains/models";
 import type { ProductRepository } from "@core/product/domains/repositories";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
@@ -67,6 +67,12 @@ export class ApiProductRepository implements ProductRepository {
   async delete(id: string): Promise<void> {
     return safeApiCall(async () => {
       await this.http.delete(`/products/${id}`);
+    });
+  }
+
+  async reorder(input: ReorderProductInput): Promise<void> {
+    return safeApiCall(async () => {
+      await this.http.put("/products/reorder", input);
     });
   }
 }

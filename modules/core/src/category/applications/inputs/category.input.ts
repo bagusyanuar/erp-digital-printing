@@ -9,3 +9,10 @@ export interface CategoryParams extends PaginationParams {
 export interface CreateCategoryInput {
   name: string;
 }
+
+export interface ReorderCategoryInput {
+  items: {
+    id: string;
+    sequence: number;
+  }[];
+}
