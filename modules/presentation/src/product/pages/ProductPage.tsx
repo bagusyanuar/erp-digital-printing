@@ -5,6 +5,7 @@ import {
   Card,
   CardHeader,
   CardContent,
+  CardFooter,
 } from "@erp-digital-printing/ui/Card";
 import {
   LuPlus,
@@ -71,6 +72,7 @@ const ProductPage = () => {
   const [selectedEditProductId, setSelectedEditProductId] = useState<string | null>(null);
   const [selectedChangeSequenceProductId, setSelectedChangeSequenceProductId] = useState<string | null>(null);
   const [sequenceValue, setSequenceValue] = useState<number | "">("");
+  const [selectedDeleteProduct, setSelectedDeleteProduct] = useState<Product | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("Semua");
   const [pagination, setPagination] = useState({
@@ -86,8 +88,34 @@ const ProductPage = () => {
   }, [debouncedSearch, selectedCategoryFilter]);
 
   const { getCategoriesUseCase } = useCategoryDI();
-  const { getProductsUseCase, reorderProductUseCase } = useProductDI();
+  const { getProductsUseCase, reorderProductUseCase, deleteProductUseCase } = useProductDI();
   const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteProductUseCase.execute(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: productKeys.all });
+      toast.success(
+        "Produk Berhasil Dihapus",
+        "Data produk telah berhasil dihapus dari sistem.",
+      );
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Menghapus Produk",
+        error.message || "Terjadi kesalahan.",
+      );
+    },
+  });
+
+  const handleDeleteConfirm = () => {
+    if (!selectedDeleteProduct) return;
+    deleteMutation.mutate(selectedDeleteProduct.id, {
+      onSuccess: () => {
+        setSelectedDeleteProduct(null);
+      },
+    });
+  };
 
   const reorderMutation = useMutation({
     mutationFn: (input: { items: { id: string; sequence: number }[] }) =>
@@ -107,16 +135,19 @@ const ProductPage = () => {
     },
   });
 
-  const reorderProducts = (items: { id: string; sequence: number }[], onSuccess?: () => void) => {
-    reorderMutation.mutate(
-      { items },
-      {
-        onSuccess: () => {
-          onSuccess?.();
+  const reorderProducts = React.useCallback(
+    (items: { id: string; sequence: number }[], onSuccess?: () => void) => {
+      reorderMutation.mutate(
+        { items },
+        {
+          onSuccess: () => {
+            onSuccess?.();
+          },
         },
-      }
-    );
-  };
+      );
+    },
+    [reorderMutation],
+  );
 
   // Fetch categories dynamically for filter tabs
   const { data: categoryResponse } = useQuery({
@@ -185,31 +216,37 @@ const ProductPage = () => {
     });
   }, [productResponse, categories]);
 
-  const handleMoveUp = (index: number) => {
-    if (index <= 0) return;
-    const current = products[index];
-    const above = products[index - 1];
+  const handleMoveUp = React.useCallback(
+    (index: number) => {
+      if (index <= 0) return;
+      const current = products[index];
+      const above = products[index - 1];
 
-    if (!current || !above) return;
+      if (!current || !above) return;
 
-    reorderProducts([
-      { id: current.id, sequence: above.sequence ?? 0 },
-      { id: above.id, sequence: current.sequence ?? 0 },
-    ]);
-  };
+      reorderProducts([
+        { id: current.id, sequence: above.sequence ?? 0 },
+        { id: above.id, sequence: current.sequence ?? 0 },
+      ]);
+    },
+    [products, reorderProducts],
+  );
 
-  const handleMoveDown = (index: number) => {
-    if (index >= products.length - 1) return;
-    const current = products[index];
-    const below = products[index + 1];
+  const handleMoveDown = React.useCallback(
+    (index: number) => {
+      if (index >= products.length - 1) return;
+      const current = products[index];
+      const below = products[index + 1];
 
-    if (!current || !below) return;
+      if (!current || !below) return;
 
-    reorderProducts([
-      { id: current.id, sequence: below.sequence ?? 0 },
-      { id: below.id, sequence: current.sequence ?? 0 },
-    ]);
-  };
+      reorderProducts([
+        { id: current.id, sequence: below.sequence ?? 0 },
+        { id: below.id, sequence: current.sequence ?? 0 },
+      ]);
+    },
+    [products, reorderProducts],
+  );
 
   const columns = useMemo(
     () => [
@@ -295,7 +332,10 @@ const ProductPage = () => {
                   <LuPencil className="h-3.5 w-3.5 text-blue-600" />
                   <span>Ubah</span>
                 </DropdownItem>
-                <DropdownItem variant="danger">
+                <DropdownItem
+                  variant="danger"
+                  onClick={() => setSelectedDeleteProduct(info.row.original)}
+                >
                   <LuTrash2 className="h-3.5 w-3.5 text-rose-600" />
                   <span>Hapus</span>
                 </DropdownItem>
@@ -305,7 +345,7 @@ const ProductPage = () => {
         ),
       }),
     ],
-    []
+    [products, handleMoveUp, handleMoveDown]
   );
 
   const table = useReactTable({
@@ -567,6 +607,50 @@ const ProductPage = () => {
             {reorderMutation.isPending ? "Menyimpan..." : "Simpan Urutan"}
           </Button>
         </div>
+      </Dialog>
+
+      {/* Delete Product Confirmation Dialog */}
+      <Dialog
+        isOpen={!!selectedDeleteProduct}
+        onClose={() => setSelectedDeleteProduct(null)}
+        size="md"
+        showCloseButton={false}
+      >
+        <CardContent className="pt-6 px-6 pb-4 flex flex-col items-center text-center space-y-4">
+          <div className="h-12 w-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20">
+            <LuTrash2 className="h-6 w-6" />
+          </div>
+          <div className="space-y-1">
+            <Typography variant="h4" weight="semibold" className="text-lg text-foreground">
+              Hapus Produk
+            </Typography>
+            <Typography className="text-muted-foreground text-sm max-w-xs">
+              Apakah Anda yakin ingin menghapus produk{" "}
+              <span className="font-bold text-foreground">
+                "{selectedDeleteProduct?.name}"
+              </span>
+              ? Tindakan ini bersifat permanen.
+            </Typography>
+          </div>
+        </CardContent>
+        <CardFooter className="px-6 py-4 bg-muted/30 border-t border-border/50 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            className="h-10 px-4 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
+            onClick={() => setSelectedDeleteProduct(null)}
+            disabled={deleteMutation.isPending}
+          >
+            Batal
+          </Button>
+          <Button
+            className="h-10 px-4 rounded-md font-medium bg-rose-600 hover:bg-rose-500 active:scale-95 transition-all text-white flex items-center gap-2"
+            onClick={handleDeleteConfirm}
+            disabled={deleteMutation.isPending}
+          >
+            <LuTrash2 className="h-4 w-4" />
+            {deleteMutation.isPending ? "Menghapus..." : "Hapus Produk"}
+          </Button>
+        </CardFooter>
       </Dialog>
     </div>
   );
