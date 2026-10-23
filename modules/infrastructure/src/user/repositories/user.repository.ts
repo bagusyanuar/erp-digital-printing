@@ -1,5 +1,10 @@
 import type { HttpClient } from "@erp-digital-printing/http";
-import type { UserRepository, CreateUserInput } from "@core/user/domains/repositories/user.repository";
+import type {
+  UserRepository,
+  CreateUserInput,
+  UpdateUserInput,
+  ChangeUserPasswordInput,
+} from "@core/user/domains/repositories/user.repository";
 import type { UserModel, RoleModel } from "@core/user/domains/models/user.model";
 import type { ApiResponse } from "../../libs/api-response";
 import { safeApiCall } from "../../libs/error";
@@ -24,6 +29,33 @@ export class ApiUserRepository implements UserRepository {
         role_ids: input.roleIds,
       });
       return mapUserResponseToModel(response.data);
+    });
+  }
+
+  async updateUser(input: UpdateUserInput): Promise<UserModel> {
+    return safeApiCall(async () => {
+      const response = await this.http.put<ApiResponse<UserResponse>>(`/users/${input.id}`, {
+        username: input.username,
+        password: input.password,
+        role_ids: input.roleIds,
+      });
+      return mapUserResponseToModel(response.data);
+    });
+  }
+
+  async changePassword(input: ChangeUserPasswordInput): Promise<UserModel> {
+    return safeApiCall(async () => {
+      const response = await this.http.put<ApiResponse<UserResponse>>(`/users/${input.id}`, {
+        username: input.username,
+        password: input.password,
+      });
+      return mapUserResponseToModel(response.data);
+    });
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    return safeApiCall(async () => {
+      await this.http.delete(`/users/${id}`);
     });
   }
 

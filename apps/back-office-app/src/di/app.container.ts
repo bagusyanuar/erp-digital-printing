@@ -26,7 +26,15 @@ import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, u
 import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase, reorderProductUseCase } from "@infrastructure/product/containers/product.container";
 import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, refundOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase, getOrderReportWidgetsUseCase, getSalesReportWidgetsUseCase, getSalesTrendUseCase, getCategorySalesUseCase, getPaymentSalesUseCase } from "@infrastructure/order/containers/order.container";
 import { getCashFlowReportUseCase, getCashFlowSummaryUseCase, createCashFlowAdjustmentUseCase, getCashAccountsUseCase } from "@infrastructure/cash-flow/containers/cash-flow.container";
-import { getUsersUseCase, createUserUseCase, getRolesUseCase, getProfileUseCase } from "@infrastructure/user/containers/user.container";
+import {
+  getUsersUseCase,
+  createUserUseCase,
+  updateUserUseCase,
+  changeUserPasswordUseCase,
+  deleteUserUseCase,
+  getRolesUseCase,
+  getProfileUseCase,
+} from "@infrastructure/user/containers/user.container";
 
 /**
  * createAppContainer
@@ -111,6 +119,9 @@ export function createAppContainer(): AppContainer {
     user: {
       getUsersUseCase: getUsersUseCase(httpClient),
       createUserUseCase: createUserUseCase(httpClient),
+      updateUserUseCase: updateUserUseCase(httpClient),
+      changeUserPasswordUseCase: changeUserPasswordUseCase(httpClient),
+      deleteUserUseCase: deleteUserUseCase(httpClient),
       getRolesUseCase: getRolesUseCase(httpClient),
       getProfileUseCase: getProfileUseCase(httpClient),
     },
