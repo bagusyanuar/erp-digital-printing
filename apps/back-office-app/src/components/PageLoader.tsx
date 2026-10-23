@@ -9,12 +9,17 @@ export const PageLoader = () => {
 
   // Trigger loading bar on location change (for lazy components)
   React.useEffect(() => {
-    setIsTransitioning(true);
-    const timer = setTimeout(() => {
+    const startTimer = setTimeout(() => {
+      setIsTransitioning(true);
+    }, 0);
+    const endTimer = setTimeout(() => {
       setIsTransitioning(false);
     }, 600); // Give it a minimum duration for smooth feel
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(startTimer);
+      clearTimeout(endTimer);
+    };
   }, [location.pathname]);
 
   // Combine with router navigation state (for data loaders)

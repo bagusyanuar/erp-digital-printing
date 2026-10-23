@@ -24,6 +24,7 @@ import MainLayout from "../layouts/MainLayout";
 
 import { ProtectedRoute } from "@presentation/shared/guards/ProtectedRoute";
 import { PublicRoute } from "@presentation/shared/guards/PublicRoute";
+import { RoleGuard } from "@presentation/shared/guards/RoleGuard";
 
 const Root = () => {
   return (
@@ -51,24 +52,42 @@ const router = createBrowserRouter([
           {
             element: <MainLayout />,
             children: [
-              ...dashboardRoutes,
-              ...categoryRoutes,
-              ...expenseCategoryRoutes,
-              ...expenseRoutes,
-              ...capitalInjectionRoutes,
-              ...capitalWithdrawalRoutes,
-              ...fundTransferRoutes,
-              ...productRoutes,
-              ...attributeRoutes,
-              ...customerRoutes,
-              ...resellerRoutes,
-              ...supplierRoutes,
-              ...jobEntryRoutes,
-              ...orderRoutes,
-              ...invoiceRoutes,
-              ...cashFlowRoutes,
-              ...reportRoutes,
-              ...userRoutes,
+              // 1. Rute Khusus Administrator & Designer (Tiket Pesanan)
+              {
+                element: <RoleGuard allowedRoles={["administrator", "designer"]} />,
+                children: [...jobEntryRoutes],
+              },
+
+              // 2. Rute Administrator & Admin (Dashboard, Pesanan Baru, Invoice, Semua Keuangan, Biro, Supplier, Semua Laporan)
+              {
+                element: <RoleGuard allowedRoles={["administrator", "admin"]} />,
+                children: [
+                  ...dashboardRoutes,
+                  ...orderRoutes,
+                  ...invoiceRoutes,
+                  ...expenseRoutes,
+                  ...capitalInjectionRoutes,
+                  ...capitalWithdrawalRoutes,
+                  ...fundTransferRoutes,
+                  ...cashFlowRoutes,
+                  ...resellerRoutes,
+                  ...supplierRoutes,
+                  ...reportRoutes,
+                ],
+              },
+
+              // 3. Rute Khusus Administrator (Master Kategori, Master Produk, Atribut, Pelanggan, User)
+              {
+                element: <RoleGuard allowedRoles={["administrator"]} />,
+                children: [
+                  ...categoryRoutes,
+                  ...expenseCategoryRoutes,
+                  ...productRoutes,
+                  ...attributeRoutes,
+                  ...customerRoutes,
+                  ...userRoutes,
+                ],
+              },
             ],
           },
         ],

@@ -8,17 +8,24 @@ import { useAuthDI } from "./useAuthDI";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@erp-digital-printing/ui/Toast";
 
+import { useQueryClient } from "@tanstack/react-query";
+import { userKeys } from "@infrastructure/user/keys/user.key";
+import { useUserDI } from "../../user/hooks/useUserDI";
+import { getDefaultHomePath } from "../../shared/utils/role.utils";
+
 /**
  * useLogin Hook
  * 
  * Hook ini mengintegrasikan:
  * - React Hook Form + Zod untuk validasi form.
  * - TanStack Query (useMutation) untuk eksekusi API.
- * - Dependency Injection (useAuthDI) untuk mendapatkan Use Case.
+ * - Dependency Injection (useAuthDI & useUserDI) untuk mendapatkan Use Case.
  * - Zustand (useAuthStore) untuk menyimpan session token.
  */
 export const useLogin = () => {
   const { loginUseCase } = useAuthDI();
+  const { getProfileUseCase } = useUserDI();
+  const queryClient = useQueryClient();
   const setToken = useAuthStore((state) => state.setToken);
   const navigate = useNavigate();
 
@@ -38,13 +45,24 @@ export const useLogin = () => {
   // Integrasi TanStack Query
   const { mutate, isPending } = useMutation({
     mutationFn: (data: LoginInput) => loginUseCase.execute(data),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       // Simpan token ke global state (Zustand)
       setToken(data.accessToken);
-      
+
       toast.success("Login Berhasil", "Selamat datang kembali di ERP Digital Printing.");
-      
-      // Redirect ke dashboard
+
+      try {
+        const profile = await getProfileUseCase.execute();
+        queryClient.setQueryData(userKeys.profile(), profile);
+
+        const homePath = getDefaultHomePath(profile.roles);
+        navigate(homePath);
+        return;
+      } catch {
+        // Fallback jika fetch profile awal bermasalah
+      }
+
+      // Fallback default
       navigate("/dashboard");
     },
     onError: (error: unknown) => {

@@ -2,10 +2,10 @@ import * as React from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { cn } from "../../lib/utils";
 import { SidebarFooterProps } from "./Sidebar.types";
-import { LuChevronsUpDown, LuUser, LuLogOut, LuSettings, LuShield } from "react-icons/lu";
+import { LuChevronsUpDown, LuLogOut, LuKey } from "react-icons/lu";
 import { motion, AnimatePresence } from "framer-motion";
 
-export const SidebarFooter = ({ user, onLogout, className }: SidebarFooterProps) => {
+export const SidebarFooter = ({ user, onChangePassword, onLogout, className }: SidebarFooterProps) => {
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -50,17 +50,16 @@ export const SidebarFooter = ({ user, onLogout, className }: SidebarFooterProps)
               </div>
 
               <div className="space-y-0.5">
-                <button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all group">
-                  <LuUser className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                  Profil Saya
-                </button>
-                <button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all group">
-                  <LuSettings className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                  Pengaturan Akun
-                </button>
-                <button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all group">
-                  <LuShield className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                  Keamanan
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onChangePassword?.();
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all group"
+                >
+                  <LuKey className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  Ganti Password
                 </button>
               </div>
 

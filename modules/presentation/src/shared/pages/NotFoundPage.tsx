@@ -2,14 +2,27 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
+import { useNavigate } from "react-router-dom"
 import { LuArrowLeft, LuFileSearch } from "@erp-digital-printing/ui/icons"
 import { Button } from "@erp-digital-printing/ui/Button"
+import { useProfile } from "../../user/hooks/useProfile"
+import { getDefaultHomePath } from "../utils/role.utils"
 
 interface NotFoundPageProps {
     onBackHome?: () => void;
 }
 
 export default function NotFoundPage({ onBackHome }: NotFoundPageProps) {
+    const navigate = useNavigate();
+    const { data: userProfile } = useProfile();
+
+    const handleBackHome = () => {
+        if (onBackHome) {
+            onBackHome();
+        } else {
+            navigate(getDefaultHomePath(userProfile?.roles));
+        }
+    };
     return (
         <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background p-4 text-center font-sans">
             <motion.div
@@ -58,7 +71,7 @@ export default function NotFoundPage({ onBackHome }: NotFoundPageProps) {
                     <Button 
                         size="lg" 
                         prefixIcon={LuArrowLeft}
-                        onClick={onBackHome}
+                        onClick={handleBackHome}
                         className="rounded-2xl px-10 h-14 text-base font-bold shadow-2xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
                     >
                         Balik ke Home

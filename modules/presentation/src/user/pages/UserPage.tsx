@@ -322,8 +322,13 @@ const UserPage = () => {
       </Card>
 
       {/* Add User Dialog */}
-      <Dialog isOpen={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)}>
-        <div className="relative p-6 max-w-md w-full bg-card border border-border rounded-3xl shadow-2xl space-y-6">
+      <Dialog
+        isOpen={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
+        size="sm"
+        showCloseButton={false}
+      >
+        <div className="relative p-6 w-full space-y-6">
           <button
             onClick={() => setIsAddDialogOpen(false)}
             className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-muted text-muted-foreground transition-all"
@@ -424,8 +429,13 @@ const UserPage = () => {
       </Dialog>
 
       {/* Edit User Dialog */}
-      <Dialog isOpen={isEditDialogOpen} onClose={() => setIsEditDialogOpen(false)}>
-        <div className="relative p-6 max-w-md w-full bg-card border border-border rounded-3xl shadow-2xl space-y-6">
+      <Dialog
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        size="sm"
+        showCloseButton={false}
+      >
+        <div className="relative p-6 w-full space-y-6">
           <button
             onClick={() => setIsEditDialogOpen(false)}
             className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-muted text-muted-foreground transition-all"
@@ -517,8 +527,10 @@ const UserPage = () => {
       <Dialog
         isOpen={isChangePasswordDialogOpen}
         onClose={() => setIsChangePasswordDialogOpen(false)}
+        size="sm"
+        showCloseButton={false}
       >
-        <div className="relative p-6 max-w-md w-full bg-card border border-border rounded-3xl shadow-2xl space-y-6">
+        <div className="relative p-6 w-full space-y-6">
           <button
             onClick={() => setIsChangePasswordDialogOpen(false)}
             className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-muted text-muted-foreground transition-all"
@@ -597,9 +609,10 @@ const UserPage = () => {
       <Dialog
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
+        size="sm"
         showCloseButton={false}
       >
-        <div className="relative p-6 max-w-md w-full bg-card border border-border rounded-3xl shadow-2xl space-y-6">
+        <div className="relative p-6 w-full space-y-6">
           <div className="flex flex-col items-center text-center space-y-4">
             <div className="h-14 w-14 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20">
               <LuTrash2 className="h-7 w-7" />

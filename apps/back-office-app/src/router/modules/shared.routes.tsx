@@ -1,20 +1,41 @@
-import { lazy, Suspense } from "react";
-import { type RouteObject, useNavigate } from "react-router-dom";
+import React, { lazy, Suspense } from "react";
+import { type RouteObject } from "react-router-dom";
 
-const NotFoundPage = lazy(() => import("@presentation/shared/pages/NotFoundPage"));
-
-const NotFoundWrapper = () => {
-  const navigate = useNavigate();
-  return <NotFoundPage onBackHome={() => navigate("/")} />;
-};
+const lazyNotFoundPage = lazy(
+  () => import("@presentation/shared/pages/NotFoundPage"),
+);
+const lazyForbiddenPage = lazy(
+  () => import("@presentation/shared/pages/ForbiddenPage"),
+);
 
 export const sharedRoutes: RouteObject[] = [
   {
+    path: "/403",
+    element: (
+      <Suspense
+        fallback={
+          <div className="h-screen w-full flex items-center justify-center">
+            Loading...
+          </div>
+        }
+      >
+        {React.createElement(lazyForbiddenPage)}
+      </Suspense>
+    ),
+  },
+  {
     path: "*",
     element: (
-      <Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}>
-        <NotFoundWrapper />
+      <Suspense
+        fallback={
+          <div className="h-screen w-full flex items-center justify-center">
+            Loading...
+          </div>
+        }
+      >
+        {React.createElement(lazyNotFoundPage)}
       </Suspense>
     ),
   },
 ];
+

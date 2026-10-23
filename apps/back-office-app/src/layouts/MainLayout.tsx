@@ -6,14 +6,18 @@ import {
 } from "@erp-digital-printing/ui/Layout";
 import { NavSidebar } from "@shell/components/NavSidebar";
 
+interface RouteHandle {
+  title?: string;
+}
+
 export const MainLayout = () => {
   const matches = useMatches();
 
   // Ambil title dari handle route terakhir yang memiliki title
   const currentMatch = [...matches]
     .reverse()
-    .find((m) => (m.handle as any)?.title);
-  const title = (currentMatch?.handle as any)?.title;
+    .find((m) => (m.handle as RouteHandle | undefined)?.title);
+  const title = (currentMatch?.handle as RouteHandle | undefined)?.title;
 
   return (
     <AppLayout sidebar={<NavSidebar />}>

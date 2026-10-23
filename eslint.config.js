@@ -51,5 +51,12 @@ export default defineConfig([
         },
     },
 
+    {
+        files: ['**/router/**', '**/*.routes.{ts,tsx}'],
+        rules: {
+            'react-refresh/only-export-components': 'off',
+        },
+    },
+
     prettierConfig,
 ])
