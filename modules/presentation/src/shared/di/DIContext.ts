@@ -5,7 +5,7 @@ import type {
   Logout,
 } from "@core/auth/applications/usecases/auth.usecase";
 import type { GetResellers, CreateReseller, GetResellerById, UpdateReseller, DeleteReseller } from "@core/reseller/applications/usecases/reseller.usecase";
-import type { GetCategories, CreateCategory, GetCategoryById, UpdateCategory, DeleteCategory, ReorderCategory } from "@core/category/applications/usecases/category.usecase";
+import type { GetCategories, CreateCategory, GetCategoryById, UpdateCategory, AssignSPKCategory, DeleteCategory, ReorderCategory } from "@core/category/applications/usecases/category.usecase";
 import type { GetExpenseCategories, CreateExpenseCategory, GetExpenseCategoryById, UpdateExpenseCategory, DeleteExpenseCategory } from "@core/expense-category/applications/usecases/expense-category.usecase";
 import type { GetAttributes, CreateAttribute, GetAttributeById, UpdateAttribute, DeleteAttribute } from "@core/attribute/applications/usecases/attribute.usecase";
 import type { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteProduct, ReorderProduct } from "@core/product/applications/usecases/product.usecase";
@@ -78,6 +78,7 @@ export interface GetCategoryUseCases {
   createCategoryUseCase: CreateCategory;
   getCategoryByIdUseCase: GetCategoryById;
   updateCategoryUseCase: UpdateCategory;
+  assignSPKCategoryUseCase: AssignSPKCategory;
   deleteCategoryUseCase: DeleteCategory;
   reorderCategoryUseCase: ReorderCategory;
 }

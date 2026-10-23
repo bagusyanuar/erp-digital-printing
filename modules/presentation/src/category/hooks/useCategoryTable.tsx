@@ -19,6 +19,7 @@ import {
   LuArrowUp,
   LuArrowDown,
   LuHash,
+  LuLayers,
 } from "@erp-digital-printing/ui/icons";
 import {
   Dropdown,
@@ -34,6 +35,8 @@ export interface Category {
   id: string;
   name: string;
   sequence?: number;
+  spkCategoryId?: string | null;
+  spkCategoryName?: string | null;
 }
 
 const columnHelper = createColumnHelper<Category>();
@@ -42,6 +45,7 @@ export const useCategoryTable = (options?: {
   onEdit?: (category: Category) => void;
   onDelete?: (category: Category) => void;
   onChangeSequence?: (category: Category) => void;
+  onAssignSPK?: (category: Category) => void;
 }) => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -61,6 +65,7 @@ export const useCategoryTable = (options?: {
     getCategoriesUseCase,
     createCategoryUseCase,
     updateCategoryUseCase,
+    assignSPKCategoryUseCase,
     deleteCategoryUseCase,
     reorderCategoryUseCase,
   } = useCategoryDI();
@@ -88,6 +93,20 @@ export const useCategoryTable = (options?: {
     refetchOnWindowFocus: false,
   });
 
+  // Fetch all categories for selection in modal
+  const { data: allCategoriesRes } = useQuery({
+    queryKey: categoryKeys.list({ limit: 100, page: 1 }),
+    queryFn: () => getCategoriesUseCase.execute({ limit: 100, page: 1 }),
+    staleTime: 60_000,
+  });
+
+  const categoryOptions = useMemo(() => {
+    return (allCategoriesRes?.data ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+    }));
+  }, [allCategoriesRes]);
+
   // Map API/core model to representation/view model
   const data = useMemo(() => {
     return (response?.data ?? []).map(
@@ -95,6 +114,8 @@ export const useCategoryTable = (options?: {
         id: model.id,
         name: model.name,
         sequence: model.sequence ?? 0,
+        spkCategoryId: model.spkCategoryId ?? null,
+        spkCategoryName: model.spkCategory?.name ?? null,
       }),
     );
   }, [response]);
@@ -133,6 +154,25 @@ export const useCategoryTable = (options?: {
     onError: (error: AppError) => {
       toast.error(
         "Gagal Memperbarui Kategori",
+        error.message || "Terjadi kesalahan.",
+      );
+    },
+  });
+
+  // Assign SPK Category Mutation
+  const assignSPKMutation = useMutation({
+    mutationFn: ({ id, spkCategoryId }: { id: string; spkCategoryId: string | null }) =>
+      assignSPKCategoryUseCase.execute(id, { spkCategoryId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+      toast.success(
+        "Kategori SPK Berhasil Diatur",
+        "Pengelompokan lembar kerja SPK untuk kategori ini berhasil disimpan.",
+      );
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Mengatur Kategori SPK",
         error.message || "Terjadi kesalahan.",
       );
     },
@@ -182,6 +222,17 @@ export const useCategoryTable = (options?: {
   const updateCategory = (id: string, name: string, onSuccess?: () => void) => {
     updateMutation.mutate(
       { id, input: { name } },
+      {
+        onSuccess: () => {
+          onSuccess?.();
+        },
+      },
+    );
+  };
+
+  const assignSPKCategory = (id: string, spkCategoryId: string | null, onSuccess?: () => void) => {
+    assignSPKMutation.mutate(
+      { id, spkCategoryId },
       {
         onSuccess: () => {
           onSuccess?.();
@@ -250,6 +301,25 @@ export const useCategoryTable = (options?: {
           </div>
         ),
       }),
+      columnHelper.accessor("spkCategoryName", {
+        header: "Kategori SPK",
+        cell: (info) => {
+          const spkName = info.getValue();
+          if (!spkName) {
+            return (
+              <span className="text-xs font-medium text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-full border border-border/40">
+                Default (Sendiri)
+              </span>
+            );
+          }
+          return (
+            <span className="text-xs font-bold text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20 inline-flex items-center gap-1.5">
+              <LuLayers className="w-3.5 h-3.5" />
+              {spkName}
+            </span>
+          );
+        },
+      }),
       columnHelper.accessor("sequence", {
         header: "Urutan",
         cell: (info) => (
@@ -273,7 +343,7 @@ export const useCategoryTable = (options?: {
                   <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </DropdownTrigger>
-              <DropdownContent align="end" className="w-48">
+              <DropdownContent align="end" className="w-52">
                 <DropdownItem
                   onClick={() => handleMoveUp(info.row.index)}
                   disabled={info.row.index === 0}
@@ -295,6 +365,12 @@ export const useCategoryTable = (options?: {
                   <span>Ubah Urutan...</span>
                 </DropdownItem>
                 <DropdownItem
+                  onClick={() => options?.onAssignSPK?.(info.row.original)}
+                >
+                  <LuLayers className="h-3.5 w-3.5 text-amber-600" />
+                  <span>Atur Kategori SPK...</span>
+                </DropdownItem>
+                <DropdownItem
                   onClick={() => options?.onEdit?.(info.row.original)}
                 >
                   <LuPencil className="h-3.5 w-3.5 text-blue-600" />
@@ -313,7 +389,7 @@ export const useCategoryTable = (options?: {
         ),
       }),
     ],
-    [options],
+    [options, data],
   );
 
   const table = useReactTable({
@@ -340,6 +416,7 @@ export const useCategoryTable = (options?: {
     isLoading: isLoading || isFetching,
     isAdding: createMutation.isPending,
     isUpdating: updateMutation.isPending,
+    isAssigningSPK: assignSPKMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isReordering: reorderMutation.isPending,
     isAddDialogOpen,
@@ -348,8 +425,10 @@ export const useCategoryTable = (options?: {
     setGlobalFilter,
     addCategory,
     updateCategory,
+    assignSPKCategory,
     deleteCategory,
     reorderCategories,
     totalEntries: response?.total ?? 0,
+    categoryOptions,
   };
 };

@@ -1,6 +1,6 @@
 import type { CategoryRepository } from "../../domains/repositories";
 import type { CategoryModel } from "../../domains/models";
-import type { CategoryParams, CreateCategoryInput, ReorderCategoryInput } from "../inputs";
+import type { CategoryParams, CreateCategoryInput, AssignSPKCategoryInput, ReorderCategoryInput } from "../inputs";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 export class GetCategories {
@@ -34,6 +34,14 @@ export class UpdateCategory {
 
   async execute(id: string, input: CreateCategoryInput): Promise<CategoryModel> {
     return await this.categoryRepository.update(id, input);
+  }
+}
+
+export class AssignSPKCategory {
+  constructor(private readonly categoryRepository: CategoryRepository) {}
+
+  async execute(id: string, input: AssignSPKCategoryInput): Promise<CategoryModel> {
+    return await this.categoryRepository.assignSPKCategory(id, input);
   }
 }
 

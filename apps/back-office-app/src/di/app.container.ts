@@ -14,7 +14,7 @@ import { getFundTransfersUseCase, createFundTransferUseCase, getFundTransferWidg
 import { getDashboardWidgetsUseCase, getWeeklyRevenueUseCase } from "@infrastructure/dashboard/containers/dashboard.container";
 
 
-import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, deleteCategoryUseCase, reorderCategoryUseCase } from "@infrastructure/category/containers/category.container";
+import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, assignSPKCategoryUseCase, deleteCategoryUseCase, reorderCategoryUseCase } from "@infrastructure/category/containers/category.container";
 import {
   getExpenseCategoriesUseCase,
   createExpenseCategoryUseCase,
@@ -67,6 +67,7 @@ export function createAppContainer(): AppContainer {
       createCategoryUseCase: createCategoryUseCase(httpClient),
       getCategoryByIdUseCase: getCategoryByIdUseCase(httpClient),
       updateCategoryUseCase: updateCategoryUseCase(httpClient),
+      assignSPKCategoryUseCase: assignSPKCategoryUseCase(httpClient),
       deleteCategoryUseCase: deleteCategoryUseCase(httpClient),
       reorderCategoryUseCase: reorderCategoryUseCase(httpClient),
     },

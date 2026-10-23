@@ -17,7 +17,17 @@ import {
   LuTags,
   LuX,
   LuTrash2,
+  LuLayers,
 } from "@erp-digital-printing/ui/icons";
+import {
+  Combobox,
+  ComboboxTrigger,
+  ComboboxContent,
+  ComboboxInput,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@erp-digital-printing/ui/Combobox";
 import { flexRender } from "@tanstack/react-table";
 import {
   Table,
@@ -43,6 +53,8 @@ const CategoryPage = () => {
   );
   const [isChangeSequenceDialogOpen, setIsChangeSequenceDialogOpen] = useState(false);
   const [sequenceValue, setSequenceValue] = useState<number | "">("");
+  const [isAssignSPKDialogOpen, setIsAssignSPKDialogOpen] = useState(false);
+  const [spkCategoryValue, setSpkCategoryValue] = useState<string>("");
 
   const addForm = useForm<CreateCategoryInput>({
     resolver: zodResolver(categoryInputSchema),
@@ -71,6 +83,9 @@ const CategoryPage = () => {
     reorderCategories,
     isReordering,
     totalEntries,
+    assignSPKCategory,
+    isAssigningSPK,
+    categoryOptions,
   } = useCategoryTable({
     onEdit: (category) => {
       setSelectedCategory(category);
@@ -85,6 +100,11 @@ const CategoryPage = () => {
       setSelectedCategory(category);
       setSequenceValue(category.sequence ?? 0);
       setIsChangeSequenceDialogOpen(true);
+    },
+    onAssignSPK: (category) => {
+      setSelectedCategory(category);
+      setSpkCategoryValue(category.spkCategoryId ?? "");
+      setIsAssignSPKDialogOpen(true);
     },
   });
 
@@ -470,6 +490,103 @@ const CategoryPage = () => {
             disabled={isReordering}
           >
             {isReordering ? "Menyimpan..." : "Simpan Urutan"}
+          </Button>
+        </CardFooter>
+      </Dialog>
+      {/* Assign SPK Category Dialog */}
+      <Dialog
+        isOpen={isAssignSPKDialogOpen}
+        onClose={() => setIsAssignSPKDialogOpen(false)}
+        size="md"
+        showCloseButton={false}
+      >
+        <CardHeader className="px-6 py-4 border-b border-border/50 flex flex-row items-start justify-between gap-4">
+          <div className="space-y-0.5">
+            <CardTitle variant="h4" weight="semibold" className="text-lg tracking-tight flex items-center gap-2">
+              <LuLayers className="text-amber-500 h-5 w-5" />
+              Atur Kategori SPK
+            </CardTitle>
+            <CardDescription className="text-sm">
+              Kelompokkan item dari kategori ini ke dalam lembar kerja SPK tertentu.
+            </CardDescription>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-md text-muted-foreground hover:bg-muted active:scale-90 transition-all -mr-2 -mt-0.5"
+            onClick={() => setIsAssignSPKDialogOpen(false)}
+          >
+            <LuX className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="px-6 py-4 space-y-4">
+          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+            <p className="font-semibold text-amber-700 dark:text-amber-300">
+              Kategori Asal: <span className="font-black underline">{selectedCategory?.name}</span>
+            </p>
+            <p className="leading-relaxed">
+              Jika diarahkan ke kategori tujuan, seluruh item produk dari kategori ini otomatis dicetak bersama lembar kerja SPK kategori tujuan tersebut.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Typography variant="small" weight="medium" className="text-sm">
+              Tujuan Kelompok SPK
+            </Typography>
+            <Combobox
+              value={spkCategoryValue}
+              onValueChange={setSpkCategoryValue}
+            >
+              <ComboboxTrigger className="font-semibold w-full h-10 border rounded-xl px-3 border-border/50 text-sm bg-background text-left flex items-center justify-between">
+                <span>
+                  {spkCategoryValue
+                    ? categoryOptions.find((c) => c.id === spkCategoryValue)?.name || "Pilih Kategori SPK"
+                    : "Default (Kategori Sendiri)"}
+                </span>
+              </ComboboxTrigger>
+              <ComboboxContent className="w-[var(--radix-popover-trigger-width)] bg-background border border-border shadow-md rounded-xl overflow-hidden z-[10000]">
+                <ComboboxInput placeholder="Cari kategori SPK..." />
+                <ComboboxEmpty>Kategori tidak ditemukan.</ComboboxEmpty>
+                <ComboboxList className="max-h-60 overflow-y-auto p-1">
+                  <ComboboxItem value="">
+                    Default (Kategori Sendiri)
+                  </ComboboxItem>
+                  {categoryOptions
+                    .filter((opt) => opt.id !== selectedCategory?.id)
+                    .map((opt) => (
+                      <ComboboxItem key={opt.id} value={opt.id}>
+                        {opt.name}
+                      </ComboboxItem>
+                    ))}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </div>
+        </CardContent>
+        <CardFooter className="px-6 py-4 border-t border-border/50 flex justify-end gap-2 bg-muted/20">
+          <Button
+            variant="outline"
+            className="h-10 px-4 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
+            onClick={() => setIsAssignSPKDialogOpen(false)}
+            disabled={isAssigningSPK}
+          >
+            Batal
+          </Button>
+          <Button
+            className="h-10 px-4 rounded-md font-medium bg-amber-600 hover:bg-amber-500 active:scale-95 transition-all text-white flex items-center gap-2"
+            onClick={() => {
+              if (selectedCategory) {
+                assignSPKCategory(
+                  selectedCategory.id,
+                  spkCategoryValue ? spkCategoryValue : null,
+                  () => setIsAssignSPKDialogOpen(false),
+                );
+              }
+            }}
+            disabled={isAssigningSPK}
+          >
+            <LuLayers className="h-4 w-4" />
+            {isAssigningSPK ? "Menyimpan..." : "Simpan Pengaturan SPK"}
           </Button>
         </CardFooter>
       </Dialog>

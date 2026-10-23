@@ -19,6 +19,8 @@ export function mapCategoryResponseToModel(
     id: response.id,
     name: response.name,
     sequence: response.sequence,
+    spkCategoryId: response.spk_category_id ?? null,
+    spkCategory: response.spk_category ? mapCategoryResponseToModel(response.spk_category) : null,
   };
 }
 

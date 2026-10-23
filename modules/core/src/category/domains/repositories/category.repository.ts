@@ -1,5 +1,5 @@
 import type { PaginatedResponse } from "@core/shared/api/pagination";
-import type { CategoryParams, CreateCategoryInput, ReorderCategoryInput } from "@core/category/applications/inputs";
+import type { CategoryParams, CreateCategoryInput, AssignSPKCategoryInput, ReorderCategoryInput } from "@core/category/applications/inputs";
 import type { CategoryModel } from "../models";
 
 export interface CategoryRepository {
@@ -9,6 +9,7 @@ export interface CategoryRepository {
   getCategoryById(id: string): Promise<CategoryModel>;
   create(input: CreateCategoryInput): Promise<CategoryModel>;
   update(id: string, input: CreateCategoryInput): Promise<CategoryModel>;
+  assignSPKCategory(id: string, input: AssignSPKCategoryInput): Promise<CategoryModel>;
   delete(id: string): Promise<void>;
   reorder(input: ReorderCategoryInput): Promise<void>;
 }

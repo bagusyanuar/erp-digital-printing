@@ -1,4 +1,4 @@
-import type { CategoryParams, CreateCategoryInput, ReorderCategoryInput } from "@core/category/applications/inputs";
+import type { CategoryParams, CreateCategoryInput, AssignSPKCategoryInput, ReorderCategoryInput } from "@core/category/applications/inputs";
 import type { CategoryModel } from "@core/category/domains/models";
 import type { CategoryRepository } from "@core/category/domains/repositories";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
@@ -59,6 +59,16 @@ export class ApiCategoryRepository implements CategoryRepository {
       const response = await this.http.put<ApiResponse<CategoryResponse>>(
         `/categories/${id}`,
         payload,
+      );
+      return mapCategoryResponseToModel(response.data);
+    });
+  }
+
+  async assignSPKCategory(id: string, input: AssignSPKCategoryInput): Promise<CategoryModel> {
+    return safeApiCall(async () => {
+      const response = await this.http.patch<ApiResponse<CategoryResponse>>(
+        `/categories/${id}/spk-category`,
+        { spk_category_id: input.spkCategoryId },
       );
       return mapCategoryResponseToModel(response.data);
     });

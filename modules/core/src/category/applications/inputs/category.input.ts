@@ -10,6 +10,10 @@ export interface CreateCategoryInput {
   name: string;
 }
 
+export interface AssignSPKCategoryInput {
+  spkCategoryId: string | null;
+}
+
 export interface ReorderCategoryInput {
   items: {
     id: string;
