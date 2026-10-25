@@ -144,8 +144,10 @@ const JobEntryPage = () => {
         items: (order.order_items ?? []).map(
           (item: OrderItemModel): JobItem => {
             let dimensionText = "Pcs";
-            if (item.uom === "m2" || item.uom === "m_lari") {
-              dimensionText = `${item.length_m || 0} x ${item.width_m || 0} m (${item.uom})`;
+            if (item.uom === "m2") {
+              dimensionText = `${item.length_m || 0} x ${item.width_m || 0} m (m²)`;
+            } else if (item.uom === "m_lari") {
+              dimensionText = `${item.length_m || 0} m (m_lari)`;
             } else if (item.uom === "box") {
               dimensionText = "Box";
             } else if (item.uom === "lembar") {
@@ -153,9 +155,11 @@ const JobEntryPage = () => {
             }
             return {
               id: item.id,
-              productName: item.variant_name
-                ? `${item.product_name} (${item.variant_name})`
-                : item.product_name,
+              productName:
+                item.variant_name &&
+                item.variant_name.toLowerCase() !== "default"
+                  ? `${item.product_name} (${item.variant_name})`
+                  : item.product_name,
               dimension: dimensionText,
               qty: item.quantity,
               finishing: "-",
@@ -299,17 +303,33 @@ const JobEntryPage = () => {
       }),
       columnHelper.display({
         id: "actions",
-        header: "Aksi",
+        header: () => <div className="text-center w-full">Aksi</div>,
         cell: (info) => {
           const isPending = info.row.original.status === "Pending";
+          const isSubmitting =
+            submitOrderMutation.isPending &&
+            submitOrderMutation.variables === info.row.original.id;
+
           return (
-            <div className="text-right">
+            <div className="flex items-center justify-center gap-2">
+              {isPending && (
+                <Button
+                  size="icon"
+                  onClick={() => handleSendToKasir(info.row.original.id)}
+                  disabled={submitOrderMutation.isPending}
+                  className="h-8 w-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center justify-center active:scale-95 transition-all shrink-0"
+                  title={isSubmitting ? "Sedang Mengirim..." : "Kirim ke Kasir"}
+                >
+                  <LuSend className={`h-4 w-4 ${isSubmitting ? "animate-pulse" : ""}`} />
+                </Button>
+              )}
+
               <Dropdown>
                 <DropdownTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 rounded-lg hover:bg-muted/70 active:scale-95 transition-all"
+                    className="h-8 w-8 rounded-lg hover:bg-muted/70 active:scale-95 transition-all shrink-0"
                   >
                     <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
                   </Button>
@@ -361,7 +381,7 @@ const JobEntryPage = () => {
         },
       }),
     ],
-    [transactions],
+    [transactions, submitOrderMutation.isPending, submitOrderMutation.variables],
   );
 
   const table = useReactTable({
@@ -461,7 +481,7 @@ const JobEntryPage = () => {
                     <TableHead
                       key={header.id}
                       className={
-                        header.column.id === "actions" ? "text-right" : ""
+                        header.column.id === "actions" ? "text-center" : ""
                       }
                     >
                       {header.isPlaceholder
@@ -495,7 +515,12 @@ const JobEntryPage = () => {
                 table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell
+                        key={cell.id}
+                        className={
+                          cell.column.id === "actions" ? "text-center" : ""
+                        }
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext(),

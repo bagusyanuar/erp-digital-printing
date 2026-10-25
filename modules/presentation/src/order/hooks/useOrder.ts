@@ -99,8 +99,10 @@ export const useOrder = () => {
         createdAt: order.created_at,
         items: (order.order_items ?? []).map((item) => {
           let dimensionText = "Pcs";
-          if (item.uom === "m2" || item.uom === "m_lari") {
-            dimensionText = `${item.length_m || 0} x ${item.width_m || 0} m (${item.uom})`;
+          if (item.uom === "m2") {
+            dimensionText = `${item.length_m || 0} x ${item.width_m || 0} m (m²)`;
+          } else if (item.uom === "m_lari") {
+            dimensionText = `${item.length_m || 0} m (m_lari)`;
           } else if (item.uom === "box") {
             dimensionText = "Box";
           } else if (item.uom === "lembar") {
@@ -130,9 +132,11 @@ export const useOrder = () => {
 
           return {
             id: item.id,
-            productName: item.variant_name
-              ? `${item.product_name} (${item.variant_name})`
-              : item.product_name,
+            productName:
+              item.variant_name &&
+              item.variant_name.toLowerCase() !== "default"
+                ? `${item.product_name} (${item.variant_name})`
+                : item.product_name,
             dimension: dimensionText,
             qty: item.quantity,
             finishing: item.production_notes || "-",

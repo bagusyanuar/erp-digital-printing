@@ -35,6 +35,7 @@ import {
   LuInfo,
   LuPencil,
   LuUserCheck,
+  LuCheck,
 } from "@erp-digital-printing/ui/icons";
 
 import { toast } from "@erp-digital-printing/ui/Toast";
@@ -149,8 +150,10 @@ const CreateJobEntryPage = () => {
         const mappedItems = (orderDetail.order_items ?? []).map(
           (item): JobItem => {
             let dimensionText = "Pcs";
-            if (item.uom === "m2" || item.uom === "m_lari") {
-              dimensionText = `${item.length_m || 0} x ${item.width_m || 0} m (${item.uom})`;
+            if (item.uom === "m2") {
+              dimensionText = `${item.length_m || 0} x ${item.width_m || 0} m (m²)`;
+            } else if (item.uom === "m_lari") {
+              dimensionText = `${item.length_m || 0} m (m_lari)`;
             } else if (item.uom === "box") {
               dimensionText = "Box";
             } else if (item.uom === "lembar") {
@@ -159,16 +162,18 @@ const CreateJobEntryPage = () => {
             return {
               id: item.id,
               product_variant_id: item.product_variant_id,
-              productName: item.variant_name
-                ? `${item.product_name} (${item.variant_name})`
-                : item.product_name,
+              productName:
+                item.variant_name &&
+                item.variant_name.toLowerCase() !== "default"
+                  ? `${item.product_name} (${item.variant_name})`
+                  : item.product_name,
               dimension: dimensionText,
               qty: item.quantity,
               uom: item.uom,
               production_notes: item.production_notes || "",
               finishing_ids: [],
               length_m: item.length_m,
-              width_m: item.width_m,
+              width_m: item.uom === "m_lari" ? 1 : item.width_m,
             };
           },
         );
@@ -218,8 +223,15 @@ const CreateJobEntryPage = () => {
         const matchingVar = foundProduct.variants.find(
           (v) => v.id === item.product_variant_id,
         );
+        const firstVar = foundProduct.variants[0];
         if (matchingVar) {
           setSelectedVariant(matchingVar.variant_name);
+        } else if (
+          foundProduct.variants.length === 1 &&
+          firstVar &&
+          firstVar.variant_name.toLowerCase() === "default"
+        ) {
+          setSelectedVariant(firstVar.variant_name);
         } else {
           setSelectedVariant("");
         }
@@ -231,9 +243,15 @@ const CreateJobEntryPage = () => {
     }
 
     // Parse dimensions if meteran
-    if (item.length_m !== undefined && item.width_m !== undefined) {
+    if (item.length_m !== undefined) {
       setLengthM(item.length_m.toString());
-      setWidthM(item.width_m.toString());
+      if (item.uom === "m_lari") {
+        setWidthM("1");
+      } else if (item.width_m !== undefined) {
+        setWidthM(item.width_m.toString());
+      } else {
+        setWidthM("");
+      }
     } else {
       setLengthM("");
       setWidthM("");
@@ -281,10 +299,37 @@ const CreateJobEntryPage = () => {
     return found?.uom || "pcs";
   }, [selectedProduct, products]);
 
+  const isM2 = activeProductUoM === "m2";
+  const isMLari = activeProductUoM === "m_lari";
+
+  // Check if active product has only a single "Default" variant
+  const isOnlyDefaultVariant = useMemo(() => {
+    if (!selectedProduct) return false;
+    if (productVariants.length === 0) return true;
+    const firstVar = productVariants[0];
+    return (
+      productVariants.length === 1 &&
+      !!firstVar &&
+      firstVar.toLowerCase() === "default"
+    );
+  }, [selectedProduct, productVariants]);
+
+  // Check if active product has multiple selectable variants
+  const hasSelectableVariants = useMemo(() => {
+    if (!selectedProduct) return false;
+    const firstVar = productVariants[0];
+    return (
+      productVariants.length > 1 ||
+      (productVariants.length === 1 &&
+        !!firstVar &&
+        firstVar.toLowerCase() !== "default")
+    );
+  }, [selectedProduct, productVariants]);
+
   // Determine if size inputs should be displayed (if UoM is m2 or m_lari)
   const showSizeFields = useMemo(() => {
-    return activeProductUoM === "m2" || activeProductUoM === "m_lari";
-  }, [activeProductUoM]);
+    return isM2 || isMLari;
+  }, [isM2, isMLari]);
 
   // Add Item to active cart
   const handleAddItemToCart = () => {
@@ -292,24 +337,38 @@ const CreateJobEntryPage = () => {
       toast.error("Validasi Gagal", "Silakan pilih produk terlebih dahulu");
       return;
     }
+    if (hasSelectableVariants && !selectedVariant) {
+      toast.error(
+        "Validasi Gagal",
+        "Silakan pilih variasi produk terlebih dahulu",
+      );
+      return;
+    }
     if (!qty || qty < 1) {
       toast.error("Validasi Gagal", "Quantity minimal harus 1");
       return;
     }
-    if (showSizeFields && (!lengthM || !widthM)) {
+    if (isM2 && (!lengthM || !widthM)) {
       toast.error(
         "Validasi Gagal",
-        "Panjang & Lebar wajib diisi untuk produk meteran",
+        "Panjang & Lebar wajib diisi untuk produk meter persegi (m²)",
+      );
+      return;
+    }
+    if (isMLari && !lengthM) {
+      toast.error(
+        "Validasi Gagal",
+        "Panjang wajib diisi untuk produk meter lari",
       );
       return;
     }
 
     // Format dimension text based on UoM
     let dimensionText = "Pcs";
-    if (activeProductUoM === "m2") {
+    if (isM2) {
       dimensionText = `${lengthM} x ${widthM} m (m²)`;
-    } else if (activeProductUoM === "m_lari") {
-      dimensionText = `${lengthM} x ${widthM} m (m_lari)`;
+    } else if (isMLari) {
+      dimensionText = `${lengthM} m (m_lari)`;
     } else if (activeProductUoM === "box") {
       dimensionText = "Box";
     } else if (activeProductUoM === "lembar") {
@@ -334,8 +393,17 @@ const CreateJobEntryPage = () => {
 
     const lengthNum =
       showSizeFields && lengthM ? parseFloat(lengthM) : undefined;
-    const widthNum =
-      showSizeFields && widthM ? parseFloat(widthM) : undefined;
+    const widthNum = isMLari
+      ? 1
+      : isM2 && widthM
+        ? parseFloat(widthM)
+        : undefined;
+
+    const variantLabel =
+      selectedVariant && selectedVariant.toLowerCase() !== "default"
+        ? ` (${selectedVariant})`
+        : "";
+    const fullProductName = `${selectedProduct}${variantLabel}`;
 
     if (editingItemId) {
       // Edit Mode: update the existing item in the cart
@@ -345,7 +413,7 @@ const CreateJobEntryPage = () => {
             ? {
                 ...item,
                 product_variant_id: variantId,
-                productName: `${selectedProduct}${selectedVariant ? ` (${selectedVariant})` : ""}`,
+                productName: fullProductName,
                 dimension: dimensionText,
                 qty,
                 uom: activeProductUoM,
@@ -366,7 +434,7 @@ const CreateJobEntryPage = () => {
       const newItem: JobItem = {
         id: `item-${Date.now()}-${Math.random()}`,
         product_variant_id: variantId,
-        productName: `${selectedProduct}${selectedVariant ? ` (${selectedVariant})` : ""}`,
+        productName: fullProductName,
         dimension: dimensionText,
         qty,
         uom: activeProductUoM,
@@ -459,7 +527,7 @@ const CreateJobEntryPage = () => {
         production_notes: item.production_notes || "",
         finishing_ids: [], // Left empty as requested
         length_m: item.length_m,
-        width_m: item.width_m,
+        width_m: item.uom === "m_lari" ? 1 : item.width_m,
       })),
     };
 
@@ -587,7 +655,18 @@ const CreateJobEntryPage = () => {
                   value={selectedProduct}
                   onValueChange={(val) => {
                     setSelectedProduct(val);
-                    setSelectedVariant("");
+                    const found = products.find((p) => p.name === val);
+                    const firstVar = found?.variants?.[0];
+                    if (
+                      found?.variants &&
+                      found.variants.length === 1 &&
+                      firstVar &&
+                      firstVar.variant_name.toLowerCase() === "default"
+                    ) {
+                      setSelectedVariant(firstVar.variant_name);
+                    } else {
+                      setSelectedVariant("");
+                    }
                   }}
                 >
                   <ComboboxTrigger
@@ -613,51 +692,68 @@ const CreateJobEntryPage = () => {
                 </Combobox>
               </div>
 
-              {/* Cascade 3: Varian (jika ada varian bawaan) */}
-              <div className="space-y-1.5">
-                <Typography
-                  variant="small"
-                  weight="bold"
-                  className="text-xs text-foreground/80"
-                >
-                  Variasi Produk{" "}
-                  <span className="text-xs text-muted-foreground font-normal">
-                    (Opsional)
-                  </span>
-                </Typography>
-                <Combobox
-                  value={selectedVariant}
-                  onValueChange={setSelectedVariant}
-                >
-                  <ComboboxTrigger
-                    className="font-semibold"
-                    disabled={!selectedProduct || productVariants.length === 0}
-                  >
-                    <span>
-                      {selectedVariant ||
-                        (!selectedProduct
-                          ? "-- Pilih Varian --"
-                          : productVariants.length > 0
-                            ? "-- Pilih Varian --"
-                            : "-- Tidak Ada Variasi --")}
+              {/* Cascade 3: Varian */}
+              {selectedProduct && isOnlyDefaultVariant ? (
+                <div className="p-3 rounded-xl bg-muted/40 border border-border/60 flex items-center justify-between text-xs animate-in fade-in-50 duration-200">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <LuCheck className="text-emerald-500 shrink-0" size={16} />
+                    <span className="font-medium text-foreground/80">
+                      Variasi:{" "}
+                      <strong className="text-foreground">
+                        Standar (Tanpa Variasi)
+                      </strong>
                     </span>
-                  </ComboboxTrigger>
-                  <ComboboxContent
-                    align="start"
-                    className="w-[var(--radix-popover-trigger-width)]"
+                  </div>
+                  <span className="text-[10px] font-bold text-muted-foreground/70 bg-background/80 px-2 py-0.5 rounded-md border border-border/50">
+                    Otomatis Default
+                  </span>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Typography
+                    variant="small"
+                    weight="bold"
+                    className="text-xs text-foreground/80"
                   >
-                    <ComboboxInput placeholder="Cari varian..." />
-                    <ComboboxEmpty>Varian tidak ditemukan.</ComboboxEmpty>
-                    <ComboboxList>
-                      {productVariants.map((v) => (
-                        <ComboboxItem key={v} value={v}>
-                          {v}
-                        </ComboboxItem>
-                      ))}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-              </div>
+                    Variasi Produk{" "}
+                    <span className="text-xs text-muted-foreground font-normal">
+                      {hasSelectableVariants ? "(Wajib Dipilih)" : "(Opsional)"}
+                    </span>
+                  </Typography>
+                  <Combobox
+                    value={selectedVariant}
+                    onValueChange={setSelectedVariant}
+                  >
+                    <ComboboxTrigger
+                      className="font-semibold"
+                      disabled={!selectedProduct || productVariants.length === 0}
+                    >
+                      <span>
+                        {selectedVariant ||
+                          (!selectedProduct
+                            ? "-- Pilih Varian --"
+                            : productVariants.length > 0
+                              ? "-- Pilih Varian --"
+                              : "-- Tidak Ada Variasi --")}
+                      </span>
+                    </ComboboxTrigger>
+                    <ComboboxContent
+                      align="start"
+                      className="w-[var(--radix-popover-trigger-width)]"
+                    >
+                      <ComboboxInput placeholder="Cari varian..." />
+                      <ComboboxEmpty>Varian tidak ditemukan.</ComboboxEmpty>
+                      <ComboboxList>
+                        {productVariants.map((v) => (
+                          <ComboboxItem key={v} value={v}>
+                            {v}
+                          </ComboboxItem>
+                        ))}
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
+                </div>
+              )}
 
               {/* Catatan Produksi / Deskripsi Item Input */}
               <div className="space-y-1.5">
@@ -681,7 +777,9 @@ const CreateJobEntryPage = () => {
 
               {/* Dynamic Size Inputs (Panjang x Lebar) */}
               {showSizeFields && (
-                <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-primary/5 border border-primary/10 animate-in slide-in-from-top-3 duration-300">
+                <div
+                  className={`p-4 rounded-2xl bg-primary/5 border border-primary/10 animate-in slide-in-from-top-3 duration-300 ${isM2 ? "grid grid-cols-2 gap-4" : "space-y-3"}`}
+                >
                   <div className="space-y-1.5">
                     <Typography
                       variant="small"
@@ -699,27 +797,41 @@ const CreateJobEntryPage = () => {
                       className="h-10 bg-card border-primary/20 focus:bg-background font-semibold"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Typography
-                      variant="small"
-                      weight="bold"
-                      className="text-xs text-primary"
-                    >
-                      Lebar (m) <span className="text-rose-500">*</span>
-                    </Typography>
-                    <TextField
-                      type="number"
-                      step="0.01"
-                      placeholder="Contoh: 1.0"
-                      value={widthM}
-                      onChange={(e) => setWidthM(e.target.value)}
-                      className="h-10 bg-card border-primary/20 focus:bg-background font-semibold"
-                    />
-                  </div>
-                  <HelperText className="col-span-2 text-[10px] text-primary/70 font-semibold flex items-center gap-1">
-                    <LuInfo size={12} />
-                    UoM Produk ini adalah <strong>{activeProductUoM}</strong>.
-                    Silakan masukkan spesifikasi ukuran riil untuk operator.
+                  {isM2 && (
+                    <div className="space-y-1.5">
+                      <Typography
+                        variant="small"
+                        weight="bold"
+                        className="text-xs text-primary"
+                      >
+                        Lebar (m) <span className="text-rose-500">*</span>
+                      </Typography>
+                      <TextField
+                        type="number"
+                        step="0.01"
+                        placeholder="Contoh: 1.0"
+                        value={widthM}
+                        onChange={(e) => setWidthM(e.target.value)}
+                        className="h-10 bg-card border-primary/20 focus:bg-background font-semibold"
+                      />
+                    </div>
+                  )}
+                  <HelperText
+                    className={`text-[10px] text-primary/70 font-semibold flex items-center gap-1 ${isM2 ? "col-span-2" : ""}`}
+                  >
+                    <LuInfo size={12} className="shrink-0" />
+                    {isMLari ? (
+                      <span>
+                        UoM: <strong>Meter Lari (m_lari)</strong>. Cukup masukkan{" "}
+                        <strong>Panjang</strong> (Lebar otomatis di-set 1 m
+                        untuk perhitungan).
+                      </span>
+                    ) : (
+                      <span>
+                        UoM: <strong>Meter Persegi (m²)</strong>. Silakan
+                        masukkan spesifikasi Panjang dan Lebar riil.
+                      </span>
+                    )}
                   </HelperText>
                 </div>
               )}

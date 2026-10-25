@@ -113,9 +113,10 @@ const DetailReportSelling: React.FC<DetailReportSellingProps> = ({
   const items = useMemo(() => {
     if (!sale) return [];
     return (sale.order_items ?? []).map((item) => ({
-      productName: item.variant_name
-        ? `${item.product_name} (${item.variant_name})`
-        : item.product_name,
+      productName:
+        item.variant_name && item.variant_name.toLowerCase() !== "default"
+          ? `${item.product_name} (${item.variant_name})`
+          : item.product_name,
       notes: item.production_notes || "-",
       pricePerUnit: item.price_per_unit || 0,
       qty: item.quantity,

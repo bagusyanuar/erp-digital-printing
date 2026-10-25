@@ -1681,7 +1681,8 @@ const InvoicePage = () => {
                     <div className="flex justify-between font-bold text-foreground">
                       <span>
                         {idx + 1}.{" "}
-                        {item.variant_name
+                        {item.variant_name &&
+                        item.variant_name.toLowerCase() !== "default"
                           ? `${item.product_name} (${item.variant_name})`
                           : item.product_name}
                       </span>
@@ -1689,14 +1690,18 @@ const InvoicePage = () => {
                         {item.quantity} Qty
                       </span>
                     </div>
-                    {(item.uom === "m2" || item.uom === "m_lari") &&
+                    {item.uom === "m2" &&
                       item.length_m &&
                       item.width_m && (
                         <div className="text-[10px] text-primary font-black mt-0.5">
-                          Ukuran: {item.length_m} x {item.width_m} m ({item.uom}
-                          )
+                          Ukuran: {item.length_m} x {item.width_m} m (m²)
                         </div>
                       )}
+                    {item.uom === "m_lari" && item.length_m && (
+                      <div className="text-[10px] text-primary font-black mt-0.5">
+                        Ukuran: {item.length_m} m (m_lari)
+                      </div>
+                    )}
                     {item.production_notes &&
                       item.production_notes !== "-" &&
                       item.production_notes !== "" && (
@@ -1785,15 +1790,19 @@ const InvoicePage = () => {
 
                   activeSpkCategoryItems.forEach((item, idx) => {
                     // Item Name (Normal size, Not Bold)
-                    const itemTitle = item.variant_name
-                      ? `${idx + 1}. ${item.product_name} (${item.variant_name})`
-                      : `${idx + 1}. ${item.product_name}`;
+                    const itemTitle =
+                      item.variant_name &&
+                      item.variant_name.toLowerCase() !== "default"
+                        ? `${idx + 1}. ${item.product_name} (${item.variant_name})`
+                        : `${idx + 1}. ${item.product_name}`;
                     rawData += `${itemTitle}\n`;
 
                     const hasDimensions =
-                      (item.uom === "m2" || item.uom === "m_lari") &&
-                      item.length_m &&
-                      item.width_m;
+                      item.uom === "m2"
+                        ? item.length_m && item.width_m
+                        : item.uom === "m_lari"
+                          ? !!item.length_m
+                          : false;
 
                     if (hasDimensions) {
                       // 1. Catatan
@@ -1807,8 +1816,12 @@ const InvoicePage = () => {
 
                       // 2. Ukuran (in meters)
                       const lengthM = item.length_m ?? 0;
-                      const widthM = item.width_m ?? 0;
-                      rawData += `   UKURAN: ${lengthM} x ${widthM} meter\n`;
+                      if (item.uom === "m_lari") {
+                        rawData += `   UKURAN: ${lengthM} meter (m_lari)\n`;
+                      } else {
+                        const widthM = item.width_m ?? 0;
+                        rawData += `   UKURAN: ${lengthM} x ${widthM} meter\n`;
+                      }
 
                       // 3. Quantity
                       rawData += `   JUMLAH: ${item.quantity} pcs\n`;
