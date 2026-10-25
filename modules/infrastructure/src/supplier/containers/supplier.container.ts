@@ -1,5 +1,5 @@
 import { type HttpClient } from "@erp-digital-printing/http";
-import { GetSuppliers, CreateSupplier, GetSupplierById, UpdateSupplier, DeleteSupplier } from "@core/supplier/applications/usecases/supplier.usecase";
+import { GetSuppliers, CreateSupplier, GetSupplierById, UpdateSupplier, DeleteSupplier, ReorderSupplier } from "@core/supplier/applications/usecases/supplier.usecase";
 import { ApiSupplierRepository } from "../repositories/supplier.repository";
 
 export function getSupplierUseCase(http: HttpClient): GetSuppliers {
@@ -25,4 +25,9 @@ export function updateSupplierUseCase(http: HttpClient): UpdateSupplier {
 export function deleteSupplierUseCase(http: HttpClient): DeleteSupplier {
   const repository = new ApiSupplierRepository(http);
   return new DeleteSupplier(repository);
+}
+
+export function reorderSupplierUseCase(http: HttpClient): ReorderSupplier {
+  const repository = new ApiSupplierRepository(http);
+  return new ReorderSupplier(repository);
 }

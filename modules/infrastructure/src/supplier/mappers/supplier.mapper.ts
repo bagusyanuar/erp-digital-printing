@@ -22,6 +22,7 @@ export function mapSupplierResponseToModel(
     phone: response.phone,
     email: response.email,
     address: response.address,
+    sequence: response.sequence,
     createdAt: response.created_at,
   };
 }
@@ -35,5 +36,6 @@ export function mapCreateInputToRequest(
     phone: input.phone,
     email: input.email || null,
     address: input.address,
+    sequence: input.sequence,
   };
 }

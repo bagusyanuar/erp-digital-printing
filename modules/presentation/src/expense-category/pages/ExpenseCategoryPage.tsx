@@ -19,7 +19,17 @@ import {
   LuTrash2,
   LuPencil,
   LuCheck,
+  LuEllipsisVertical,
+  LuArrowUp,
+  LuArrowDown,
+  LuHash,
 } from "@erp-digital-printing/ui/icons";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownContent,
+  DropdownItem,
+} from "@erp-digital-printing/ui/Dropdown";
 import {
   Table,
   TableHeader,
@@ -48,6 +58,7 @@ interface ExpenseCategory {
   group: "OPERATIONAL" | "PRODUCTION";
   productCategoryId: string | null;
   productCategoryName?: string;
+  sequence?: number;
 }
 
 const ExpenseCategoryPage = () => {
@@ -64,6 +75,8 @@ const ExpenseCategoryPage = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | null>(null);
+  const [selectedChangeSequenceCategory, setSelectedChangeSequenceCategory] = useState<ExpenseCategory | null>(null);
+  const [sequenceValue, setSequenceValue] = useState<number | "">("");
 
   // Form States
   const [formName, setFormName] = useState("");
@@ -80,9 +93,11 @@ const ExpenseCategoryPage = () => {
     isCreating,
     isUpdating,
     isDeleting,
+    isReordering,
     createExpenseCategory,
     updateExpenseCategory,
     deleteExpenseCategory,
+    reorderExpenseCategories,
   } = useExpenseCategory(debouncedSearchQuery, selectedGroupFilter, page, pageSize);
 
   // Map product categories for easy name lookup
@@ -100,8 +115,37 @@ const ExpenseCategoryPage = () => {
       group: cat.group,
       productCategoryId: cat.productCategoryId,
       productCategoryName: cat.productCategoryId ? productCategoryMap.get(cat.productCategoryId) : undefined,
+      sequence: cat.sequence ?? 0,
     }));
   }, [expenseCategories, productCategoryMap]);
+
+  const handleMoveUp = (index: number) => {
+    if (index <= 0) return;
+    const current = filteredCategories[index];
+    const above = filteredCategories[index - 1];
+    if (!current || !above) return;
+
+    reorderExpenseCategories({
+      items: [
+        { id: current.id, sequence: above.sequence ?? 0 },
+        { id: above.id, sequence: current.sequence ?? 0 },
+      ],
+    });
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index >= filteredCategories.length - 1) return;
+    const current = filteredCategories[index];
+    const below = filteredCategories[index + 1];
+    if (!current || !below) return;
+
+    reorderExpenseCategories({
+      items: [
+        { id: current.id, sequence: below.sequence ?? 0 },
+        { id: below.id, sequence: current.sequence ?? 0 },
+      ],
+    });
+  };
 
   // Open Form Dialog (Create)
   const handleOpenCreate = () => {
@@ -286,6 +330,7 @@ const ExpenseCategoryPage = () => {
                 <TableHead>Nama Kategori</TableHead>
                 <TableHead>Grup Pengeluaran</TableHead>
                 <TableHead>Kategori Produk Terkait</TableHead>
+                <TableHead>Urutan</TableHead>
                 <TableHead className="text-right pr-6">Aksi</TableHead>
               </TableRow>
             </TableHeader>
@@ -293,14 +338,14 @@ const ExpenseCategoryPage = () => {
               {isLoadingExpense ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="h-32 text-center text-muted-foreground font-medium"
                   >
                     Sedang memuat data...
                   </TableCell>
                 </TableRow>
               ) : filteredCategories.length > 0 ? (
-                filteredCategories.map((row) => (
+                filteredCategories.map((row, index) => (
                   <TableRow key={row.id}>
                     <TableCell className="font-semibold">{row.name}</TableCell>
                     <TableCell>
@@ -323,32 +368,64 @@ const ExpenseCategoryPage = () => {
                         <span className="text-muted-foreground/60 font-light">-</span>
                       )}
                     </TableCell>
+                    <TableCell className="font-semibold text-sm text-foreground/80">
+                      {row.sequence ?? "-"}
+                    </TableCell>
                     <TableCell className="text-right pr-6">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5 active:scale-90 transition-all"
-                          onClick={() => handleOpenEdit(row)}
-                        >
-                          <LuPencil size={15} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-500/5 active:scale-90 transition-all"
-                          onClick={() => handleOpenDelete(row)}
-                        >
-                          <LuTrash2 size={15} />
-                        </Button>
-                      </div>
+                      <Dropdown>
+                        <DropdownTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg hover:bg-muted/70 active:scale-95 transition-all"
+                          >
+                            <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </DropdownTrigger>
+                        <DropdownContent align="end" className="w-48">
+                          <DropdownItem
+                            onClick={() => handleMoveUp(index)}
+                            disabled={index === 0}
+                          >
+                            <LuArrowUp className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>Pindah Atas</span>
+                          </DropdownItem>
+                          <DropdownItem
+                            onClick={() => handleMoveDown(index)}
+                            disabled={index === filteredCategories.length - 1}
+                          >
+                            <LuArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>Pindah Bawah</span>
+                          </DropdownItem>
+                          <DropdownItem
+                            onClick={() => {
+                              setSelectedChangeSequenceCategory(row);
+                              setSequenceValue(row.sequence ?? 0);
+                            }}
+                          >
+                            <LuHash className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>Ubah Urutan...</span>
+                          </DropdownItem>
+                          <DropdownItem onClick={() => handleOpenEdit(row)}>
+                            <LuPencil className="h-3.5 w-3.5 text-blue-600" />
+                            <span>Ubah</span>
+                          </DropdownItem>
+                          <DropdownItem
+                            variant="danger"
+                            onClick={() => handleOpenDelete(row)}
+                          >
+                            <LuTrash2 className="h-3.5 w-3.5 text-rose-600" />
+                            <span>Hapus</span>
+                          </DropdownItem>
+                        </DropdownContent>
+                      </Dropdown>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="h-32 text-center text-muted-foreground font-medium"
                   >
                     Tidak ada kategori pengeluaran ditemukan.
@@ -527,6 +604,82 @@ const ExpenseCategoryPage = () => {
             </Button>
           </div>
         </form>
+      </Dialog>
+
+      {/* Change Sequence Dialog */}
+      <Dialog
+        isOpen={!!selectedChangeSequenceCategory}
+        onClose={() => setSelectedChangeSequenceCategory(null)}
+        size="sm"
+        showCloseButton={false}
+      >
+        <CardHeader className="px-6 py-4 border-b border-border/50 flex flex-row items-start justify-between gap-4">
+          <div className="space-y-0.5">
+            <h2 className="text-xl font-bold tracking-tight text-foreground">
+              Ubah Urutan Kategori
+            </h2>
+            <p className="text-xs text-muted-foreground font-medium">
+              Tentukan nomor urutan baru untuk kategori{" "}
+              <strong className="text-foreground">
+                "{selectedChangeSequenceCategory?.name}"
+              </strong>
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-md text-muted-foreground hover:bg-muted active:scale-90 transition-all -mr-2 -mt-0.5"
+            onClick={() => setSelectedChangeSequenceCategory(null)}
+          >
+            <LuX className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+
+        <CardContent className="p-6 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="categorySequence" className="text-sm font-semibold">
+              Nomor Urutan
+            </Label>
+            <TextField
+              id="categorySequence"
+              type="number"
+              min={1}
+              placeholder="Contoh: 1, 2, 3..."
+              className="border-border/50 focus:bg-background transition-all"
+              value={sequenceValue}
+              onChange={(e) => setSequenceValue(e.target.value ? Number(e.target.value) : "")}
+            />
+          </div>
+        </CardContent>
+        <div className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            className="h-10 px-4 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
+            onClick={() => setSelectedChangeSequenceCategory(null)}
+          >
+            Batal
+          </Button>
+          <Button
+            className="h-10 px-4 rounded-md font-medium bg-primary hover:bg-primary/90 active:scale-95 transition-all text-white"
+            onClick={() => {
+              if (selectedChangeSequenceCategory && typeof sequenceValue === "number") {
+                reorderExpenseCategories(
+                  {
+                    items: [
+                      { id: selectedChangeSequenceCategory.id, sequence: sequenceValue },
+                    ],
+                  },
+                  {
+                    onSuccess: () => setSelectedChangeSequenceCategory(null),
+                  }
+                );
+              }
+            }}
+            disabled={isReordering}
+          >
+            {isReordering ? "Menyimpan..." : "Simpan Urutan"}
+          </Button>
+        </div>
       </Dialog>
 
       {/* Delete Dialog */}

@@ -3,4 +3,5 @@ export interface ExpenseCategoryModel {
   name: string;
   group: "OPERATIONAL" | "PRODUCTION";
   productCategoryId: string | null;
+  sequence?: number;
 }

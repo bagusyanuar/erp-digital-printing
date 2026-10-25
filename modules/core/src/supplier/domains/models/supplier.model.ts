@@ -5,5 +5,6 @@ export interface SupplierModel {
   phone: string;
   email: string;
   address: string;
+  sequence?: number;
   createdAt: string;
 }

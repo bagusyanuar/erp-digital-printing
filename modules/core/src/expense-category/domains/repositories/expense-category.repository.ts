@@ -1,5 +1,5 @@
 import type { PaginatedResponse } from "@core/shared/api/pagination";
-import type { ExpenseCategoryParams, CreateExpenseCategoryInput } from "../../applications/inputs";
+import type { ExpenseCategoryParams, CreateExpenseCategoryInput, ReorderExpenseCategoryInput } from "../../applications/inputs";
 import type { ExpenseCategoryModel } from "../models";
 
 export interface ExpenseCategoryRepository {
@@ -10,4 +10,5 @@ export interface ExpenseCategoryRepository {
   create(input: CreateExpenseCategoryInput): Promise<ExpenseCategoryModel>;
   update(id: string, input: CreateExpenseCategoryInput): Promise<ExpenseCategoryModel>;
   delete(id: string): Promise<void>;
+  reorder(input: ReorderExpenseCategoryInput): Promise<void>;
 }

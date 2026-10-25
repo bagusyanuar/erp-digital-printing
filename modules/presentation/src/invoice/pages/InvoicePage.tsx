@@ -80,6 +80,7 @@ const InvoicePage = () => {
     setIsDetailOpen,
     isRefundOpen,
     setIsRefundOpen,
+    canRefund,
     isPayOpen,
     setIsPayOpen,
     isSpkOpen,
@@ -708,7 +709,7 @@ const InvoicePage = () => {
                                       </span>
                                     </DropdownItem>
                                   )}
-                                  {inv.amountPaid > 0 && (
+                                  {inv.amountPaid > 0 && canRefund && (
                                     <DropdownItem
                                       onClick={() => {
                                         setSelectedInvoice(inv);
@@ -2223,139 +2224,141 @@ const InvoicePage = () => {
         )}
       </Dialog>
 
-      <Dialog
-        isOpen={isRefundOpen}
-        onClose={() => setIsRefundOpen(false)}
-        className="rounded-3xl p-6 bg-card border border-border/50 text-foreground max-w-md w-full"
-        showCloseButton={true}
-      >
-        {selectedInvoice && (
-          <div className="space-y-5">
-            {/* Header */}
-            <div className="flex flex-col gap-1 border-b border-border/30 pb-4">
-              <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
-                <LuRotateCcw className="text-rose-500" size={20} />
-                Ajukan Refund Invoice
-              </h2>
-            </div>
-
-            {/* Info Box */}
-            <div className="bg-rose-500/5 dark:bg-rose-500/10 p-4 rounded-2xl border border-rose-500/10 space-y-1">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase text-muted-foreground">
-                  Nomor Nota
-                </span>
-                <span className="font-mono font-black text-xs text-foreground">
-                  {selectedInvoice.invoiceNo}
-                </span>
-              </div>
-              <div className="flex justify-between items-center font-bold text-xs">
-                <span className="text-muted-foreground">Pelanggan:</span>
-                <span className="text-foreground">
-                  {selectedInvoice.customerName}
-                </span>
-              </div>
-              <div className="flex justify-between items-center font-black text-xs pt-1.5 border-t border-rose-500/10">
-                <span className="text-rose-600 dark:text-rose-400">
-                  Total Terbayar:
-                </span>
-                <span className="text-rose-600 dark:text-rose-400">
-                  {formatCurrency(selectedInvoice.amountPaid)}
-                </span>
-              </div>
-            </div>
-
-            {/* Form Fields */}
-            <div className="space-y-4">
-              {/* Metode Refund */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
-                  Metode Refund
-                </label>
-                <select
-                  value={refundMethod}
-                  onChange={(e) => setRefundMethod(e.target.value)}
-                  className="w-full h-11 px-3 rounded-2xl border border-border/80 bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
-                >
-                  <option value="cash">Tunai / Cash</option>
-                  <option value="transfer">Transfer Bank</option>
-                  <option value="qris">QRIS</option>
-                </select>
+      {canRefund && (
+        <Dialog
+          isOpen={isRefundOpen}
+          onClose={() => setIsRefundOpen(false)}
+          className="rounded-3xl p-6 bg-card border border-border/50 text-foreground max-w-md w-full"
+          showCloseButton={true}
+        >
+          {selectedInvoice && (
+            <div className="space-y-5">
+              {/* Header */}
+              <div className="flex flex-col gap-1 border-b border-border/30 pb-4">
+                <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
+                  <LuRotateCcw className="text-rose-500" size={20} />
+                  Ajukan Refund Invoice
+                </h2>
               </div>
 
-              {/* Jumlah Refund */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
-                  Jumlah Refund
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
-                    Rp
+              {/* Info Box */}
+              <div className="bg-rose-500/5 dark:bg-rose-500/10 p-4 rounded-2xl border border-rose-500/10 space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black uppercase text-muted-foreground">
+                    Nomor Nota
                   </span>
-                  <input
-                    type="number"
-                    min="1"
-                    max={selectedInvoice.amountPaid}
-                    value={refundAmount || ""}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      setRefundAmount(
-                        Math.min(val, selectedInvoice.amountPaid),
-                      );
-                    }}
-                    placeholder="Masukkan nominal refund..."
-                    className="w-full h-11 pl-9 pr-3 text-sm font-mono font-bold bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                  <span className="font-mono font-black text-xs text-foreground">
+                    {selectedInvoice.invoiceNo}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center font-bold text-xs">
+                  <span className="text-muted-foreground">Pelanggan:</span>
+                  <span className="text-foreground">
+                    {selectedInvoice.customerName}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center font-black text-xs pt-1.5 border-t border-rose-500/10">
+                  <span className="text-rose-600 dark:text-rose-400">
+                    Total Terbayar:
+                  </span>
+                  <span className="text-rose-600 dark:text-rose-400">
+                    {formatCurrency(selectedInvoice.amountPaid)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Form Fields */}
+              <div className="space-y-4">
+                {/* Metode Refund */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                    Metode Refund
+                  </label>
+                  <select
+                    value={refundMethod}
+                    onChange={(e) => setRefundMethod(e.target.value)}
+                    className="w-full h-11 px-3 rounded-2xl border border-border/80 bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                  >
+                    <option value="cash">Tunai / Cash</option>
+                    <option value="transfer">Transfer Bank</option>
+                    <option value="qris">QRIS</option>
+                  </select>
+                </div>
+
+                {/* Jumlah Refund */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                    Jumlah Refund
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
+                      Rp
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      max={selectedInvoice.amountPaid}
+                      value={refundAmount || ""}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setRefundAmount(
+                          Math.min(val, selectedInvoice.amountPaid),
+                        );
+                      }}
+                      placeholder="Masukkan nominal refund..."
+                      className="w-full h-11 pl-9 pr-3 text-sm font-mono font-bold bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-1 px-1">
+                    <button
+                      type="button"
+                      onClick={() => setRefundAmount(selectedInvoice.amountPaid)}
+                      className="text-[10px] font-black text-rose-600 hover:underline"
+                    >
+                      Refund Semua ({formatCurrency(selectedInvoice.amountPaid)})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Alasan Refund */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                    Alasan Refund
+                  </label>
+                  <textarea
+                    value={refundReason}
+                    onChange={(e) => setRefundReason(e.target.value)}
+                    placeholder="Tulis alasan refund..."
+                    rows={3}
+                    className="w-full p-3 text-sm bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground resize-none"
                   />
                 </div>
-                <div className="flex justify-end gap-1 px-1">
-                  <button
-                    type="button"
-                    onClick={() => setRefundAmount(selectedInvoice.amountPaid)}
-                    className="text-[10px] font-black text-rose-600 hover:underline"
-                  >
-                    Refund Semua ({formatCurrency(selectedInvoice.amountPaid)})
-                  </button>
-                </div>
               </div>
 
-              {/* Alasan Refund */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
-                  Alasan Refund
-                </label>
-                <textarea
-                  value={refundReason}
-                  onChange={(e) => setRefundReason(e.target.value)}
-                  placeholder="Tulis alasan refund..."
-                  rows={3}
-                  className="w-full p-3 text-sm bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground resize-none"
-                />
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-border/30">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsRefundOpen(false)}
+                  className="rounded-xl font-bold"
+                  disabled={processRefundMutation.isPending}
+                >
+                  Batal
+                </Button>
+                <Button
+                  onClick={handleProcessRefund}
+                  className="rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white"
+                  disabled={processRefundMutation.isPending}
+                >
+                  {processRefundMutation.isPending
+                    ? "Memproses..."
+                    : "Ya, Proses Refund"}
+                </Button>
               </div>
             </div>
-
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-border/30">
-              <Button
-                variant="outline"
-                onClick={() => setIsRefundOpen(false)}
-                className="rounded-xl font-bold"
-                disabled={processRefundMutation.isPending}
-              >
-                Batal
-              </Button>
-              <Button
-                onClick={handleProcessRefund}
-                className="rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white"
-                disabled={processRefundMutation.isPending}
-              >
-                {processRefundMutation.isPending
-                  ? "Memproses..."
-                  : "Ya, Proses Refund"}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
+          )}
+        </Dialog>
+      )}
 
       <Dialog
         isOpen={isShareWADialogOpen}

@@ -1,4 +1,4 @@
-import type { SupplierParams, CreateSupplierInput } from "@core/supplier/applications/inputs";
+import type { SupplierParams, CreateSupplierInput, ReorderSupplierInput } from "@core/supplier/applications/inputs";
 import type { SupplierModel } from "@core/supplier/domains/models";
 import type { SupplierRepository } from "@core/supplier/domains/repositories";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
@@ -67,6 +67,12 @@ export class ApiSupplierRepository implements SupplierRepository {
   async delete(id: string): Promise<void> {
     return safeApiCall(async () => {
       await this.http.delete(`/suppliers/${id}`);
+    });
+  }
+
+  async reorder(input: ReorderSupplierInput): Promise<void> {
+    return safeApiCall(async () => {
+      await this.http.put("/suppliers/reorder", input);
     });
   }
 }

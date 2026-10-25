@@ -16,6 +16,9 @@ import {
   LuEllipsisVertical,
   LuPencil,
   LuTrash2,
+  LuArrowUp,
+  LuArrowDown,
+  LuHash,
 } from "@erp-digital-printing/ui/icons";
 import {
   Dropdown,
@@ -34,6 +37,7 @@ export interface Supplier {
   phone: string;
   email: string;
   address: string;
+  sequence?: number;
   created_at: string;
 }
 
@@ -42,6 +46,7 @@ const columnHelper = createColumnHelper<Supplier>();
 export const useSupplierTable = (options?: {
   onEdit?: (supplier: Supplier) => void;
   onDelete?: (supplier: Supplier) => void;
+  onChangeSequence?: (supplier: Supplier) => void;
 }) => {
   "use no memo";
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -64,6 +69,7 @@ export const useSupplierTable = (options?: {
     getSupplierByIdUseCase,
     updateSupplierUseCase,
     deleteSupplierUseCase,
+    reorderSupplierUseCase,
   } = useSupplierDI();
   const queryClient = useQueryClient();
 
@@ -124,6 +130,7 @@ export const useSupplierTable = (options?: {
         phone: model.phone,
         email: model.email,
         address: model.address,
+        sequence: model.sequence ?? 0,
         created_at: model.createdAt,
       }),
     );
@@ -185,6 +192,71 @@ export const useSupplierTable = (options?: {
       );
     },
   });
+
+  // Reorder Supplier Mutation
+  const reorderMutation = useMutation({
+    mutationFn: (input: { items: { id: string; sequence: number }[] }) =>
+      reorderSupplierUseCase.execute(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: supplierKeys.all });
+      toast.success(
+        "Urutan Berhasil Diperbarui",
+        "Urutan supplier telah berhasil disimpan.",
+      );
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Memperbarui Urutan",
+        error.message || "Terjadi kesalahan.",
+      );
+    },
+  });
+
+  const reorderSuppliers = React.useCallback(
+    (items: { id: string; sequence: number }[], onSuccess?: () => void) => {
+      reorderMutation.mutate(
+        { items },
+        {
+          onSuccess: () => {
+            onSuccess?.();
+          },
+        },
+      );
+    },
+    [reorderMutation],
+  );
+
+  const handleMoveUp = React.useCallback(
+    (index: number) => {
+      if (index <= 0) return;
+      const current = data[index];
+      const above = data[index - 1];
+
+      if (!current || !above) return;
+
+      reorderSuppliers([
+        { id: current.id, sequence: above.sequence ?? 0 },
+        { id: above.id, sequence: current.sequence ?? 0 },
+      ]);
+    },
+    [data, reorderSuppliers],
+  );
+
+  const handleMoveDown = React.useCallback(
+    (index: number) => {
+      if (index >= data.length - 1) return;
+      const current = data[index];
+      const below = data[index + 1];
+
+      if (!current || !below) return;
+
+      reorderSuppliers([
+        { id: current.id, sequence: below.sequence ?? 0 },
+        { id: below.id, sequence: current.sequence ?? 0 },
+      ]);
+    },
+    [data, reorderSuppliers],
+  );
 
   const addSupplier = (newSupplier: CreateSupplierInput) => {
     createMutation.mutate(newSupplier);
@@ -265,6 +337,14 @@ export const useSupplierTable = (options?: {
           </span>
         ),
       }),
+      columnHelper.accessor("sequence", {
+        header: "Urutan",
+        cell: (info) => (
+          <span className="font-semibold text-sm text-foreground/80">
+            {info.getValue() ?? "-"}
+          </span>
+        ),
+      }),
       columnHelper.display({
         id: "actions",
         header: "Aksi",
@@ -280,7 +360,27 @@ export const useSupplierTable = (options?: {
                   <LuEllipsisVertical className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </DropdownTrigger>
-              <DropdownContent align="end" className="w-36">
+              <DropdownContent align="end" className="w-48">
+                <DropdownItem
+                  onClick={() => handleMoveUp(info.row.index)}
+                  disabled={info.row.index === 0}
+                >
+                  <LuArrowUp className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Pindah Atas</span>
+                </DropdownItem>
+                <DropdownItem
+                  onClick={() => handleMoveDown(info.row.index)}
+                  disabled={info.row.index === data.length - 1}
+                >
+                  <LuArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Pindah Bawah</span>
+                </DropdownItem>
+                <DropdownItem
+                  onClick={() => options?.onChangeSequence?.(info.row.original)}
+                >
+                  <LuHash className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Ubah Urutan...</span>
+                </DropdownItem>
                 <DropdownItem onClick={() => openEditDialog(info.row.original)}>
                   <LuPencil className="h-3.5 w-3.5 text-blue-600" />
                   <span>Ubah</span>
@@ -298,7 +398,7 @@ export const useSupplierTable = (options?: {
         ),
       }),
     ],
-    [],
+    [data, handleMoveUp, handleMoveDown, options],
   );
 
   const table = useReactTable({
@@ -333,6 +433,8 @@ export const useSupplierTable = (options?: {
     addSupplier,
     updateSupplier,
     deleteSupplier,
+    reorderSuppliers,
+    isReordering: reorderMutation.isPending,
     selectedSupplierId,
     setSelectedSupplierId,
     isFetchingDetail,

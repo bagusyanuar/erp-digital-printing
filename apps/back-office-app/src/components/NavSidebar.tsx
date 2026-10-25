@@ -340,31 +340,33 @@ export const NavSidebar = () => {
                 </SidebarItem>
               )}
             </NavLink>
-            <NavLink to="/supplier" className="contents">
-              {({ isActive }) => (
-                <SidebarItem
-                  asChild
-                  icon={<LuTruck />}
-                  label="Database Supplier"
-                  active={isActive}
-                >
-                  <button />
-                </SidebarItem>
-              )}
-            </NavLink>
             {canAccessMasterOther && (
-              <NavLink to="/user" className="contents">
-                {({ isActive }) => (
-                  <SidebarItem
-                    asChild
-                    icon={<LuUsers />}
-                    label="Database User"
-                    active={isActive}
-                  >
-                    <button />
-                  </SidebarItem>
-                )}
-              </NavLink>
+              <>
+                <NavLink to="/supplier" className="contents">
+                  {({ isActive }) => (
+                    <SidebarItem
+                      asChild
+                      icon={<LuTruck />}
+                      label="Database Supplier"
+                      active={isActive}
+                    >
+                      <button />
+                    </SidebarItem>
+                  )}
+                </NavLink>
+                <NavLink to="/user" className="contents">
+                  {({ isActive }) => (
+                    <SidebarItem
+                      asChild
+                      icon={<LuUsers />}
+                      label="Database User"
+                      active={isActive}
+                    >
+                      <button />
+                    </SidebarItem>
+                  )}
+                </NavLink>
+              </>
             )}
           </SidebarGroup>
         )}

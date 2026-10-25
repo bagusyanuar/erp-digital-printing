@@ -6,7 +6,7 @@ import type {
 } from "@core/auth/applications/usecases/auth.usecase";
 import type { GetResellers, CreateReseller, GetResellerById, UpdateReseller, DeleteReseller } from "@core/reseller/applications/usecases/reseller.usecase";
 import type { GetCategories, CreateCategory, GetCategoryById, UpdateCategory, AssignSPKCategory, DeleteCategory, ReorderCategory } from "@core/category/applications/usecases/category.usecase";
-import type { GetExpenseCategories, CreateExpenseCategory, GetExpenseCategoryById, UpdateExpenseCategory, DeleteExpenseCategory } from "@core/expense-category/applications/usecases/expense-category.usecase";
+import type { GetExpenseCategories, CreateExpenseCategory, GetExpenseCategoryById, UpdateExpenseCategory, DeleteExpenseCategory, ReorderExpenseCategory } from "@core/expense-category/applications/usecases/expense-category.usecase";
 import type { GetAttributes, CreateAttribute, GetAttributeById, UpdateAttribute, DeleteAttribute } from "@core/attribute/applications/usecases/attribute.usecase";
 import type { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteProduct, ReorderProduct } from "@core/product/applications/usecases/product.usecase";
 import { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, RefundOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder, GetOrderReportWidgets, GetSalesReportWidgets, GetSalesTrend, GetCategorySales, GetPaymentSales } from "@core/order/applications/usecases/order.usecase";
@@ -21,7 +21,7 @@ import type {
   GetRoles,
   GetProfile,
 } from "@core/user/applications/usecases/user.usecase";
-import type { GetSuppliers, CreateSupplier, GetSupplierById, UpdateSupplier, DeleteSupplier } from "@core/supplier/applications/usecases/supplier.usecase";
+import type { GetSuppliers, CreateSupplier, GetSupplierById, UpdateSupplier, DeleteSupplier, ReorderSupplier } from "@core/supplier/applications/usecases/supplier.usecase";
 import type { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAnalyticsSummary, PayExpense } from "@core/expense/applications/usecases/expense.usecase";
 import type { GetCapitalTransactions, CreateCapitalTransaction, DeleteCapitalTransaction } from "@core/capital/applications/usecases/capital.usecase";
 import type { GetFundTransfers, CreateFundTransfer, GetFundTransferWidgets } from "@core/fund-transfer/applications/usecases/fund-transfer.usecase";
@@ -70,6 +70,7 @@ export interface SupplierUseCases {
   getSupplierByIdUseCase: GetSupplierById;
   updateSupplierUseCase: UpdateSupplier;
   deleteSupplierUseCase: DeleteSupplier;
+  reorderSupplierUseCase: ReorderSupplier;
 }
 
 
@@ -89,6 +90,7 @@ export interface ExpenseCategoryUseCases {
   getExpenseCategoryByIdUseCase: GetExpenseCategoryById;
   updateExpenseCategoryUseCase: UpdateExpenseCategory;
   deleteExpenseCategoryUseCase: DeleteExpenseCategory;
+  reorderExpenseCategoryUseCase: ReorderExpenseCategory;
 }
 
 export interface GetAttributeUseCases {

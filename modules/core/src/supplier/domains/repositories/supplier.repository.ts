@@ -1,5 +1,5 @@
 import type { PaginatedResponse } from "@core/shared/api/pagination";
-import type { SupplierParams, CreateSupplierInput } from "../../applications/inputs";
+import type { SupplierParams, CreateSupplierInput, ReorderSupplierInput } from "../../applications/inputs";
 import type { SupplierModel } from "../models";
 
 export interface SupplierRepository {
@@ -10,4 +10,5 @@ export interface SupplierRepository {
   create(input: CreateSupplierInput): Promise<SupplierModel>;
   update(id: string, input: CreateSupplierInput): Promise<SupplierModel>;
   delete(id: string): Promise<void>;
+  reorder(input: ReorderSupplierInput): Promise<void>;
 }

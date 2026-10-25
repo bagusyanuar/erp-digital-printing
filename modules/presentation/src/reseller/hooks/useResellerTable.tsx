@@ -26,6 +26,8 @@ import {
 import type { CreateResellerInput } from "@core/reseller/applications/inputs";
 import type { AppError } from "@core/shared/errors/domain.error";
 import { useDebounce } from "../../shared/hooks/useDebounce";
+import { useProfile } from "@presentation/user/hooks/useProfile";
+import { isAdministrator } from "@presentation/shared/utils/role.utils";
 
 export interface CustomerLevel {
   id: string;
@@ -66,6 +68,9 @@ export const useResellerTable = (options?: {
   onDelete?: (reseller: Reseller) => void;
 }) => {
   "use no memo";
+  const { data: profile } = useProfile();
+  const canEditLimit = isAdministrator(profile?.roles);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState({
@@ -398,6 +403,7 @@ export const useResellerTable = (options?: {
     isAdding: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    canEditLimit,
     isAddDialogOpen,
     setIsAddDialogOpen,
     globalFilter,

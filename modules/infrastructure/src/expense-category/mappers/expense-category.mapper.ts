@@ -21,6 +21,7 @@ export function mapExpenseCategoryResponseToModel(
     name: response.name,
     group: response.group,
     productCategoryId: response.product_category_id,
+    sequence: response.sequence,
   };
 }
 
@@ -31,5 +32,6 @@ export function mapCreateExpenseCategoryInputToRequest(
     name: input.name,
     group: input.group,
     product_category_id: input.productCategoryId,
+    sequence: input.sequence,
   };
 }

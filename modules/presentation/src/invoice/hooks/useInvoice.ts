@@ -4,6 +4,8 @@ import { useOrderDI } from "../../order/hooks/useOrderDI";
 import { orderKeys } from "@infrastructure/order/keys";
 import { useDebounce } from "../../shared/hooks/useDebounce";
 import { toast } from "@erp-digital-printing/ui/Toast";
+import { useProfile } from "@presentation/user/hooks/useProfile";
+import { isAdministrator } from "@presentation/shared/utils/role.utils";
 import type { DateRange } from "@erp-digital-printing/ui/DateRangePicker";
 import type { AppError } from "@core/shared/errors/domain.error";
 import type {
@@ -80,6 +82,9 @@ const formatDateTime = (createdAt?: string, fallbackDate?: string) => {
 };
 
 export const useInvoice = () => {
+  const { data: profile } = useProfile();
+  const canRefund = isAdministrator(profile?.roles);
+
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 750);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
@@ -530,6 +535,14 @@ export const useInvoice = () => {
   const handleProcessRefund = () => {
     if (!selectedInvoice) return;
 
+    if (!canRefund) {
+      toast.error(
+        "Akses Ditolak",
+        "Hanya administrator yang diizinkan untuk melakukan refund invoice.",
+      );
+      return;
+    }
+
     if (refundAmount <= 0) {
       toast.error("Refund Gagal", "Nominal refund harus lebih dari 0.");
       return;
@@ -709,6 +722,9 @@ export const useInvoice = () => {
     handlePrintSpk,
     processPaymentMutation,
     processRefundMutation,
+
+    // Role permissions
+    canRefund,
 
     // Helpers
     formatCurrency,

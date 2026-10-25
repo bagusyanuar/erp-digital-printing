@@ -12,4 +12,5 @@ export interface CreateSupplierRequest {
   phone?: string;
   email?: string | null;
   address?: string;
+  sequence?: number;
 }

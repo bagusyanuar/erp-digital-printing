@@ -19,6 +19,7 @@ export const useExpenseCategory = (
     createExpenseCategoryUseCase,
     updateExpenseCategoryUseCase,
     deleteExpenseCategoryUseCase,
+    reorderExpenseCategoryUseCase,
   } = useExpenseCategoryDI();
 
   const { getCategoriesUseCase } = useCategoryDI();
@@ -108,6 +109,25 @@ export const useExpenseCategory = (
     },
   });
 
+  // Mutation: Reorder
+  const reorderMutation = useMutation({
+    mutationFn: (input: { items: { id: string; sequence: number }[] }) =>
+      reorderExpenseCategoryUseCase.execute(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: expenseCategoryKeys.all });
+      toast.success(
+        "Urutan Berhasil Diperbarui",
+        "Urutan kategori pengeluaran telah berhasil disimpan."
+      );
+    },
+    onError: (error: AppError) => {
+      toast.error(
+        "Gagal Memperbarui Urutan",
+        error.message || "Terjadi kesalahan saat memperbarui urutan."
+      );
+    },
+  });
+
   return {
     expenseCategories: expenseCategoriesQuery.data?.data ?? [],
     productCategories: productCategoriesQuery.data?.data ?? [],
@@ -118,8 +138,10 @@ export const useExpenseCategory = (
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isReordering: reorderMutation.isPending,
     createExpenseCategory: createMutation.mutateAsync,
     updateExpenseCategory: updateMutation.mutateAsync,
     deleteExpenseCategory: deleteMutation.mutateAsync,
+    reorderExpenseCategories: reorderMutation.mutate,
   };
 };

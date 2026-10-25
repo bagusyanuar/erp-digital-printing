@@ -5,6 +5,7 @@ import {
   GetExpenseCategoryById,
   UpdateExpenseCategory,
   DeleteExpenseCategory,
+  ReorderExpenseCategory,
 } from "@core/expense-category/applications/usecases/expense-category.usecase";
 import { ApiExpenseCategoryRepository } from "../repositories/expense-category.repository";
 
@@ -31,4 +32,9 @@ export function updateExpenseCategoryUseCase(http: HttpClient): UpdateExpenseCat
 export function deleteExpenseCategoryUseCase(http: HttpClient): DeleteExpenseCategory {
   const repository = new ApiExpenseCategoryRepository(http);
   return new DeleteExpenseCategory(repository);
+}
+
+export function reorderExpenseCategoryUseCase(http: HttpClient): ReorderExpenseCategory {
+  const repository = new ApiExpenseCategoryRepository(http);
+  return new ReorderExpenseCategory(repository);
 }

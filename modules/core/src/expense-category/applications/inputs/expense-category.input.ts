@@ -9,4 +9,12 @@ export interface CreateExpenseCategoryInput {
   name: string;
   group: "OPERATIONAL" | "PRODUCTION";
   productCategoryId: string | null;
+  sequence?: number;
+}
+
+export interface ReorderExpenseCategoryInput {
+  items: {
+    id: string;
+    sequence: number;
+  }[];
 }

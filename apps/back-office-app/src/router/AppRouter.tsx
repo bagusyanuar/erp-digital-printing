@@ -58,7 +58,7 @@ const router = createBrowserRouter([
                 children: [...jobEntryRoutes],
               },
 
-              // 2. Rute Administrator & Admin (Dashboard, Pesanan Baru, Invoice, Semua Keuangan, Biro, Supplier, Semua Laporan)
+              // 2. Rute Administrator & Admin (Dashboard, Pesanan Baru, Invoice, Semua Keuangan, Biro, Semua Laporan)
               {
                 element: <RoleGuard allowedRoles={["administrator", "admin"]} />,
                 children: [
@@ -71,12 +71,11 @@ const router = createBrowserRouter([
                   ...fundTransferRoutes,
                   ...cashFlowRoutes,
                   ...resellerRoutes,
-                  ...supplierRoutes,
                   ...reportRoutes,
                 ],
               },
 
-              // 3. Rute Khusus Administrator (Master Kategori, Master Produk, Atribut, Pelanggan, User)
+              // 3. Rute Khusus Administrator (Master Kategori, Master Produk, Atribut, Pelanggan, Supplier, User)
               {
                 element: <RoleGuard allowedRoles={["administrator"]} />,
                 children: [
@@ -85,6 +84,7 @@ const router = createBrowserRouter([
                   ...productRoutes,
                   ...attributeRoutes,
                   ...customerRoutes,
+                  ...supplierRoutes,
                   ...userRoutes,
                 ],
               },

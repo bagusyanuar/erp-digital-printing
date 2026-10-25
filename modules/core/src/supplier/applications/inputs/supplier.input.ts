@@ -12,4 +12,12 @@ export interface CreateSupplierInput {
   phone?: string;
   email?: string | null;
   address?: string;
+  sequence?: number;
+}
+
+export interface ReorderSupplierInput {
+  items: {
+    id: string;
+    sequence: number;
+  }[];
 }

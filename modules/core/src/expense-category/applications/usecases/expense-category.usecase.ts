@@ -1,6 +1,6 @@
 import type { ExpenseCategoryRepository } from "../../domains/repositories";
 import type { ExpenseCategoryModel } from "../../domains/models";
-import type { ExpenseCategoryParams, CreateExpenseCategoryInput } from "../inputs";
+import type { ExpenseCategoryParams, CreateExpenseCategoryInput, ReorderExpenseCategoryInput } from "../inputs";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 export class GetExpenseCategories {
@@ -45,5 +45,13 @@ export class DeleteExpenseCategory {
 
   async execute(id: string): Promise<void> {
     await this.repository.delete(id);
+  }
+}
+
+export class ReorderExpenseCategory {
+  constructor(private readonly repository: ExpenseCategoryRepository) {}
+
+  async execute(input: ReorderExpenseCategoryInput): Promise<void> {
+    await this.repository.reorder(input);
   }
 }

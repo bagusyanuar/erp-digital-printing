@@ -1,6 +1,6 @@
 import type { SupplierRepository } from "../../domains/repositories";
 import type { SupplierModel } from "../../domains/models";
-import type { SupplierParams, CreateSupplierInput } from "../inputs";
+import type { SupplierParams, CreateSupplierInput, ReorderSupplierInput } from "../inputs";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 export class GetSuppliers {
@@ -42,5 +42,13 @@ export class DeleteSupplier {
 
   async execute(id: string): Promise<void> {
     await this.supplierRepository.delete(id);
+  }
+}
+
+export class ReorderSupplier {
+  constructor(private readonly supplierRepository: SupplierRepository) {}
+
+  async execute(input: ReorderSupplierInput): Promise<void> {
+    await this.supplierRepository.reorder(input);
   }
 }

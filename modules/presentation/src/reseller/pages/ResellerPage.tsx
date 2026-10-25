@@ -85,6 +85,7 @@ const ResellerPage = () => {
     isDeleting,
     resellerDetail,
     totalEntries,
+    canEditLimit,
   } = useResellerTable({
     onEdit: (reseller) => {
       setSelectedReseller(reseller);
@@ -125,7 +126,13 @@ const ResellerPage = () => {
 
   const handleUpdateReseller = editForm.handleSubmit((data) => {
     if (!selectedReseller) return;
-    updateReseller(selectedReseller.id, data, () => {
+    const payload: CreateResellerInput = {
+      ...data,
+      creditLimit: canEditLimit
+        ? data.creditLimit
+        : (resellerDetail?.credit_limit ?? selectedReseller.credit_limit),
+    };
+    updateReseller(selectedReseller.id, payload, () => {
       setIsEditDialogOpen(false);
       setSelectedReseller(null);
       setSelectedResellerId(null);
@@ -513,26 +520,37 @@ const ResellerPage = () => {
               </div>
 
               <div className="space-y-2">
-                <Label
-                  htmlFor="editResellerCreditLimit"
-                  className="text-sm font-semibold"
-                >
-                  Limit Kredit (Rupiah Plafon)
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="editResellerCreditLimit"
+                    className="text-sm font-semibold"
+                  >
+                    Limit Kredit (Rupiah Plafon)
+                  </Label>
+                  {!canEditLimit && (
+                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                      Khusus Administrator
+                    </span>
+                  )}
+                </div>
                 <TextField
                   id="editResellerCreditLimit"
                   type="number"
                   {...registerEdit("creditLimit", { valueAsNumber: true })}
                   placeholder="Contoh: 5000000"
-                  className="border-border/50 focus:bg-background transition-all"
+                  className="border-border/50 focus:bg-background transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-muted/50"
                   variant={errorsEdit.creditLimit ? "error" : "default"}
-                  disabled={isUpdating}
+                  disabled={isUpdating || !canEditLimit}
                 />
-                {errorsEdit.creditLimit && (
+                {!canEditLimit ? (
+                  <HelperText className="text-muted-foreground text-[11px]">
+                    Hanya administrator yang memiliki wewenang untuk mengubah plafon limit kredit.
+                  </HelperText>
+                ) : errorsEdit.creditLimit ? (
                   <HelperText variant="error">
                     {errorsEdit.creditLimit.message}
                   </HelperText>
-                )}
+                ) : null}
               </div>
 
               <div className="space-y-2">

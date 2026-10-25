@@ -7,7 +7,7 @@ import {
 import { useAuthStore } from "@presentation/auth/stores/auth.store";
 import type { AppContainer } from "@presentation/shared/di/DIContext";
 import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase, updateResellerUseCase, deleteResellerUseCase } from "@infrastructure/reseller/containers/reseller.container";
-import { getSupplierUseCase, createSupplierUseCase, getSupplierByIdUseCase, updateSupplierUseCase, deleteSupplierUseCase } from "@infrastructure/supplier/containers/supplier.container";
+import { getSupplierUseCase, createSupplierUseCase, getSupplierByIdUseCase, updateSupplierUseCase, deleteSupplierUseCase, reorderSupplierUseCase } from "@infrastructure/supplier/containers/supplier.container";
 import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCase, getExpenseAnalyticsSummaryUseCase, payExpenseUseCase } from "@infrastructure/expense/containers/expense.container";
 import { getCapitalTransactionsUseCase, createCapitalTransactionUseCase, deleteCapitalTransactionUseCase } from "@infrastructure/capital/containers/capital.container";
 import { getFundTransfersUseCase, createFundTransferUseCase, getFundTransferWidgetsUseCase } from "@infrastructure/fund-transfer/containers/fund-transfer.container";
@@ -21,6 +21,7 @@ import {
   getExpenseCategoryByIdUseCase,
   updateExpenseCategoryUseCase,
   deleteExpenseCategoryUseCase,
+  reorderExpenseCategoryUseCase,
 } from "@infrastructure/expense-category/containers/expense-category.container";
 import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, updateAttributeUseCase, deleteAttributeUseCase } from "@infrastructure/attribute/containers/attribute.container";
 import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase, reorderProductUseCase } from "@infrastructure/product/containers/product.container";
@@ -77,6 +78,7 @@ export function createAppContainer(): AppContainer {
       getExpenseCategoryByIdUseCase: getExpenseCategoryByIdUseCase(httpClient),
       updateExpenseCategoryUseCase: updateExpenseCategoryUseCase(httpClient),
       deleteExpenseCategoryUseCase: deleteExpenseCategoryUseCase(httpClient),
+      reorderExpenseCategoryUseCase: reorderExpenseCategoryUseCase(httpClient),
     },
     attribute: {
       getAttributesUseCase: getAttributeUseCase(httpClient),
@@ -132,6 +134,7 @@ export function createAppContainer(): AppContainer {
       getSupplierByIdUseCase: getSupplierByIdUseCase(httpClient),
       updateSupplierUseCase: updateSupplierUseCase(httpClient),
       deleteSupplierUseCase: deleteSupplierUseCase(httpClient),
+      reorderSupplierUseCase: reorderSupplierUseCase(httpClient),
     },
     expense: {
       createExpenseUseCase: createExpenseUseCase(httpClient),

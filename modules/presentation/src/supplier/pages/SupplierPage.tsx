@@ -48,6 +48,8 @@ const SupplierPage = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [selectedChangeSequenceSupplier, setSelectedChangeSequenceSupplier] = useState<Supplier | null>(null);
+  const [sequenceValue, setSequenceValue] = useState<number | "">("");
 
   const addForm = useForm<CreateSupplierInput>({
     resolver: zodResolver(supplierInputSchema),
@@ -85,6 +87,8 @@ const SupplierPage = () => {
     addSupplier,
     updateSupplier,
     deleteSupplier,
+    reorderSuppliers,
+    isReordering,
     setSelectedSupplierId,
     isFetchingDetail,
     supplierDetail,
@@ -98,6 +102,10 @@ const SupplierPage = () => {
     onDelete: (supplier) => {
       setSelectedSupplier(supplier);
       setIsDeleteDialogOpen(true);
+    },
+    onChangeSequence: (supplier) => {
+      setSelectedChangeSequenceSupplier(supplier);
+      setSequenceValue(supplier.sequence ?? 0);
     },
   });
 
@@ -572,6 +580,76 @@ const SupplierPage = () => {
             {isUpdating ? "Menyimpan..." : "Simpan Perubahan"}
           </Button>
         </CardFooter>
+      </Dialog>
+
+      {/* Change Sequence Dialog */}
+      <Dialog
+        isOpen={!!selectedChangeSequenceSupplier}
+        onClose={() => setSelectedChangeSequenceSupplier(null)}
+        size="sm"
+        showCloseButton={false}
+      >
+        <CardHeader className="px-6 py-4 border-b border-border/50 flex flex-row items-start justify-between gap-4">
+          <div className="space-y-0.5">
+            <h2 className="text-xl font-bold tracking-tight text-foreground">
+              Ubah Urutan Supplier
+            </h2>
+            <p className="text-xs text-muted-foreground font-medium">
+              Tentukan nomor urutan baru untuk supplier{" "}
+              <strong className="text-foreground">
+                "{selectedChangeSequenceSupplier?.name}"
+              </strong>
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-md text-muted-foreground hover:bg-muted active:scale-90 transition-all -mr-2 -mt-0.5"
+            onClick={() => setSelectedChangeSequenceSupplier(null)}
+          >
+            <LuX className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+
+        <CardContent className="p-6 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="sequence" className="text-sm font-semibold">
+              Nomor Urutan
+            </Label>
+            <TextField
+              id="sequence"
+              type="number"
+              min={1}
+              placeholder="Contoh: 1, 2, 3..."
+              className="border-border/50 focus:bg-background transition-all"
+              value={sequenceValue}
+              onChange={(e) => setSequenceValue(e.target.value ? Number(e.target.value) : "")}
+            />
+          </div>
+        </CardContent>
+        <div className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            className="h-10 px-4 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
+            onClick={() => setSelectedChangeSequenceSupplier(null)}
+          >
+            Batal
+          </Button>
+          <Button
+            className="h-10 px-4 rounded-md font-medium bg-primary hover:bg-primary/90 active:scale-95 transition-all text-white"
+            onClick={() => {
+              if (selectedChangeSequenceSupplier && typeof sequenceValue === "number") {
+                reorderSuppliers(
+                  [{ id: selectedChangeSequenceSupplier.id, sequence: sequenceValue }],
+                  () => setSelectedChangeSequenceSupplier(null)
+                );
+              }
+            }}
+            disabled={isReordering}
+          >
+            {isReordering ? "Menyimpan..." : "Simpan Urutan"}
+          </Button>
+        </div>
       </Dialog>
 
       {/* Delete Supplier Dialog */}

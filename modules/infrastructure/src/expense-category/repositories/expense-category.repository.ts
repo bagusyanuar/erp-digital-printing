@@ -1,4 +1,4 @@
-import type { ExpenseCategoryParams, CreateExpenseCategoryInput } from "@core/expense-category/applications/inputs";
+import type { ExpenseCategoryParams, CreateExpenseCategoryInput, ReorderExpenseCategoryInput } from "@core/expense-category/applications/inputs";
 import type { ExpenseCategoryModel } from "@core/expense-category/domains/models";
 import type { ExpenseCategoryRepository } from "@core/expense-category/domains/repositories";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
@@ -67,6 +67,12 @@ export class ApiExpenseCategoryRepository implements ExpenseCategoryRepository {
   async delete(id: string): Promise<void> {
     return safeApiCall(async () => {
       await this.http.delete(`/expense-categories/${id}`);
+    });
+  }
+
+  async reorder(input: ReorderExpenseCategoryInput): Promise<void> {
+    return safeApiCall(async () => {
+      await this.http.put("/expense-categories/reorder", input);
     });
   }
 }

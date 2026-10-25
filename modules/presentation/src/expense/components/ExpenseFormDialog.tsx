@@ -253,13 +253,16 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
     staleTime: 60_000,
   });
 
-  const categories = categoriesData?.data
-    ? categoriesData.data.map((c) => ({
+  const categories = useMemo(() => {
+    const list = categoriesData?.data ?? [];
+    return [...list]
+      .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+      .map((c) => ({
         id: c.id,
         name: c.name,
         type: c.group,
-      }))
-    : [];
+      }));
+  }, [categoriesData]);
 
   // Fetch real suppliers from API
   const { getSuppliersUseCase } = useSupplierDI();
@@ -269,7 +272,10 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
     staleTime: 60_000,
   });
 
-  const suppliers = suppliersData?.data ?? [];
+  const suppliers = useMemo(() => {
+    const list = suppliersData?.data ?? [];
+    return [...list].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+  }, [suppliersData]);
 
   // Reset/sync Left Panel item form when entering edit mode or clearing
   const activeCategory = categories.find((c) => c.id === itemCategoryId);
