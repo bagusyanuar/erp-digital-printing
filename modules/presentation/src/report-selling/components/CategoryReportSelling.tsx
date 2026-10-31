@@ -7,6 +7,7 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  TablePagination,
 } from "@erp-digital-printing/ui/Table";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import {
@@ -301,6 +302,13 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
   setDateRange,
 }) => {
   const [productSearch, setProductSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Reset page to 1 when category or search changes
+  React.useEffect(() => {
+    setPage(1);
+  }, [selectedCategory, productSearch]);
 
   // Filter items by category chip selection
   const categoryFilteredItems = useMemo(() => {
@@ -325,6 +333,14 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
         item.categoryName.toLowerCase().includes(q)
     );
   }, [categoryFilteredItems, productSearch]);
+
+  // Pagination slicing
+  const totalEntries = finalDisplayItems.length;
+  const totalPages = Math.ceil(totalEntries / pageSize) || 1;
+  const paginatedItems = useMemo(() => {
+    const startIndex = (page - 1) * pageSize;
+    return finalDisplayItems.slice(startIndex, startIndex + pageSize);
+  }, [finalDisplayItems, page, pageSize]);
 
   // Aggregate KPIs based on selected category
   const categoryStats = useMemo(() => {
@@ -551,13 +567,13 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                finalDisplayItems.map((item, index) => (
+                paginatedItems.map((item, index) => (
                   <TableRow
                     key={item.id}
                     className="hover:bg-muted/20 transition-colors"
                   >
                     <TableCell className="py-4 px-5 text-center font-mono font-bold text-muted-foreground">
-                      {index + 1}
+                      {(page - 1) * pageSize + index + 1}
                     </TableCell>
                     <TableCell className="py-4 px-5">
                       <div className="space-y-0.5">
@@ -599,6 +615,19 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
             </TableBody>
           </Table>
         </div>
+
+        {/* Dynamic Pagination UI (Identical to Invoice Feature) */}
+        <TablePagination
+          currentPage={page}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalEntries={totalEntries}
+          onPageChange={(p) => setPage(p)}
+          onPageSizeChange={(sz) => {
+            setPageSize(sz);
+            setPage(1);
+          }}
+        />
       </Card>
     </div>
   );
