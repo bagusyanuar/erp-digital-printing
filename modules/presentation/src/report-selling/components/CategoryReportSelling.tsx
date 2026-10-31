@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import { Card, CardContent } from "@erp-digital-printing/ui/Card";
 import {
   Table,
@@ -63,6 +63,13 @@ interface CategoryReportSellingProps {
   isLoadingStats?: boolean;
   isLoading?: boolean;
   categoryProducts?: CategoryProductSale[];
+  page: number;
+  pageSize: number;
+  totalEntries: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
+  search: string;
+  onSearchChange: (search: string) => void;
 }
 
 export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
@@ -76,90 +83,25 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
   isLoadingStats,
   isLoading,
   categoryProducts = [],
+  page,
+  pageSize,
+  totalEntries,
+  onPageChange,
+  onPageSizeChange,
+  search,
+  onSearchChange,
 }) => {
-  const [productSearch, setProductSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [prevCategory, setPrevCategory] = useState(selectedCategory);
-
-  // Reset page when category changes from props without cascading effect
-  if (prevCategory !== selectedCategory) {
-    setPrevCategory(selectedCategory);
-    setPage(1);
-  }
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setProductSearch(e.target.value);
-    setPage(1);
-  };
-
-  const handleCategoryClick = (categoryId: string) => {
-    onSelectCategory(categoryId);
-    setPage(1);
-  };
-
-  // Filter items by category chip selection
-  const categoryFilteredItems = useMemo(() => {
-    if (selectedCategory === "all") {
-      return categoryProducts;
-    }
-    return categoryProducts.filter((item) => item.categoryId === selectedCategory);
-  }, [categoryProducts, selectedCategory]);
-
-  // Secondary search filter by product / variant name
-  const finalDisplayItems = useMemo(() => {
-    if (!productSearch.trim()) {
-      return categoryFilteredItems;
-    }
-    const q = productSearch.toLowerCase();
-    return categoryFilteredItems.filter(
-      (item) =>
-        item.productName.toLowerCase().includes(q) ||
-        item.variantName.toLowerCase().includes(q) ||
-        item.categoryName.toLowerCase().includes(q)
-    );
-  }, [categoryFilteredItems, productSearch]);
-
-  // Pagination slicing
-  const totalEntries = finalDisplayItems.length;
   const totalPages = Math.ceil(totalEntries / pageSize) || 1;
-  const paginatedItems = useMemo(() => {
-    const startIndex = (page - 1) * pageSize;
-    return finalDisplayItems.slice(startIndex, startIndex + pageSize);
-  }, [finalDisplayItems, page, pageSize]);
 
-  // Aggregate KPIs based on selected category (use real backend stats if provided, otherwise fallback to local calculation)
+  // Aggregate KPIs based on selected category (calculated by backend)
   const categoryStats = useMemo(() => {
-    if (stats) {
-      return {
-        totalRevenue: stats.totalRevenue,
-        totalQty: stats.totalProductsSold,
-        totalTransactions: stats.transactionCount,
-        productCount: stats.totalItemSKU ?? 0,
-      };
-    }
-
-    const totalRevenue = categoryFilteredItems.reduce(
-      (acc, item) => acc + item.totalRevenue,
-      0
-    );
-    const totalQty = categoryFilteredItems.reduce(
-      (acc, item) => acc + item.totalQty,
-      0
-    );
-    const totalTransactions = categoryFilteredItems.reduce(
-      (acc, item) => acc + item.orderCount,
-      0
-    );
-    const productCount = categoryFilteredItems.length;
-
     return {
-      totalRevenue,
-      totalQty,
-      totalTransactions,
-      productCount,
+      totalRevenue: stats?.totalRevenue ?? 0,
+      totalQty: stats?.totalProductsSold ?? 0,
+      totalTransactions: stats?.transactionCount ?? 0,
+      productCount: stats?.totalItemSKU ?? totalEntries,
     };
-  }, [stats, categoryFilteredItems]);
+  }, [stats, totalEntries]);
 
   const activeCategoryLabel = useMemo(() => {
     const found = availableCategories.find((c) => c.id === selectedCategory);
@@ -204,7 +146,7 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
               <button
                 key={chip.id}
                 type="button"
-                onClick={() => handleCategoryClick(chip.id)}
+                onClick={() => onSelectCategory(chip.id)}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
                   isActive
                     ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-[1.02]"
@@ -331,8 +273,8 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
             <TextField
               placeholder="Cari nama produk / varian..."
               prefixIcon={LuSearch}
-              value={productSearch}
-              onChange={handleSearchChange}
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
               className="w-full h-10"
             />
           </div>
@@ -368,7 +310,7 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
                     </div>
                   </TableCell>
                 </TableRow>
-              ) : finalDisplayItems.length === 0 ? (
+              ) : categoryProducts.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={8}
@@ -386,7 +328,7 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedItems.map((item, index) => (
+                categoryProducts.map((item, index) => (
                   <TableRow
                     key={item.id}
                     className="hover:bg-muted/20 transition-colors"
@@ -441,11 +383,8 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
           totalPages={totalPages}
           pageSize={pageSize}
           totalEntries={totalEntries}
-          onPageChange={(p) => setPage(p)}
-          onPageSizeChange={(sz) => {
-            setPageSize(sz);
-            setPage(1);
-          }}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
         />
       </Card>
     </div>

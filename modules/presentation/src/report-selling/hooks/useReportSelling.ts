@@ -124,6 +124,17 @@ export const useReportSelling = () => {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [categoryPageSize, setCategoryPageSize] = useState(10);
+  const [categorySearch, setCategorySearch] = useState("");
+  const debouncedCategorySearch = useDebounce(categorySearch, 500);
+
+  const [prevCategoryForPage, setPrevCategoryForPage] = useState(selectedCategory);
+  if (prevCategoryForPage !== selectedCategory) {
+    setPrevCategoryForPage(selectedCategory);
+    setCategoryPage(1);
+  }
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const today = new Date();
     return {
@@ -311,11 +322,12 @@ export const useReportSelling = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Fetch real aggregated product sales by category from backend API
+  // Fetch real aggregated product sales by category from backend API (server-side pagination & search)
   const { data: productSalesRaw, isLoading: isLoadingProductSales } = useQuery({
     queryKey: orderKeys.productSales({
-      page: 1,
-      limit: -1,
+      page: categoryPage,
+      limit: categoryPageSize,
+      search: debouncedCategorySearch || undefined,
       start_date: startDateStr,
       end_date: endDateStr,
       date_by: "invoice",
@@ -333,8 +345,9 @@ export const useReportSelling = () => {
     }),
     queryFn: () =>
       getProductSalesUseCase.execute({
-        page: 1,
-        limit: -1,
+        page: categoryPage,
+        limit: categoryPageSize,
+        search: debouncedCategorySearch || undefined,
         start_date: startDateStr,
         end_date: endDateStr,
         date_by: "invoice",
@@ -709,6 +722,13 @@ export const useReportSelling = () => {
     isLoadingWidgets,
     isLoadingProductSales,
     categoryProducts,
+    categoryPage,
+    setCategoryPage,
+    categoryPageSize,
+    setCategoryPageSize,
+    categorySearch,
+    setCategorySearch,
+    totalProductSales: productSalesRaw?.total ?? 0,
     response,
   };
 };

@@ -116,6 +116,13 @@ const ReportSellingPage = () => {
     isLoadingWidgets,
     isLoadingProductSales,
     categoryProducts,
+    categoryPage,
+    setCategoryPage,
+    categoryPageSize,
+    setCategoryPageSize,
+    categorySearch,
+    setCategorySearch,
+    totalProductSales,
     response,
   } = useReportSelling();
 
@@ -886,7 +893,10 @@ const ReportSellingPage = () => {
         <CategoryReportSelling
           formatCurrency={formatCurrency}
           selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
+          onSelectCategory={(catId) => {
+            setSelectedCategory(catId);
+            setCategoryPage(1);
+          }}
           availableCategories={categoryChips}
           dateRange={dateRange}
           setDateRange={setDateRange}
@@ -894,6 +904,19 @@ const ReportSellingPage = () => {
           isLoadingStats={isLoadingWidgets}
           isLoading={isLoadingProductSales}
           categoryProducts={categoryProducts}
+          page={categoryPage}
+          pageSize={categoryPageSize}
+          totalEntries={totalProductSales}
+          onPageChange={setCategoryPage}
+          onPageSizeChange={(sz) => {
+            setCategoryPageSize(sz);
+            setCategoryPage(1);
+          }}
+          search={categorySearch}
+          onSearchChange={(q) => {
+            setCategorySearch(q);
+            setCategoryPage(1);
+          }}
         />
       ) : (
         <AnalyticReportSelling
