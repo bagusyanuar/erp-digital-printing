@@ -41,3 +41,4 @@ export interface ProfitLossTrendItemModel {
   opex: number;
   labaBersih: number;
 }
+

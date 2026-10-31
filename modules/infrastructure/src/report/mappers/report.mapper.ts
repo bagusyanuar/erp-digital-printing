@@ -60,3 +60,4 @@ export function mapProfitLossTrendResponseToModel(
     labaBersih: res.laba_bersih,
   };
 }
+

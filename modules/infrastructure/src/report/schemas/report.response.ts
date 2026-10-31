@@ -41,3 +41,4 @@ export interface ProfitLossTrendItemResponse {
   opex: number;
   laba_bersih: number;
 }
+

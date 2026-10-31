@@ -6,3 +6,4 @@ import type { ReportUseCases } from "../../shared/di/DIContext";
  * Selector hook untuk mengambil use cases khusus modul Laporan Laba Rugi.
  */
 export const useReportProfitLossDI = (): ReportUseCases => useDI().report;
+

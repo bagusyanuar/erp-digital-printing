@@ -11,3 +11,4 @@ export function getProfitLossTrendUseCase(http: HttpClient): GetProfitLossTrend 
   const repository = new ApiReportRepository(http);
   return new GetProfitLossTrend(repository);
 }
+

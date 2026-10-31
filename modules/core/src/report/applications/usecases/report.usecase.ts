@@ -16,3 +16,4 @@ export class GetProfitLossTrend {
     return await this.reportRepository.getProfitLossTrend(params);
   }
 }
+

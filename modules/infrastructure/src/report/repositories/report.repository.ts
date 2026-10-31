@@ -48,3 +48,4 @@ export class ApiReportRepository implements ReportRepository {
     });
   }
 }
+

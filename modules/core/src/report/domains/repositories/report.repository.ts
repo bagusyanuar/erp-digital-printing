@@ -13,3 +13,4 @@ export interface ReportRepository {
   getProfitLoss(params?: ProfitLossParams): Promise<ProfitLossModel>;
   getProfitLossTrend(params?: ProfitLossTrendParams): Promise<ProfitLossTrendItemModel[]>;
 }
+
