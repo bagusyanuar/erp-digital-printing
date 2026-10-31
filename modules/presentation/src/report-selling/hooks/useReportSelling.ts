@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
 import { orderKeys } from "@infrastructure/order/keys";
+import { useCategoryDI } from "@presentation/category/hooks/useCategoryDI";
+import { categoryKeys } from "@infrastructure/category/keys/category.key";
 import { useUserDI } from "../../user/hooks/useUserDI";
 import { userKeys } from "@infrastructure/user/keys/user.key";
 import { useDebounce } from "../../shared/hooks/useDebounce";
@@ -62,7 +64,37 @@ export const useReportSelling = () => {
     getPaymentSalesUseCase,
   } = useOrderDI();
   const { getUsersUseCase } = useUserDI();
-  const [activeTab, setActiveTab] = useState<"data" | "analytic">("data");
+  const { getCategoriesUseCase } = useCategoryDI();
+  const [activeTab, setActiveTab] = useState<
+    "data" | "category" | "analytic"
+  >("data");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
+  // Fetch product categories from database for filter chips
+  const { data: dbCategories } = useQuery({
+    queryKey: categoryKeys.list({ limit: 100, page: 1 }),
+    queryFn: () => getCategoriesUseCase.execute({ limit: 100, page: 1 }),
+    staleTime: 60_000,
+  });
+
+  const categoryChips = useMemo(() => {
+    const list = [{ id: "all", name: "Semua Kategori" }];
+    if (dbCategories?.data && dbCategories.data.length > 0) {
+      dbCategories.data.forEach((c) => {
+        list.push({ id: c.id, name: c.name });
+      });
+    } else {
+      list.push(
+        { id: "cat-spanduk", name: "Spanduk & Banner" },
+        { id: "cat-sticker", name: "Sticker & Label" },
+        { id: "cat-digital-a3", name: "Digital A3+" },
+        { id: "cat-merchandise", name: "Merchandise & Souvenir" },
+        { id: "cat-tekstil", name: "Tekstil & DTF" },
+        { id: "cat-offset", name: "Offset & Dokumen" },
+      );
+    }
+    return list;
+  }, [dbCategories]);
   const [trendPeriod, setTrendPeriod] = useState<
     "weekly" | "monthly" | "yearly"
   >("monthly");
@@ -554,6 +586,9 @@ export const useReportSelling = () => {
   return {
     activeTab,
     setActiveTab,
+    selectedCategory,
+    setSelectedCategory,
+    categoryChips,
     trendPeriod,
     setTrendPeriod,
     searchQuery,

@@ -44,9 +44,11 @@ import {
   LuCircleCheck,
   LuCircleX,
   LuRotateCcw,
+  LuTags,
 } from "@erp-digital-printing/ui/icons";
 import DetailReportSelling from "../components/DetailReportSelling";
 import AnalyticReportSelling from "../components/AnalyticReportSelling";
+import { CategoryReportSelling } from "../components/CategoryReportSelling";
 import { useReportSelling } from "../hooks/useReportSelling";
 
 const COLORS = [
@@ -62,6 +64,9 @@ const ReportSellingPage = () => {
   const {
     activeTab,
     setActiveTab,
+    selectedCategory,
+    setSelectedCategory,
+    categoryChips,
     trendPeriod,
     setTrendPeriod,
     searchQuery,
@@ -149,6 +154,17 @@ const ReportSellingPage = () => {
             }`}
           >
             Daftar Transaksi
+          </button>
+          <button
+            onClick={() => setActiveTab("category")}
+            className={`px-6 py-2 text-sm font-bold rounded-lg transition-all duration-200 flex items-center gap-1.5 ${
+              activeTab === "category"
+                ? "bg-background shadow-md text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <LuTags size={15} />
+            <span>Berdasarkan Kategori</span>
           </button>
           <button
             onClick={() => setActiveTab("analytic")}
@@ -863,6 +879,13 @@ const ReportSellingPage = () => {
             </CardContent>
           </Card>
         </div>
+      ) : activeTab === "category" ? (
+        <CategoryReportSelling
+          formatCurrency={formatCurrency}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          availableCategories={categoryChips}
+        />
       ) : (
         <AnalyticReportSelling
           trendPeriod={trendPeriod}
