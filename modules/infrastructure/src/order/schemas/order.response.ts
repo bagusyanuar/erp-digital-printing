@@ -3,6 +3,8 @@ export interface OrderItemResponse {
   product_variant_id: string;
   product_name: string;
   variant_name: string;
+  category_id?: string;
+  category_name?: string;
   uom: string;
   quantity: number;
   design_file_url: string;
