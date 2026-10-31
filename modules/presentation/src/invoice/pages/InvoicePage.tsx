@@ -400,7 +400,11 @@ const InvoicePage = () => {
                           value={tempOrderStatusFilter}
                           onChange={(e) => {
                             setTempOrderStatusFilter(
-                              e.target.value as "ALL" | "SUCCESS" | "REFUND",
+                              e.target.value as
+                                | "ALL"
+                                | "SUCCESS"
+                                | "REFUND"
+                                | "CANCELLED",
                             );
                           }}
                           className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
@@ -408,6 +412,7 @@ const InvoicePage = () => {
                           <option value="ALL">Semua Pesanan</option>
                           <option value="SUCCESS">Selesai</option>
                           <option value="REFUND">Refund</option>
+                          <option value="CANCELLED">Dibatalkan</option>
                         </select>
                       </div>
 
@@ -821,6 +826,27 @@ const InvoicePage = () => {
               {/* LEFT COLUMN: Dokumen, Produk & Desain (Scrollable) */}
               <div className="flex flex-col h-full overflow-y-auto pr-1 scrollbar-thin">
                 <div ref={invoiceDetailRef} className="space-y-5 bg-card p-1">
+                  {/* Cancelled Banner if Order is Cancelled */}
+                  {selectedInvoice.orderStatus === "CANCELLED" && (
+                    <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-extrabold text-xs">
+                        <LuBan size={15} />
+                        <span>Transaksi Nota Ini Telah Dibatalkan</span>
+                      </div>
+                      {selectedInvoice.cancelReason && (
+                        <p className="text-xs text-foreground/90 leading-relaxed">
+                          <strong className="text-muted-foreground font-semibold">Alasan Pembatalan: </strong>
+                          {selectedInvoice.cancelReason}
+                        </p>
+                      )}
+                      {selectedInvoice.cancelledAt && (
+                        <p className="text-[10px] text-muted-foreground">
+                          Waktu Pembatalan: {selectedInvoice.cancelledAt}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Utama & Pelanggan Box */}
                   <div className="bg-muted/30 p-4 rounded-2xl border border-border/40 space-y-4">
                     <div className="grid grid-cols-2 gap-4">

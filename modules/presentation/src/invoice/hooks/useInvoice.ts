@@ -49,6 +49,8 @@ export interface Invoice {
   status: "PAID" | "PARTIAL" | "UNPAID";
   orderStatus: string;
   designerName: string;
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
 }
 
 const formatCurrency = (val: number) => {
@@ -124,7 +126,7 @@ export const useInvoice = () => {
     "ALL" | "RESELLER" | "END_USER"
   >("ALL");
   const [orderStatusFilter, setOrderStatusFilter] = useState<
-    "ALL" | "SUCCESS" | "REFUND"
+    "ALL" | "SUCCESS" | "REFUND" | "CANCELLED"
   >("SUCCESS");
   const [paymentMethodsFilter, setPaymentMethodsFilter] = useState<string[]>(
     [],
@@ -138,7 +140,7 @@ export const useInvoice = () => {
     "ALL" | "RESELLER" | "END_USER"
   >("ALL");
   const [tempOrderStatusFilter, setTempOrderStatusFilter] = useState<
-    "ALL" | "SUCCESS" | "REFUND"
+    "ALL" | "SUCCESS" | "REFUND" | "CANCELLED"
   >("SUCCESS");
   const [tempPaymentMethodsFilter, setTempPaymentMethodsFilter] = useState<
     string[]
@@ -167,7 +169,10 @@ export const useInvoice = () => {
     if (orderStatusFilter === "REFUND") {
       return "REFUND";
     }
-    return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED,REFUND";
+    if (orderStatusFilter === "CANCELLED") {
+      return "CANCELLED";
+    }
+    return "IN_PRODUCTION,READY_FOR_PICKUP,COMPLETED,REFUND,CANCELLED";
   }, [orderStatusFilter]);
 
   const mappedPaymentStatus = useMemo(() => {
@@ -447,6 +452,8 @@ export const useInvoice = () => {
               : "UNPAID",
         orderStatus: order.status,
         designerName: order.designer_name || "CS",
+        cancelReason: order.cancel_reason ?? null,
+        cancelledAt: order.cancelled_at ?? null,
       };
     });
   }, [response]);
