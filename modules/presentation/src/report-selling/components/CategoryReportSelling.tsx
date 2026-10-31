@@ -10,6 +10,10 @@ import {
 } from "@erp-digital-printing/ui/Table";
 import { TextField } from "@erp-digital-printing/ui/TextField";
 import {
+  DateRangePicker,
+  type DateRange,
+} from "@erp-digital-printing/ui/DateRangePicker";
+import {
   LuTags,
   LuTag,
   LuDollarSign,
@@ -284,6 +288,8 @@ interface CategoryReportSellingProps {
   selectedCategory: string;
   onSelectCategory: (categoryId: string) => void;
   availableCategories?: CategoryChipItem[];
+  dateRange?: DateRange;
+  setDateRange?: (range: DateRange | undefined) => void;
 }
 
 export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
@@ -291,6 +297,8 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
   selectedCategory,
   onSelectCategory,
   availableCategories = DEFAULT_CATEGORY_CHIPS,
+  dateRange,
+  setDateRange,
 }) => {
   const [productSearch, setProductSearch] = useState("");
 
@@ -349,30 +357,42 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
-      {/* Category Horizontal Filter Chips */}
-      <div className="bg-card border border-border/50 p-4 rounded-3xl shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <LuTags size={16} />
+      {/* Category Filter Chips & Date Range Card */}
+      <div className="bg-card border border-border/50 p-5 rounded-3xl shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <LuTags size={20} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground">
-                Filter Kategori Produk
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground">
+                  Filter Kategori Produk
+                </h3>
+                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 flex items-center gap-1">
+                  <LuSparkles size={10} />
+                  Preview Mock
+                </span>
+              </div>
               <p className="text-[11px] text-muted-foreground">
-                Pilih kategori untuk melihat performa penjualan spesifik produk
+                Pilih kategori dan rentang tanggal untuk melihat performa penjualan spesifik produk
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20 flex items-center gap-1">
-            <LuSparkles size={11} />
-            Mode Preview Mock
-          </span>
+
+          {setDateRange && (
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <DateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
+                className="w-full sm:w-[260px] h-10"
+              />
+            </div>
+          )}
         </div>
 
-        {/* Scrollable Chips Row */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-thin scrollbar-thumb-muted-foreground/20">
+        {/* Flex Wrap Chips */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           {availableCategories.map((chip) => {
             const isActive = selectedCategory === chip.id;
             return (
@@ -380,13 +400,18 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
                 key={chip.id}
                 type="button"
                 onClick={() => onSelectCategory(chip.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 border ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
                   isActive
                     ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-[1.02]"
                     : "bg-muted/40 hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border/40"
                 }`}
               >
-                <LuTag size={13} className={isActive ? "text-primary-foreground" : "text-muted-foreground"} />
+                <LuTag
+                  size={13}
+                  className={
+                    isActive ? "text-primary-foreground" : "text-muted-foreground"
+                  }
+                />
                 <span>{chip.name}</span>
               </button>
             );
@@ -578,3 +603,4 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
     </div>
   );
 };
+

@@ -885,6 +885,8 @@ const ReportSellingPage = () => {
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
           availableCategories={categoryChips}
+          dateRange={dateRange}
+          setDateRange={setDateRange}
         />
       ) : (
         <AnalyticReportSelling
