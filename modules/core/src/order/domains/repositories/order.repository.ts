@@ -14,6 +14,8 @@ export interface OrderParams {
   customer_type?: string;
   payment_methods?: string;
   date_by?: "created" | "invoice";
+  category_id?: string;
+  is_invoiced?: boolean;
 }
 
 export interface PaymentItemInput {
@@ -78,12 +80,14 @@ export interface SalesReportWidgetsParams {
   customer_type?: string;
   payment_method?: string;
   date_by?: "created" | "invoice";
+  category_id?: string;
 }
 
 export interface SalesReportWidgetsModel {
   omset_penjualan: number;
   volume_transaksi: number;
   total_produk_terjual: number;
+  total_item_sku?: number;
   lunas_count: number;
   belum_lunas_count: number;
 }
@@ -100,6 +104,7 @@ export interface SalesTrendParams {
   end_date?: string;
   customer_type?: string;
   date_by?: "created" | "invoice";
+  category_id?: string;
 }
 
 export interface SalesTrendItem {

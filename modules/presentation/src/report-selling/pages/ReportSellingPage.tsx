@@ -113,6 +113,8 @@ const ReportSellingPage = () => {
     trendData,
     formatCurrency,
     isLoading,
+    isLoadingWidgets,
+    categoryProducts,
     response,
   } = useReportSelling();
 
@@ -887,6 +889,10 @@ const ReportSellingPage = () => {
           availableCategories={categoryChips}
           dateRange={dateRange}
           setDateRange={setDateRange}
+          stats={stats}
+          isLoadingStats={isLoadingWidgets}
+          isLoading={isLoading}
+          categoryProducts={categoryProducts}
         />
       ) : (
         <AnalyticReportSelling

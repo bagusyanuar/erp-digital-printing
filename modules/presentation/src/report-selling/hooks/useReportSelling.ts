@@ -83,15 +83,6 @@ export const useReportSelling = () => {
       dbCategories.data.forEach((c) => {
         list.push({ id: c.id, name: c.name });
       });
-    } else {
-      list.push(
-        { id: "cat-spanduk", name: "Spanduk & Banner" },
-        { id: "cat-sticker", name: "Sticker & Label" },
-        { id: "cat-digital-a3", name: "Digital A3+" },
-        { id: "cat-merchandise", name: "Merchandise & Souvenir" },
-        { id: "cat-tekstil", name: "Tekstil & DTF" },
-        { id: "cat-offset", name: "Offset & Dokumen" },
-      );
     }
     return list;
   }, [dbCategories]);
@@ -197,7 +188,7 @@ export const useReportSelling = () => {
   }, [dateRange]);
 
   // Fetch report widgets data from backend API
-  const { data: widgetsData } = useQuery({
+  const { data: widgetsData, isLoading: isLoadingWidgets } = useQuery({
     queryKey: orderKeys.salesReportWidgets({
       status: mappedOrderStatus,
       payment_status: mappedPaymentStatus,
@@ -213,6 +204,7 @@ export const useReportSelling = () => {
       cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
       payment_method: mappedPaymentMethods,
       date_by: "invoice",
+      category_id: selectedCategory !== "all" ? selectedCategory : undefined,
     }),
     queryFn: () =>
       getSalesReportWidgetsUseCase.execute({
@@ -230,6 +222,7 @@ export const useReportSelling = () => {
         cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
         payment_method: mappedPaymentMethods,
         date_by: "invoice",
+        category_id: selectedCategory !== "all" ? selectedCategory : undefined,
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -259,6 +252,7 @@ export const useReportSelling = () => {
           : undefined,
       cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
       date_by: "invoice",
+      category_id: selectedCategory !== "all" ? selectedCategory : undefined,
     }),
     queryFn: () =>
       getSalesTrendUseCase.execute({
@@ -275,6 +269,7 @@ export const useReportSelling = () => {
             : undefined,
         cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
         date_by: "invoice",
+        category_id: selectedCategory !== "all" ? selectedCategory : undefined,
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -318,8 +313,8 @@ export const useReportSelling = () => {
   // Fetch real order data from backend API with dynamic pagination
   const { data: response, isLoading } = useQuery({
     queryKey: orderKeys.list({
-      page,
-      limit: pageSize,
+      page: activeTab === "category" ? 1 : page,
+      limit: activeTab === "category" ? 100 : pageSize,
       status: mappedOrderStatus,
       payment_status: mappedPaymentStatus,
       search: debouncedSearch || undefined,
@@ -334,11 +329,13 @@ export const useReportSelling = () => {
       cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
       payment_methods: mappedPaymentMethods,
       date_by: "invoice",
+      category_id: selectedCategory !== "all" ? selectedCategory : undefined,
+      is_invoiced: true,
     }),
     queryFn: () =>
       getOrdersUseCase.execute({
-        page,
-        limit: pageSize,
+        page: activeTab === "category" ? 1 : page,
+        limit: activeTab === "category" ? 100 : pageSize,
         status: mappedOrderStatus,
         payment_status: mappedPaymentStatus,
         search: debouncedSearch || undefined,
@@ -353,6 +350,8 @@ export const useReportSelling = () => {
         cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
         payment_methods: mappedPaymentMethods,
         date_by: "invoice",
+        category_id: selectedCategory !== "all" ? selectedCategory : undefined,
+        is_invoiced: true,
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -432,6 +431,7 @@ export const useReportSelling = () => {
         paidCount: widgetsData.lunas_count || 0,
         unpaidCount: widgetsData.belum_lunas_count || 0,
         transactionCount: widgetsData.volume_transaksi || 0,
+        totalItemSKU: widgetsData.total_item_sku || 0,
       };
     }
 
@@ -457,8 +457,60 @@ export const useReportSelling = () => {
       paidCount,
       unpaidCount,
       transactionCount: filteredSales.length,
+      totalItemSKU: 0,
     };
   }, [widgetsData, filteredSales]);
+
+  // Aggregate real product sales from orders response
+  const categoryProducts = useMemo(() => {
+    if (!response?.data || response.data.length === 0) return [];
+
+    const map = new Map<
+      string,
+      {
+        id: string;
+        categoryId: string;
+        categoryName: string;
+        productName: string;
+        variantName: string;
+        uom: string;
+        totalQty: number;
+        totalRevenue: number;
+        orderCount: number;
+      }
+    >();
+
+    for (const order of response.data) {
+      for (const item of order.order_items || []) {
+        const key = item.product_variant_id || item.product_name;
+        const existing = map.get(key);
+        if (existing) {
+          existing.totalQty += item.quantity;
+          existing.totalRevenue += item.subtotal;
+          existing.orderCount += 1;
+        } else {
+          map.set(key, {
+            id: item.id || key,
+            categoryId: selectedCategory,
+            categoryName:
+              categoryChips.find((c) => c.id === selectedCategory)?.name ||
+              "Kategori",
+            productName: item.product_name || "Produk",
+            variantName: item.variant_name || "Standard",
+            uom: item.uom || "Pcs",
+            totalQty: item.quantity,
+            totalRevenue: item.subtotal,
+            orderCount: 1,
+          });
+        }
+      }
+    }
+
+    return Array.from(map.values()).map((p) => ({
+      ...p,
+      avgPrice: p.totalQty > 0 ? Math.round(p.totalRevenue / p.totalQty) : 0,
+    }));
+  }, [response, selectedCategory, categoryChips]);
 
   // Dynamic calculations for charts based on filtered sales
   const categoriesData = useMemo(() => {
@@ -636,6 +688,8 @@ export const useReportSelling = () => {
     trendData,
     formatCurrency,
     isLoading,
+    isLoadingWidgets,
+    categoryProducts,
     response,
   };
 };

@@ -71,6 +71,12 @@ export class ApiOrderRepository implements OrderRepository {
       if (params.date_by) {
         query.date_by = params.date_by;
       }
+      if (params.category_id) {
+        query.category_id = params.category_id;
+      }
+      if (params.is_invoiced !== undefined) {
+        query.is_invoiced = String(params.is_invoiced);
+      }
 
       const response = await this.http.get<ApiResponse<OrderResponse[]>>(
         "/orders",
@@ -381,6 +387,9 @@ export class ApiOrderRepository implements OrderRepository {
       if (params.date_by) {
         query.date_by = params.date_by;
       }
+      if (params.category_id) {
+        query.category_id = params.category_id;
+      }
 
       const response = await this.http.get<ApiResponse<SalesReportWidgetsModel>>(
         "/orders/reports/sales-widgets",
@@ -430,6 +439,9 @@ export class ApiOrderRepository implements OrderRepository {
       }
       if (params.date_by) {
         query.date_by = params.date_by;
+      }
+      if (params.category_id) {
+        query.category_id = params.category_id;
       }
 
       const response = await this.http.get<ApiResponse<SalesTrendItem[]>>(
