@@ -473,6 +473,7 @@ const ReportExpensePage = () => {
         ? toLocalDateString(categoryDateRange.to)
         : undefined,
       categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
+      group: "PRODUCTION" as const,
       status:
         statusFilter === "all"
           ? undefined
