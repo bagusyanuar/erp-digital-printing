@@ -489,12 +489,18 @@ export const useReportSelling = () => {
           existing.totalRevenue += item.subtotal;
           existing.orderCount += 1;
         } else {
+          const catId = item.category_id || selectedCategory;
+          const catName =
+            item.category_name ||
+            (catId && catId !== "all"
+              ? categoryChips.find((c) => c.id === catId)?.name
+              : undefined) ||
+            "Lain-lain";
+
           map.set(key, {
             id: item.id || key,
-            categoryId: selectedCategory,
-            categoryName:
-              categoryChips.find((c) => c.id === selectedCategory)?.name ||
-              "Kategori",
+            categoryId: catId,
+            categoryName: catName,
             productName: item.product_name || "Produk",
             variantName: item.variant_name || "Standard",
             uom: item.uom || "Pcs",
