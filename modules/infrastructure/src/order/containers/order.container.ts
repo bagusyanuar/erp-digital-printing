@@ -1,5 +1,5 @@
 import { ApiOrderRepository } from "../repositories/order.repository";
-import { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, RefundOrder, CancelOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder, GetOrderReportWidgets, GetSalesReportWidgets, GetSalesTrend, GetCategorySales, GetPaymentSales } from "@core/order/applications/usecases/order.usecase";
+import { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, RefundOrder, CancelOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder, GetOrderReportWidgets, GetSalesReportWidgets, GetSalesTrend, GetCategorySales, GetPaymentSales, GetProductSales } from "@core/order/applications/usecases/order.usecase";
 import type { HttpClient } from "@erp-digital-printing/http";
 
 
@@ -76,6 +76,11 @@ export function refundOrderUseCase(http: HttpClient): RefundOrder {
 export function getCategorySalesUseCase(http: HttpClient): GetCategorySales {
   const repository = new ApiOrderRepository(http);
   return new GetCategorySales(repository);
+}
+
+export function getProductSalesUseCase(http: HttpClient): GetProductSales {
+  const repository = new ApiOrderRepository(http);
+  return new GetProductSales(repository);
 }
 
 export function getPaymentSalesUseCase(http: HttpClient): GetPaymentSales {

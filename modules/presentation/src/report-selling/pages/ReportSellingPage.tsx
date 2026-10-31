@@ -114,6 +114,7 @@ const ReportSellingPage = () => {
     formatCurrency,
     isLoading,
     isLoadingWidgets,
+    isLoadingProductSales,
     categoryProducts,
     response,
   } = useReportSelling();
@@ -891,7 +892,7 @@ const ReportSellingPage = () => {
           setDateRange={setDateRange}
           stats={stats}
           isLoadingStats={isLoadingWidgets}
-          isLoading={isLoading}
+          isLoading={isLoadingProductSales}
           categoryProducts={categoryProducts}
         />
       ) : (

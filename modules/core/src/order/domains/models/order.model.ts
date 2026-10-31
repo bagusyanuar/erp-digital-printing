@@ -100,3 +100,18 @@ export interface OrderPaymentModel {
   created_at: string;
 }
 
+export interface ProductSalesItemModel {
+  id: string;
+  product_id: string;
+  product_name: string;
+  variant_name: string;
+  category_id: string;
+  category_name: string;
+  uom: string;
+  total_qty: number;
+  avg_price: number;
+  total_revenue: number;
+  order_count: number;
+}
+
+

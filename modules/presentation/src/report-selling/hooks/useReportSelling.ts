@@ -61,13 +61,14 @@ export const useReportSelling = () => {
     getSalesReportWidgetsUseCase,
     getSalesTrendUseCase,
     getCategorySalesUseCase,
+    getProductSalesUseCase,
     getPaymentSalesUseCase,
   } = useOrderDI();
   const { getUsersUseCase } = useUserDI();
   const { getCategoriesUseCase } = useCategoryDI();
-  const [activeTab, setActiveTab] = useState<
-    "data" | "category" | "analytic"
-  >("data");
+  const [activeTab, setActiveTab] = useState<"data" | "category" | "analytic">(
+    "data",
+  );
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   // Fetch product categories from database for filter chips
@@ -310,11 +311,56 @@ export const useReportSelling = () => {
     refetchOnWindowFocus: false,
   });
 
+  // Fetch real aggregated product sales by category from backend API
+  const { data: productSalesRaw, isLoading: isLoadingProductSales } = useQuery({
+    queryKey: orderKeys.productSales({
+      page: 1,
+      limit: -1,
+      start_date: startDateStr,
+      end_date: endDateStr,
+      date_by: "invoice",
+      category_id: selectedCategory !== "all" ? selectedCategory : undefined,
+      status: mappedOrderStatus,
+      payment_status: mappedPaymentStatus,
+      payment_method: mappedPaymentMethods,
+      customer_type:
+        customerTypeFilter !== "all"
+          ? customerTypeFilter === "retail"
+            ? "end_user"
+            : "reseller"
+          : undefined,
+      cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
+    }),
+    queryFn: () =>
+      getProductSalesUseCase.execute({
+        page: 1,
+        limit: -1,
+        start_date: startDateStr,
+        end_date: endDateStr,
+        date_by: "invoice",
+        category_id: selectedCategory !== "all" ? selectedCategory : undefined,
+        status: mappedOrderStatus,
+        payment_status: mappedPaymentStatus,
+        payment_method: mappedPaymentMethods,
+        customer_type:
+          customerTypeFilter !== "all"
+            ? customerTypeFilter === "retail"
+              ? "end_user"
+              : "reseller"
+            : undefined,
+        cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
+      }),
+    enabled: activeTab === "category",
+    staleTime: 5000,
+    gcTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
   // Fetch real order data from backend API with dynamic pagination
   const { data: response, isLoading } = useQuery({
     queryKey: orderKeys.list({
-      page: activeTab === "category" ? 1 : page,
-      limit: activeTab === "category" ? 100 : pageSize,
+      page,
+      limit: pageSize,
       status: mappedOrderStatus,
       payment_status: mappedPaymentStatus,
       search: debouncedSearch || undefined,
@@ -334,8 +380,8 @@ export const useReportSelling = () => {
     }),
     queryFn: () =>
       getOrdersUseCase.execute({
-        page: activeTab === "category" ? 1 : page,
-        limit: activeTab === "category" ? 100 : pageSize,
+        page,
+        limit: pageSize,
         status: mappedOrderStatus,
         payment_status: mappedPaymentStatus,
         search: debouncedSearch || undefined,
@@ -397,7 +443,9 @@ export const useReportSelling = () => {
         customerType = "reseller";
       }
 
-      const formattedDate = formatDateTime(order.invoiced_at || order.created_at);
+      const formattedDate = formatDateTime(
+        order.invoiced_at || order.created_at,
+      );
 
       return {
         id: order.id,
@@ -461,74 +509,38 @@ export const useReportSelling = () => {
     };
   }, [widgetsData, filteredSales]);
 
-  // Aggregate real product sales from orders response
+  // Map aggregated product sales directly from backend
   const categoryProducts = useMemo(() => {
-    if (!response?.data || response.data.length === 0) return [];
+    if (!productSalesRaw?.data || productSalesRaw.data.length === 0) return [];
 
-    const map = new Map<
-      string,
-      {
-        id: string;
-        categoryId: string;
-        categoryName: string;
-        productName: string;
-        variantName: string;
-        uom: string;
-        totalQty: number;
-        totalRevenue: number;
-        orderCount: number;
-      }
-    >();
-
-    for (const order of response.data) {
-      for (const item of order.order_items || []) {
-        const key = item.product_variant_id || item.product_name;
-        const existing = map.get(key);
-        if (existing) {
-          existing.totalQty += item.quantity;
-          existing.totalRevenue += item.subtotal;
-          existing.orderCount += 1;
-        } else {
-          const catId = item.category_id || selectedCategory;
-          const catName =
-            item.category_name ||
-            (catId && catId !== "all"
-              ? categoryChips.find((c) => c.id === catId)?.name
-              : undefined) ||
-            "Lain-lain";
-
-          map.set(key, {
-            id: item.id || key,
-            categoryId: catId,
-            categoryName: catName,
-            productName: item.product_name || "Produk",
-            variantName: item.variant_name || "Standard",
-            uom: item.uom || "Pcs",
-            totalQty: item.quantity,
-            totalRevenue: item.subtotal,
-            orderCount: 1,
-          });
-        }
-      }
-    }
-
-    return Array.from(map.values()).map((p) => ({
-      ...p,
-      avgPrice: p.totalQty > 0 ? Math.round(p.totalRevenue / p.totalQty) : 0,
+    return productSalesRaw.data.map((item) => ({
+      id: item.id,
+      categoryId: item.category_id,
+      categoryName: item.category_name,
+      productName: item.product_name,
+      variantName: item.variant_name,
+      uom: item.uom,
+      totalQty: item.total_qty,
+      avgPrice: item.avg_price,
+      totalRevenue: item.total_revenue,
+      orderCount: item.order_count,
     }));
-  }, [response, selectedCategory, categoryChips]);
+  }, [productSalesRaw]);
 
   // Dynamic calculations for charts based on filtered sales
   const categoriesData = useMemo(() => {
     if (!categorySalesRaw) return [];
     return categorySalesRaw.map((item) => {
       const raw = item as unknown as Record<string, unknown>;
-      const name = item.category_name || (typeof raw.categoryName === "string" ? raw.categoryName : "Unknown");
-      const value = typeof item.total_sales === "number" 
-        ? item.total_sales 
-        : (typeof raw.totalSales === "number" 
-            ? (raw.totalSales as number) 
-            : 0);
+      const name =
+        item.category_name ||
+        (typeof raw.categoryName === "string" ? raw.categoryName : "Unknown");
+      const value =
+        typeof item.total_sales === "number"
+          ? item.total_sales
+          : typeof raw.totalSales === "number"
+            ? (raw.totalSales as number)
+            : 0;
       return { name, value };
     });
   }, [categorySalesRaw]);
@@ -695,6 +707,7 @@ export const useReportSelling = () => {
     formatCurrency,
     isLoading,
     isLoadingWidgets,
+    isLoadingProductSales,
     categoryProducts,
     response,
   };

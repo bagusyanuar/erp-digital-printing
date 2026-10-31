@@ -1,6 +1,6 @@
-import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, CancelOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel, SalesTrendParams, SalesTrendItem, CategorySalesParams, CategorySalesItem, PaymentSalesParams, PaymentSalesItem } from "../../domains/repositories/order.repository";
+import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, CancelOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel, SalesTrendParams, SalesTrendItem, CategorySalesParams, CategorySalesItem, PaymentSalesParams, PaymentSalesItem, ProductSalesParams } from "../../domains/repositories/order.repository";
 import type { SaveDraftOrderInput } from "../inputs/order.input";
-import type { OrderModel, OrderSpkModel, OrderPaymentModel } from "../../domains/models/order.model";
+import type { OrderModel, OrderSpkModel, OrderPaymentModel, ProductSalesItemModel } from "../../domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 
@@ -121,6 +121,14 @@ export class GetCategorySales {
 
   async execute(params: CategorySalesParams): Promise<CategorySalesItem[]> {
     return await this.orderRepository.getCategorySales(params);
+  }
+}
+
+export class GetProductSales {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(params?: ProductSalesParams): Promise<PaginatedResponse<ProductSalesItemModel>> {
+    return await this.orderRepository.getProductSales(params);
   }
 }
 

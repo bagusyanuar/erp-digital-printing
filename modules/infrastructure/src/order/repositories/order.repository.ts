@@ -1,11 +1,11 @@
-import type { DraftOrderModel, OrderModel, OrderSpkModel, OrderPaymentModel } from "@core/order/domains/models/order.model";
-import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, CancelOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel, SalesTrendParams, SalesTrendItem, CategorySalesParams, CategorySalesItem, PaymentSalesParams, PaymentSalesItem } from "@core/order/domains/repositories/order.repository";
+import type { DraftOrderModel, OrderModel, OrderSpkModel, OrderPaymentModel, ProductSalesItemModel } from "@core/order/domains/models/order.model";
+import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, CancelOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel, SalesTrendParams, SalesTrendItem, CategorySalesParams, CategorySalesItem, PaymentSalesParams, PaymentSalesItem, ProductSalesParams } from "@core/order/domains/repositories/order.repository";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import { safeApiCall } from "@infrastructure/libs/error";
 import type { HttpClient } from "@erp-digital-printing/http";
 import type { DraftOrderRequest } from "../schemas/order.request";
 import type { ApiResponse } from "@infrastructure/libs/api-response";
-import type { OrderResponse, OrderSpkResponse, OrderPaymentResponse } from "../schemas/order.response";
+import type { OrderResponse, OrderSpkResponse, OrderPaymentResponse, ProductSalesItemResponse } from "../schemas/order.response";
 
 
 
@@ -484,6 +484,81 @@ export class ApiOrderRepository implements OrderRepository {
       }
 
       return response.data;
+    });
+  }
+
+  async getProductSales(params?: ProductSalesParams): Promise<PaginatedResponse<ProductSalesItemModel>> {
+    return safeApiCall(async () => {
+      const query: Record<string, string | number> = {};
+      if (params?.page) {
+        query.page = params.page;
+      }
+      if (params?.limit) {
+        query.limit = params.limit;
+      }
+      if (params?.status) {
+        query.status = params.status;
+      }
+      if (params?.payment_status) {
+        query.payment_status = params.payment_status;
+      }
+      if (params?.payment_method) {
+        query.payment_method = params.payment_method;
+      }
+      if (params?.designer_id) {
+        query.designer_id = params.designer_id;
+      }
+      if (params?.cashier_id) {
+        query.cashier_id = params.cashier_id;
+      }
+      if (params?.search) {
+        query.search = params.search;
+      }
+      if (params?.start_date) {
+        query.start_date = params.start_date;
+      }
+      if (params?.end_date) {
+        query.end_date = params.end_date;
+      }
+      if (params?.customer_type) {
+        query.customer_type = params.customer_type;
+      }
+      if (params?.date_by) {
+        query.date_by = params.date_by;
+      }
+      if (params?.category_id) {
+        query.category_id = params.category_id;
+      }
+      if (params?.sort_by) {
+        query.sort_by = params.sort_by;
+      }
+      if (params?.sort_order) {
+        query.sort_order = params.sort_order;
+      }
+
+      const response = await this.http.get<ApiResponse<ProductSalesItemResponse[]>>(
+        "/orders/reports/product-sales",
+        { params: query }
+      );
+
+      return {
+        data: (response.data ?? []).map((item) => ({
+          id: item.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          variant_name: item.variant_name,
+          category_id: item.category_id,
+          category_name: item.category_name,
+          uom: item.uom,
+          total_qty: item.total_qty,
+          avg_price: item.avg_price,
+          total_revenue: item.total_revenue,
+          order_count: item.order_count,
+        })),
+        page: response.meta?.pagination.current_page ?? 1,
+        total: response.meta?.pagination.total_items ?? 0,
+        limit: response.meta?.pagination.limit ?? 10,
+      };
     });
   }
 

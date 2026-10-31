@@ -1,4 +1,4 @@
-import type { DraftOrderModel, OrderModel, OrderSpkModel, OrderPaymentModel } from "../models/order.model";
+import type { DraftOrderModel, OrderModel, OrderSpkModel, OrderPaymentModel, ProductSalesItemModel } from "../models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 export interface OrderParams {
@@ -134,6 +134,24 @@ export interface PaymentSalesItem {
   total_amount: number;
 }
 
+export interface ProductSalesParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  payment_status?: string;
+  payment_method?: string;
+  designer_id?: string;
+  cashier_id?: string;
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  customer_type?: string;
+  date_by?: "created" | "invoice";
+  category_id?: string;
+  sort_by?: string;
+  sort_order?: "asc" | "desc";
+}
+
 export interface OrderRepository {
   saveDraft(input: DraftOrderModel): Promise<void>;
   getOrders(params: OrderParams): Promise<PaginatedResponse<OrderModel>>;
@@ -151,6 +169,7 @@ export interface OrderRepository {
   getSalesReportWidgets(params: SalesReportWidgetsParams): Promise<SalesReportWidgetsModel>;
   getSalesTrend(params: SalesTrendParams): Promise<SalesTrendItem[]>;
   getCategorySales(params: CategorySalesParams): Promise<CategorySalesItem[]>;
+  getProductSales(params?: ProductSalesParams): Promise<PaginatedResponse<ProductSalesItemModel>>;
   getPaymentSales(params: PaymentSalesParams): Promise<PaymentSalesItem[]>;
 }
 
