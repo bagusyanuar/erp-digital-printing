@@ -24,6 +24,7 @@ import {
   LuReceipt,
   LuArrowRightLeft,
   LuTrendingDown,
+  LuScale,
   LuUsers,
   LuKey,
   LuX,
@@ -403,6 +404,18 @@ export const NavSidebar = () => {
                   asChild
                   icon={<LuBanknote />}
                   label="Laporan Arus Kas"
+                  active={isActive}
+                >
+                  <button />
+                </SidebarItem>
+              )}
+            </NavLink>
+            <NavLink to="/report/profit-loss" className="contents">
+              {({ isActive }) => (
+                <SidebarItem
+                  asChild
+                  icon={<LuScale />}
+                  label="Laporan Laba Rugi"
                   active={isActive}
                 >
                   <button />
