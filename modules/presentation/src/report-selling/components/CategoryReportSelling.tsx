@@ -304,11 +304,23 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
   const [productSearch, setProductSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [prevCategory, setPrevCategory] = useState(selectedCategory);
 
-  // Reset page to 1 when category or search changes
-  React.useEffect(() => {
+  // Reset page when category changes from props without cascading effect
+  if (prevCategory !== selectedCategory) {
+    setPrevCategory(selectedCategory);
     setPage(1);
-  }, [selectedCategory, productSearch]);
+  }
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setProductSearch(e.target.value);
+    setPage(1);
+  };
+
+  const handleCategoryClick = (categoryId: string) => {
+    onSelectCategory(categoryId);
+    setPage(1);
+  };
 
   // Filter items by category chip selection
   const categoryFilteredItems = useMemo(() => {
@@ -415,7 +427,7 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
               <button
                 key={chip.id}
                 type="button"
-                onClick={() => onSelectCategory(chip.id)}
+                onClick={() => handleCategoryClick(chip.id)}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
                   isActive
                     ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-[1.02]"
@@ -527,7 +539,7 @@ export const CategoryReportSelling: React.FC<CategoryReportSellingProps> = ({
               placeholder="Cari nama produk / varian..."
               prefixIcon={LuSearch}
               value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full h-10"
             />
           </div>
