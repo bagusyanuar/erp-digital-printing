@@ -28,3 +28,14 @@ export interface ExpenseModel {
   payments: ExpensePaymentModel[];
   createdAt: string;
 }
+
+export interface CategoryExpenseBreakdownModel {
+  id: string;
+  categoryId: string | null;
+  categoryName: string;
+  expenseCategoryId: string;
+  expenseCategoryName: string;
+  description: string;
+  totalExpense: number;
+  expenseCount: number;
+}

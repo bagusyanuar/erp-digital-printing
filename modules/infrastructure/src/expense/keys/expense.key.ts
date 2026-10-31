@@ -1,5 +1,5 @@
 import type { ExpenseQueryParams } from "@core/expense/applications/inputs/expense.input";
-import type { ExpenseReportWidgetsParams } from "@core/expense/domains/repositories/expense.repository";
+import type { ExpenseReportWidgetsParams, CategoryExpensesParams } from "@core/expense/domains/repositories/expense.repository";
 
 export const expenseKeys = {
   all: ["expenses"] as const,
@@ -8,4 +8,5 @@ export const expenseKeys = {
   details: () => [...expenseKeys.all, "detail"] as const,
   detail: (id: string) => [...expenseKeys.details(), id] as const,
   reportWidgets: (params: ExpenseReportWidgetsParams) => [...expenseKeys.all, "reportWidgets", params] as const,
+  categoryExpenses: (params?: CategoryExpensesParams) => [...expenseKeys.all, "categoryExpenses", params] as const,
 };

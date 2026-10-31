@@ -8,7 +8,7 @@ import { useAuthStore } from "@presentation/auth/stores/auth.store";
 import type { AppContainer } from "@presentation/shared/di/DIContext";
 import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase, updateResellerUseCase, deleteResellerUseCase } from "@infrastructure/reseller/containers/reseller.container";
 import { getSupplierUseCase, createSupplierUseCase, getSupplierByIdUseCase, updateSupplierUseCase, deleteSupplierUseCase, reorderSupplierUseCase } from "@infrastructure/supplier/containers/supplier.container";
-import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCase, getExpenseAnalyticsSummaryUseCase, payExpenseUseCase } from "@infrastructure/expense/containers/expense.container";
+import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCase, getExpenseAnalyticsSummaryUseCase, payExpenseUseCase, getCategoryExpensesUseCase } from "@infrastructure/expense/containers/expense.container";
 import { getCapitalTransactionsUseCase, createCapitalTransactionUseCase, deleteCapitalTransactionUseCase } from "@infrastructure/capital/containers/capital.container";
 import { getFundTransfersUseCase, createFundTransferUseCase, getFundTransferWidgetsUseCase } from "@infrastructure/fund-transfer/containers/fund-transfer.container";
 import { getDashboardWidgetsUseCase, getWeeklyRevenueUseCase } from "@infrastructure/dashboard/containers/dashboard.container";
@@ -144,6 +144,7 @@ export function createAppContainer(): AppContainer {
       getExpenseReportWidgetsUseCase: getExpenseReportWidgetsUseCase(httpClient),
       getExpenseAnalyticsSummaryUseCase: getExpenseAnalyticsSummaryUseCase(httpClient),
       payExpenseUseCase: payExpenseUseCase(httpClient),
+      getCategoryExpensesUseCase: getCategoryExpensesUseCase(httpClient),
     },
     capital: {
       getCapitalTransactionsUseCase: getCapitalTransactionsUseCase(httpClient),

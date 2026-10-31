@@ -22,7 +22,7 @@ import type {
   GetProfile,
 } from "@core/user/applications/usecases/user.usecase";
 import type { GetSuppliers, CreateSupplier, GetSupplierById, UpdateSupplier, DeleteSupplier, ReorderSupplier } from "@core/supplier/applications/usecases/supplier.usecase";
-import type { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAnalyticsSummary, PayExpense } from "@core/expense/applications/usecases/expense.usecase";
+import type { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAnalyticsSummary, PayExpense, GetCategoryExpenses } from "@core/expense/applications/usecases/expense.usecase";
 import type { GetCapitalTransactions, CreateCapitalTransaction, DeleteCapitalTransaction } from "@core/capital/applications/usecases/capital.usecase";
 import type { GetFundTransfers, CreateFundTransfer, GetFundTransferWidgets } from "@core/fund-transfer/applications/usecases/fund-transfer.usecase";
 import type { GetDashboardWidgets, GetWeeklyRevenue } from "@core/dashboard/applications/usecases/dashboard.usecase";
@@ -154,6 +154,7 @@ export interface ExpenseUseCases {
   getExpenseReportWidgetsUseCase: GetExpenseReportWidgets;
   getExpenseAnalyticsSummaryUseCase: GetExpenseAnalyticsSummary;
   payExpenseUseCase: PayExpense;
+  getCategoryExpensesUseCase: GetCategoryExpenses;
 }
 
 

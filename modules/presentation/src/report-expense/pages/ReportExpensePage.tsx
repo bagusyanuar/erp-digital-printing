@@ -21,15 +21,11 @@ import {
   LuSearch,
   LuFileSpreadsheet,
   LuReceipt,
-  LuDollarSign,
-  LuPercent,
-  LuShoppingBag,
-  LuCalendar,
   LuEllipsisVertical,
   LuFilter,
   LuCoins,
   FiAlertTriangle,
-  LuClock,
+  LuTags,
 } from "@erp-digital-printing/ui/icons";
 import {
   ResponsiveContainer,
@@ -49,7 +45,10 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useExpenseDI } from "@presentation/expense/hooks/useExpenseDI";
 import { expenseKeys } from "@infrastructure/expense/keys";
+import { useCategoryDI } from "@presentation/category/hooks/useCategoryDI";
+import { categoryKeys } from "@infrastructure/category/keys/category.key";
 import { useDebounce } from "../../shared/hooks/useDebounce";
+import { CategoryReportExpense } from "../components/CategoryReportExpense";
 
 interface ExpenseItem {
   id: string;
@@ -253,8 +252,41 @@ const COLORS = [
 ];
 
 const ReportExpensePage = () => {
-  const { getExpensesUseCase, getExpenseReportWidgetsUseCase } = useExpenseDI();
-  const [activeTab, setActiveTab] = useState<"data" | "analytic">("data");
+  const {
+    getExpensesUseCase,
+    getExpenseReportWidgetsUseCase,
+    getCategoryExpensesUseCase,
+  } = useExpenseDI();
+  const { getCategoriesUseCase } = useCategoryDI();
+  const [activeTab, setActiveTab] = useState<"data" | "category" | "analytic">(
+    "data",
+  );
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [categorySearch, setCategorySearch] = useState("");
+  const debouncedCategorySearch = useDebounce(categorySearch, 500);
+  const [categoryDateRange, setCategoryDateRange] = useState<
+    DateRange | undefined
+  >(undefined);
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [categoryPageSize, setCategoryPageSize] = useState(10);
+
+  // Fetch product categories for filter chips
+  const { data: dbCategories } = useQuery({
+    queryKey: categoryKeys.list({ limit: 100, page: 1 }),
+    queryFn: () => getCategoriesUseCase.execute({ limit: 100, page: 1 }),
+    staleTime: 60_000,
+  });
+
+  const categoryChips = useMemo(() => {
+    const list = [{ id: "all", name: "Semua Kategori" }];
+    if (dbCategories?.data && dbCategories.data.length > 0) {
+      dbCategories.data.forEach((c) => {
+        list.push({ id: c.id, name: c.name });
+      });
+    }
+    return list;
+  }, [dbCategories]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 750);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -429,6 +461,64 @@ const ReportExpensePage = () => {
       .sort((a, b) => b.value - a.value);
   }, [filteredExpenses]);
 
+  const categoryQueryParams = useMemo(
+    () => ({
+      page: categoryPage,
+      limit: categoryPageSize,
+      search: debouncedCategorySearch.trim() || undefined,
+      startDate: categoryDateRange?.from
+        ? toLocalDateString(categoryDateRange.from)
+        : undefined,
+      endDate: categoryDateRange?.to
+        ? toLocalDateString(categoryDateRange.to)
+        : undefined,
+      categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
+      status:
+        statusFilter === "all"
+          ? undefined
+          : statusFilter === "UNPAID"
+            ? "UNPAID,PARTIAL"
+            : "PAID",
+    }),
+    [
+      categoryPage,
+      categoryPageSize,
+      debouncedCategorySearch,
+      categoryDateRange,
+      selectedCategory,
+      statusFilter,
+    ],
+  );
+
+  const {
+    data: categoryExpensesResponse,
+    isLoading: isLoadingCategoryExpenses,
+  } = useQuery({
+    queryKey: expenseKeys.categoryExpenses(categoryQueryParams),
+    queryFn: () => getCategoryExpensesUseCase.execute(categoryQueryParams),
+    enabled: activeTab === "category",
+  });
+
+  const {
+    data: categoryWidgetsData,
+    isLoading: isLoadingCategoryWidgets,
+  } = useQuery({
+    queryKey: expenseKeys.reportWidgets(categoryQueryParams),
+    queryFn: () => getExpenseReportWidgetsUseCase.execute(categoryQueryParams),
+    enabled: activeTab === "category",
+  });
+
+  const categoryStats = useMemo(() => {
+    if (categoryWidgetsData) {
+      return {
+        totalExpense: categoryWidgetsData.totalExpense,
+        transactionCount: categoryWidgetsData.transactionVolume,
+        posBiayaCount: categoryExpensesResponse?.total ?? 0,
+      };
+    }
+    return undefined;
+  }, [categoryWidgetsData, categoryExpensesResponse]);
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -503,6 +593,17 @@ const ReportExpensePage = () => {
             Daftar Belanja & Tagihan
           </button>
           <button
+            onClick={() => setActiveTab("category")}
+            className={`px-6 py-2 text-sm font-bold rounded-lg transition-all duration-200 flex items-center gap-1.5 ${
+              activeTab === "category"
+                ? "bg-background shadow-md text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <LuTags size={15} />
+            <span>Berdasarkan Kategori</span>
+          </button>
+          <button
             onClick={() => setActiveTab("analytic")}
             className={`px-6 py-2 text-sm font-bold rounded-lg transition-all duration-200 ${
               activeTab === "analytic"
@@ -516,7 +617,7 @@ const ReportExpensePage = () => {
       </div>
 
       {/* Tab Contents */}
-      {activeTab === "data" ? (
+      {activeTab === "data" && (
         <div className="space-y-6">
           {/* KPI Cards Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -789,7 +890,40 @@ const ReportExpensePage = () => {
             </CardContent>
           </Card>
         </div>
-      ) : (
+      )}
+
+      {activeTab === "category" && (
+        <CategoryReportExpense
+          formatCurrency={formatCurrency}
+          selectedCategory={selectedCategory}
+          onSelectCategory={(catId) => {
+            setSelectedCategory(catId);
+            setCategoryPage(1);
+          }}
+          availableCategories={categoryChips}
+          dateRange={categoryDateRange}
+          setDateRange={setCategoryDateRange}
+          search={categorySearch}
+          onSearchChange={(val) => {
+            setCategorySearch(val);
+            setCategoryPage(1);
+          }}
+          stats={categoryStats}
+          isLoadingStats={isLoadingCategoryWidgets}
+          isLoading={isLoadingCategoryExpenses}
+          categoryExpenses={categoryExpensesResponse?.data ?? []}
+          page={categoryPage}
+          pageSize={categoryPageSize}
+          totalEntries={categoryExpensesResponse?.total ?? 0}
+          onPageChange={setCategoryPage}
+          onPageSizeChange={(size) => {
+            setCategoryPageSize(size);
+            setCategoryPage(1);
+          }}
+        />
+      )}
+
+      {activeTab === "analytic" && (
         /* Tab Analytic */
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

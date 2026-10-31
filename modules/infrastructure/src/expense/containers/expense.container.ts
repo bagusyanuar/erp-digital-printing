@@ -1,5 +1,5 @@
 import { type HttpClient } from "@erp-digital-printing/http";
-import { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAnalyticsSummary, PayExpense } from "@core/expense/applications/usecases/expense.usecase";
+import { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAnalyticsSummary, PayExpense, GetCategoryExpenses } from "@core/expense/applications/usecases/expense.usecase";
 import { ApiExpenseRepository } from "../repositories/expense.repository";
 
 export function createExpenseUseCase(http: HttpClient): CreateExpense {
@@ -25,4 +25,9 @@ export function getExpenseAnalyticsSummaryUseCase(http: HttpClient): GetExpenseA
 export function payExpenseUseCase(http: HttpClient): PayExpense {
   const repository = new ApiExpenseRepository(http);
   return new PayExpense(repository);
+}
+
+export function getCategoryExpensesUseCase(http: HttpClient): GetCategoryExpenses {
+  const repository = new ApiExpenseRepository(http);
+  return new GetCategoryExpenses(repository);
 }

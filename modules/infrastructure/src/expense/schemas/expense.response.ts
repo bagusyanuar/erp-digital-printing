@@ -51,3 +51,14 @@ export interface ExpenseResponse {
   created_at: string;
   updated_at: string;
 }
+
+export interface CategoryExpenseResponse {
+  id: string;
+  category_id: string | null;
+  category_name: string;
+  expense_category_id: string;
+  expense_category_name: string;
+  description: string;
+  total_expense: number;
+  expense_count: number;
+}
