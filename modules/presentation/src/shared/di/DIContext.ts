@@ -26,11 +26,17 @@ import type { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAna
 import type { GetCapitalTransactions, CreateCapitalTransaction, DeleteCapitalTransaction } from "@core/capital/applications/usecases/capital.usecase";
 import type { GetFundTransfers, CreateFundTransfer, GetFundTransferWidgets } from "@core/fund-transfer/applications/usecases/fund-transfer.usecase";
 import type { GetDashboardWidgets, GetWeeklyRevenue } from "@core/dashboard/applications/usecases/dashboard.usecase";
+import type { GetProfitLoss, GetProfitLossTrend } from "@core/report";
 
 // ──────────────────────────────────────────────
 // Module Use Case Types
 // Tambahkan interface baru di sini saat modul bertambah.
 // ──────────────────────────────────────────────
+
+export interface ReportUseCases {
+  getProfitLossUseCase: GetProfitLoss;
+  getProfitLossTrendUseCase: GetProfitLossTrend;
+}
 
 export interface DashboardUseCases {
   getDashboardWidgetsUseCase: GetDashboardWidgets;
@@ -178,6 +184,7 @@ export interface AppContainer {
   capital: CapitalUseCases;
   fundTransfer: FundTransferUseCases;
   dashboard: DashboardUseCases;
+  report: ReportUseCases;
 }
 
 // ──────────────────────────────────────────────

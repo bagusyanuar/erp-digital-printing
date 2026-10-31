@@ -36,6 +36,9 @@ import {
   MOCK_PROFIT_LOSS_DATA,
   MOCK_TREND_PROFIT_LOSS,
 } from "../mocks/mockProfitLossData";
+import { useQuery } from "@tanstack/react-query";
+import { reportKeys } from "@infrastructure/report/keys/report.key";
+import { useReportProfitLossDI } from "../hooks/useReportProfitLossDI";
 
 const PIE_COLORS = [
   "#ef4444", // HPP (Rose / Red)
@@ -64,7 +67,37 @@ export const ReportProfitLossPage: React.FC = () => {
     }).format(val);
   };
 
-  const data = MOCK_PROFIT_LOSS_DATA;
+  const { getProfitLossUseCase, getProfitLossTrendUseCase } =
+    useReportProfitLossDI();
+
+  const toLocalDateString = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const queryParams = useMemo(
+    () => ({
+      startDate: dateRange?.from ? toLocalDateString(dateRange.from) : undefined,
+      endDate: dateRange?.to ? toLocalDateString(dateRange.to) : undefined,
+    }),
+    [dateRange],
+  );
+
+  const { data: reportData, isLoading: isLoadingReport } = useQuery({
+    queryKey: reportKeys.profitLoss(queryParams),
+    queryFn: () => getProfitLossUseCase.execute(queryParams),
+  });
+
+  const { data: trendData } = useQuery({
+    queryKey: reportKeys.profitLossTrend({ months: 6 }),
+    queryFn: () => getProfitLossTrendUseCase.execute({ months: 6 }),
+  });
+
+  const data = reportData || MOCK_PROFIT_LOSS_DATA;
+  const trendList =
+    trendData && trendData.length > 0 ? trendData : MOCK_TREND_PROFIT_LOSS;
 
   // Preset date filter helpers
   const handleSetPreset = (preset: "today" | "this_month" | "last_month" | "this_year") => {
@@ -185,7 +218,11 @@ export const ReportProfitLossPage: React.FC = () => {
       </Card>
 
       {/* Executive KPI Cards Row (5 Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div
+        className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 transition-opacity duration-300 ${
+          isLoadingReport ? "opacity-40 animate-pulse" : "opacity-100"
+        }`}
+      >
         {/* 1. Pendapatan Usaha */}
         <Card className="rounded-2xl border-border/50 shadow-sm relative overflow-hidden bg-card">
           <CardContent className="p-5 flex items-center justify-between">
@@ -217,7 +254,10 @@ export const ReportProfitLossPage: React.FC = () => {
                 {formatCurrency(data.cogs.total)}
               </div>
               <span className="text-[10px] font-bold text-rose-500 block">
-                {((data.cogs.total / data.revenue.total) * 100).toFixed(1)}% dari Omset
+                {data.revenue.total > 0
+                  ? ((data.cogs.total / data.revenue.total) * 100).toFixed(1)
+                  : "0.0"}
+                % dari Omset
               </span>
             </div>
             <div className="p-3 bg-rose-500/10 rounded-2xl text-rose-500">
@@ -257,7 +297,13 @@ export const ReportProfitLossPage: React.FC = () => {
                 {formatCurrency(data.operationalExpenses.total)}
               </div>
               <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 block">
-                {((data.operationalExpenses.total / data.revenue.total) * 100).toFixed(1)}% dari Omset
+                {data.revenue.total > 0
+                  ? (
+                      (data.operationalExpenses.total / data.revenue.total) *
+                      100
+                    ).toFixed(1)
+                  : "0.0"}
+                % dari Omset
               </span>
             </div>
             <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-600 dark:text-amber-400">
@@ -350,29 +396,42 @@ export const ReportProfitLossPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="divide-y divide-border/20 text-xs">
-                  {data.revenue.items.map((item) => {
-                    const pct = ((item.amount / data.revenue.total) * 100).toFixed(1);
-                    return (
-                      <div
-                        key={item.id}
-                        className="py-2.5 flex items-center justify-between hover:bg-muted/30 px-3 rounded-lg transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="font-semibold text-foreground">
-                            {item.name}
-                          </span>
+                  {data.revenue.items.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-muted-foreground font-medium">
+                      Belum ada data pendapatan usaha pada periode ini.
+                    </div>
+                  ) : (
+                    data.revenue.items.map((item) => {
+                      const pct =
+                        item.percentage !== undefined
+                          ? item.percentage.toFixed(1)
+                          : data.revenue.total > 0
+                            ? ((item.amount / data.revenue.total) * 100).toFixed(
+                                1,
+                              )
+                            : "0.0";
+                      return (
+                        <div
+                          key={item.id}
+                          className="py-2.5 flex items-center justify-between hover:bg-muted/30 px-3 rounded-lg transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-foreground">
+                              {item.name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-8">
+                            <span className="font-mono font-bold text-foreground">
+                              {formatCurrency(item.amount)}
+                            </span>
+                            <span className="font-mono text-muted-foreground w-12 text-right">
+                              {pct}%
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-8">
-                          <span className="font-mono font-bold text-foreground">
-                            {formatCurrency(item.amount)}
-                          </span>
-                          <span className="font-mono text-muted-foreground w-12 text-right">
-                            {pct}%
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
                 {/* Subtotal Pendapatan */}
                 <div className="bg-muted/40 p-3.5 rounded-xl border border-border/40 flex items-center justify-between text-xs font-black">
@@ -399,29 +458,42 @@ export const ReportProfitLossPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="divide-y divide-border/20 text-xs">
-                  {data.cogs.items.map((item) => {
-                    const pct = ((item.amount / data.revenue.total) * 100).toFixed(1);
-                    return (
-                      <div
-                        key={item.id}
-                        className="py-2.5 flex items-center justify-between hover:bg-muted/30 px-3 rounded-lg transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="font-semibold text-foreground">
-                            {item.name}
-                          </span>
+                  {data.cogs.items.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-muted-foreground font-medium">
+                      Belum ada data HPP bahan baku pada periode ini.
+                    </div>
+                  ) : (
+                    data.cogs.items.map((item) => {
+                      const pct =
+                        item.percentage !== undefined
+                          ? item.percentage.toFixed(1)
+                          : data.revenue.total > 0
+                            ? ((item.amount / data.revenue.total) * 100).toFixed(
+                                1,
+                              )
+                            : "0.0";
+                      return (
+                        <div
+                          key={item.id}
+                          className="py-2.5 flex items-center justify-between hover:bg-muted/30 px-3 rounded-lg transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-foreground">
+                              {item.name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-8">
+                            <span className="font-mono font-bold text-destructive">
+                              {formatCurrency(item.amount)}
+                            </span>
+                            <span className="font-mono text-muted-foreground w-12 text-right">
+                              {pct}%
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-8">
-                          <span className="font-mono font-bold text-destructive">
-                            {formatCurrency(item.amount)}
-                          </span>
-                          <span className="font-mono text-muted-foreground w-12 text-right">
-                            {pct}%
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
                 {/* Subtotal HPP */}
                 <div className="bg-destructive/5 p-3.5 rounded-xl border border-destructive/20 flex items-center justify-between text-xs font-black text-destructive">
@@ -472,29 +544,42 @@ export const ReportProfitLossPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="divide-y divide-border/20 text-xs">
-                  {data.operationalExpenses.items.map((item) => {
-                    const pct = ((item.amount / data.revenue.total) * 100).toFixed(1);
-                    return (
-                      <div
-                        key={item.id}
-                        className="py-2.5 flex items-center justify-between hover:bg-muted/30 px-3 rounded-lg transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="font-semibold text-foreground">
-                            {item.name}
-                          </span>
+                  {data.operationalExpenses.items.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-muted-foreground font-medium">
+                      Belum ada data beban operasional pada periode ini.
+                    </div>
+                  ) : (
+                    data.operationalExpenses.items.map((item) => {
+                      const pct =
+                        item.percentage !== undefined
+                          ? item.percentage.toFixed(1)
+                          : data.revenue.total > 0
+                            ? ((item.amount / data.revenue.total) * 100).toFixed(
+                                1,
+                              )
+                            : "0.0";
+                      return (
+                        <div
+                          key={item.id}
+                          className="py-2.5 flex items-center justify-between hover:bg-muted/30 px-3 rounded-lg transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-foreground">
+                              {item.name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-8">
+                            <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                              {formatCurrency(item.amount)}
+                            </span>
+                            <span className="font-mono text-muted-foreground w-12 text-right">
+                              {pct}%
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-8">
-                          <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
-                            {formatCurrency(item.amount)}
-                          </span>
-                          <span className="font-mono text-muted-foreground w-12 text-right">
-                            {pct}%
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
                 {/* Subtotal Operasional */}
                 <div className="bg-amber-500/10 p-3.5 rounded-xl border border-amber-500/20 flex items-center justify-between text-xs font-black text-amber-600 dark:text-amber-400">
@@ -561,7 +646,7 @@ export const ReportProfitLossPage: React.FC = () => {
                 <div className="h-[320px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
-                      data={MOCK_TREND_PROFIT_LOSS}
+                      data={trendList}
                       margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
                     >
                       <defs>
@@ -720,7 +805,7 @@ export const ReportProfitLossPage: React.FC = () => {
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={MOCK_TREND_PROFIT_LOSS}
+                    data={trendList}
                     margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
                   >
                     <CartesianGrid

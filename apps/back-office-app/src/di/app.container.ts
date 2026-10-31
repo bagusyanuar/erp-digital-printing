@@ -12,6 +12,7 @@ import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCas
 import { getCapitalTransactionsUseCase, createCapitalTransactionUseCase, deleteCapitalTransactionUseCase } from "@infrastructure/capital/containers/capital.container";
 import { getFundTransfersUseCase, createFundTransferUseCase, getFundTransferWidgetsUseCase } from "@infrastructure/fund-transfer/containers/fund-transfer.container";
 import { getDashboardWidgetsUseCase, getWeeklyRevenueUseCase } from "@infrastructure/dashboard/containers/dashboard.container";
+import { getProfitLossUseCase, getProfitLossTrendUseCase } from "@infrastructure/report/containers/report.container";
 
 
 import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, assignSPKCategoryUseCase, deleteCategoryUseCase, reorderCategoryUseCase } from "@infrastructure/category/containers/category.container";
@@ -159,6 +160,10 @@ export function createAppContainer(): AppContainer {
     dashboard: {
       getDashboardWidgetsUseCase: getDashboardWidgetsUseCase(httpClient),
       getWeeklyRevenueUseCase: getWeeklyRevenueUseCase(httpClient),
+    },
+    report: {
+      getProfitLossUseCase: getProfitLossUseCase(httpClient),
+      getProfitLossTrendUseCase: getProfitLossTrendUseCase(httpClient),
     },
   };
 }
