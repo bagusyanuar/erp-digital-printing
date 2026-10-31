@@ -49,6 +49,8 @@ const OrderPage = () => {
     setIsDraftConfirmOpen,
     isCancelConfirmOpen,
     setIsCancelConfirmOpen,
+    cancelReason,
+    setCancelReason,
     paymentMethod,
     setPaymentMethod,
     isSplitPayment,
@@ -74,6 +76,7 @@ const OrderPage = () => {
     stats,
     isLoading,
     updateStatusMutation,
+    cancelOrderMutation,
     processPaymentMutation,
     handleSendBackToDraft,
     handleCancelOrder,
@@ -522,7 +525,10 @@ const OrderPage = () => {
                       <Button
                         variant="outline"
                         type="button"
-                        onClick={() => setIsCancelConfirmOpen(true)}
+                        onClick={() => {
+                          setCancelReason("");
+                          setIsCancelConfirmOpen(true);
+                        }}
                         className="h-9 rounded-xl font-bold text-[11px] border-rose-500/20 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center gap-1.5 transition-all active:scale-95"
                       >
                         <LuTrash2 size={13} />
@@ -1489,6 +1495,19 @@ const OrderPage = () => {
             tidak dapat diproses lebih lanjut.
           </p>
 
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-foreground">
+              Alasan Pembatalan <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Tuliskan alasan pembatalan pesanan..."
+              rows={3}
+              className="w-full p-3 rounded-2xl border border-border/80 bg-background text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-foreground resize-none transition-all placeholder:text-muted-foreground/60"
+            />
+          </div>
+
           <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
             <Button
               variant="outline"
@@ -1499,7 +1518,8 @@ const OrderPage = () => {
             </Button>
             <Button
               onClick={handleCancelOrder}
-              className="h-9 px-5 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/25 flex items-center gap-1.5 text-xs transition-all active:scale-95"
+              disabled={!cancelReason.trim() || cancelOrderMutation.isPending}
+              className="h-9 px-5 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/25 flex items-center gap-1.5 text-xs transition-all active:scale-95 disabled:opacity-50"
             >
               <LuTrash2 size={14} />
               Batalkan Order
@@ -1509,7 +1529,7 @@ const OrderPage = () => {
       </Dialog>
 
       {/* Full-screen Loading Overlay for status mutations */}
-      {updateStatusMutation.isPending && (
+      {(updateStatusMutation.isPending || cancelOrderMutation.isPending) && (
         <div className="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-card border border-border/50 p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4 max-w-xs text-center">
             <div className="relative w-10 h-10">

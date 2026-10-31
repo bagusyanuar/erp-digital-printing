@@ -180,6 +180,7 @@ export const useReportSelling = () => {
           : undefined,
       cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
       payment_method: mappedPaymentMethods,
+      date_by: "invoice",
     }),
     queryFn: () =>
       getSalesReportWidgetsUseCase.execute({
@@ -196,6 +197,7 @@ export const useReportSelling = () => {
             : undefined,
         cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
         payment_method: mappedPaymentMethods,
+        date_by: "invoice",
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -224,6 +226,7 @@ export const useReportSelling = () => {
             : "reseller"
           : undefined,
       cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
+      date_by: "invoice",
     }),
     queryFn: () =>
       getSalesTrendUseCase.execute({
@@ -239,6 +242,7 @@ export const useReportSelling = () => {
               : "reseller"
             : undefined,
         cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
+        date_by: "invoice",
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -250,11 +254,13 @@ export const useReportSelling = () => {
     queryKey: orderKeys.categorySales({
       start_date: startDateStr,
       end_date: endDateStr,
+      date_by: "invoice",
     }),
     queryFn: () =>
       getCategorySalesUseCase.execute({
         start_date: startDateStr,
         end_date: endDateStr,
+        date_by: "invoice",
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -295,6 +301,7 @@ export const useReportSelling = () => {
           : undefined,
       cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
       payment_methods: mappedPaymentMethods,
+      date_by: "invoice",
     }),
     queryFn: () =>
       getOrdersUseCase.execute({
@@ -313,6 +320,7 @@ export const useReportSelling = () => {
             : undefined,
         cashier_id: operatorFilter !== "all" ? operatorFilter : undefined,
         payment_methods: mappedPaymentMethods,
+        date_by: "invoice",
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -358,7 +366,7 @@ export const useReportSelling = () => {
         customerType = "reseller";
       }
 
-      const formattedDate = formatDateTime(order.created_at);
+      const formattedDate = formatDateTime(order.invoiced_at || order.created_at);
 
       return {
         id: order.id,

@@ -13,6 +13,7 @@ export interface OrderParams {
   end_date?: string;
   customer_type?: string;
   payment_methods?: string;
+  date_by?: "created" | "invoice";
 }
 
 export interface PaymentItemInput {
@@ -37,6 +38,10 @@ export interface RefundOrderInput {
   reason: string;
 }
 
+export interface CancelOrderInput {
+  reason: string;
+}
+
 export interface OrderReportWidgetsParams {
   status?: string;
   payment_status?: string;
@@ -47,6 +52,7 @@ export interface OrderReportWidgetsParams {
   end_date?: string;
   customer_type?: string;
   payment_method?: string;
+  date_by?: "created" | "invoice";
 }
 
 export interface OrderReportWidgetsModel {
@@ -71,6 +77,7 @@ export interface SalesReportWidgetsParams {
   end_date?: string;
   customer_type?: string;
   payment_method?: string;
+  date_by?: "created" | "invoice";
 }
 
 export interface SalesReportWidgetsModel {
@@ -92,6 +99,7 @@ export interface SalesTrendParams {
   start_date?: string;
   end_date?: string;
   customer_type?: string;
+  date_by?: "created" | "invoice";
 }
 
 export interface SalesTrendItem {
@@ -102,6 +110,7 @@ export interface SalesTrendItem {
 export interface CategorySalesParams {
   start_date?: string;
   end_date?: string;
+  date_by?: "created" | "invoice";
 }
 
 export interface CategorySalesItem {
@@ -127,6 +136,7 @@ export interface OrderRepository {
   payOrder(id: string, input: ProcessPaymentInput): Promise<void>;
   repayOrder(id: string, input: RepayPaymentInput): Promise<void>;
   refundOrder(id: string, input: RefundOrderInput): Promise<void>;
+  cancelOrder(id: string, input: CancelOrderInput): Promise<void>;
   getOrderSpk(id: string): Promise<OrderSpkModel>;
   getOrderPayments(id: string): Promise<OrderPaymentModel[]>;
   updateOrderStatus(id: string, status: string): Promise<void>;

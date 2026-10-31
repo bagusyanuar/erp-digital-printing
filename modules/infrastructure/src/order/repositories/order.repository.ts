@@ -1,5 +1,5 @@
 import type { DraftOrderModel, OrderModel, OrderSpkModel, OrderPaymentModel } from "@core/order/domains/models/order.model";
-import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel, SalesTrendParams, SalesTrendItem, CategorySalesParams, CategorySalesItem, PaymentSalesParams, PaymentSalesItem } from "@core/order/domains/repositories/order.repository";
+import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, CancelOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel, SalesTrendParams, SalesTrendItem, CategorySalesParams, CategorySalesItem, PaymentSalesParams, PaymentSalesItem } from "@core/order/domains/repositories/order.repository";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import { safeApiCall } from "@infrastructure/libs/error";
 import type { HttpClient } from "@erp-digital-printing/http";
@@ -68,6 +68,9 @@ export class ApiOrderRepository implements OrderRepository {
       if (params.payment_methods) {
         query.payment_method = params.payment_methods;
       }
+      if (params.date_by) {
+        query.date_by = params.date_by;
+      }
 
       const response = await this.http.get<ApiResponse<OrderResponse[]>>(
         "/orders",
@@ -87,6 +90,9 @@ export class ApiOrderRepository implements OrderRepository {
           customer_phone: order.customer_phone,
           reseller_id: order.reseller_id,
           notes: order.notes,
+          cancel_reason: order.cancel_reason ?? null,
+          cancelled_at: order.cancelled_at ?? null,
+          invoiced_at: order.invoiced_at ?? null,
           total_additional_cost: order.total_additional_cost,
           total_product_price: order.total_product_price,
           grand_total: order.grand_total,
@@ -209,6 +215,12 @@ export class ApiOrderRepository implements OrderRepository {
     });
   }
 
+  async cancelOrder(id: string, input: CancelOrderInput): Promise<void> {
+    return safeApiCall(async () => {
+      await this.http.post(`/orders/${id}/cancel`, input);
+    });
+  }
+
   async getOrderById(id: string): Promise<OrderModel> {
     return safeApiCall(async () => {
       const response = await this.http.get<ApiResponse<OrderResponse>>(`/orders/${id}`);
@@ -228,6 +240,9 @@ export class ApiOrderRepository implements OrderRepository {
         customer_phone: order.customer_phone,
         reseller_id: order.reseller_id,
         notes: order.notes,
+        cancel_reason: order.cancel_reason ?? null,
+        cancelled_at: order.cancelled_at ?? null,
+        invoiced_at: order.invoiced_at ?? null,
         total_additional_cost: order.total_additional_cost,
         total_product_price: order.total_product_price,
         grand_total: order.grand_total,
@@ -316,6 +331,9 @@ export class ApiOrderRepository implements OrderRepository {
       if (params.payment_method) {
         query.payment_method = params.payment_method;
       }
+      if (params.date_by) {
+        query.date_by = params.date_by;
+      }
 
       const response = await this.http.get<ApiResponse<OrderReportWidgetsModel>>(
         "/orders/reports/widgets",
@@ -359,6 +377,9 @@ export class ApiOrderRepository implements OrderRepository {
       }
       if (params.payment_method) {
         query.payment_method = params.payment_method;
+      }
+      if (params.date_by) {
+        query.date_by = params.date_by;
       }
 
       const response = await this.http.get<ApiResponse<SalesReportWidgetsModel>>(
@@ -407,6 +428,9 @@ export class ApiOrderRepository implements OrderRepository {
       if (params.customer_type) {
         query.customer_type = params.customer_type;
       }
+      if (params.date_by) {
+        query.date_by = params.date_by;
+      }
 
       const response = await this.http.get<ApiResponse<SalesTrendItem[]>>(
         "/orders/reports/sales-trend",
@@ -429,6 +453,9 @@ export class ApiOrderRepository implements OrderRepository {
       }
       if (params.end_date) {
         query.end_date = params.end_date;
+      }
+      if (params.date_by) {
+        query.date_by = params.date_by;
       }
 
       const response = await this.http.get<ApiResponse<CategorySalesItem[]>>(

@@ -26,6 +26,9 @@ export interface OrderResponse {
   customer_phone: string | null;
   reseller_id: string | null;
   notes: string;
+  cancel_reason?: string | null;
+  cancelled_at?: string | null;
+  invoiced_at?: string | null;
   total_additional_cost: number;
   total_product_price: number;
   grand_total: number;

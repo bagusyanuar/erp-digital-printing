@@ -9,7 +9,7 @@ import type { GetCategories, CreateCategory, GetCategoryById, UpdateCategory, As
 import type { GetExpenseCategories, CreateExpenseCategory, GetExpenseCategoryById, UpdateExpenseCategory, DeleteExpenseCategory, ReorderExpenseCategory } from "@core/expense-category/applications/usecases/expense-category.usecase";
 import type { GetAttributes, CreateAttribute, GetAttributeById, UpdateAttribute, DeleteAttribute } from "@core/attribute/applications/usecases/attribute.usecase";
 import type { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteProduct, ReorderProduct } from "@core/product/applications/usecases/product.usecase";
-import { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, RefundOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder, GetOrderReportWidgets, GetSalesReportWidgets, GetSalesTrend, GetCategorySales, GetPaymentSales } from "@core/order/applications/usecases/order.usecase";
+import { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, RefundOrder, CancelOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder, GetOrderReportWidgets, GetSalesReportWidgets, GetSalesTrend, GetCategorySales, GetPaymentSales } from "@core/order/applications/usecases/order.usecase";
 
 import type { GetCashFlowReport, GetCashFlowSummary, CreateCashFlowAdjustment, GetCashAccounts } from "@core/cash-flow/applications/usecases/cash-flow.usecase";
 import type {
@@ -117,6 +117,7 @@ export interface OrderUseCases {
   payOrderUseCase: PayOrder;
   repayOrderUseCase: RepayOrder;
   refundOrderUseCase: RefundOrder;
+  cancelOrderUseCase: CancelOrder;
   getOrderSpkUseCase: GetOrderSpk;
   getOrderPaymentsUseCase: GetOrderPayments;
   updateOrderStatusUseCase: UpdateOrderStatus;

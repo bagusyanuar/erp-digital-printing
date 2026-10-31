@@ -41,6 +41,7 @@ export interface Invoice {
   customerPhone: string;
   isReseller: boolean;
   createdAt: string;
+  invoicedAt?: string | null;
   items: InvoiceItem[];
   paymentMethods: string[];
   totalAmount: number;
@@ -84,6 +85,7 @@ const formatDateTime = (createdAt?: string, fallbackDate?: string) => {
 export const useInvoice = () => {
   const { data: profile } = useProfile();
   const canRefund = isAdministrator(profile?.roles);
+  const canCancel = isAdministrator(profile?.roles);
 
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 750);
@@ -211,6 +213,12 @@ export const useInvoice = () => {
   const [refundMethod, setRefundMethod] = useState<string>("cash");
   const [refundReason, setRefundReason] = useState<string>("");
 
+  // Cancel form states & Dialog flags
+  const [isCancelOpen, setIsCancelOpen] = useState<boolean>(false);
+  const [isCancelPaidWarningOpen, setIsCancelPaidWarningOpen] =
+    useState<boolean>(false);
+  const [cancelReason, setCancelReason] = useState<string>("");
+
   const outstandingAmount = useMemo(() => {
     if (!selectedInvoice) return 0;
     return selectedInvoice.totalAmount - selectedInvoice.amountPaid;
@@ -231,9 +239,11 @@ export const useInvoice = () => {
     getOrdersUseCase,
     repayOrderUseCase,
     refundOrderUseCase,
+    cancelOrderUseCase,
     getOrderPaymentsUseCase,
     getOrderSpkUseCase,
     getOrderReportWidgetsUseCase,
+    updateOrderStatusUseCase,
   } = useOrderDI();
 
   // Fetch SPK from backend when the modal is open
@@ -315,6 +325,7 @@ export const useInvoice = () => {
           ? customerTypeFilter.toLowerCase()
           : undefined,
       payment_methods: mappedPaymentMethods,
+      date_by: "invoice",
     }),
     queryFn: () =>
       getOrdersUseCase.execute({
@@ -330,6 +341,7 @@ export const useInvoice = () => {
             ? customerTypeFilter.toLowerCase()
             : undefined,
         payment_methods: mappedPaymentMethods,
+        date_by: "invoice",
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -352,6 +364,7 @@ export const useInvoice = () => {
           ? customerTypeFilter.toLowerCase()
           : undefined,
       payment_method: mappedPaymentMethods,
+      date_by: "invoice",
     }),
     queryFn: () =>
       getOrderReportWidgetsUseCase.execute({
@@ -365,6 +378,7 @@ export const useInvoice = () => {
             ? customerTypeFilter.toLowerCase()
             : undefined,
         payment_method: mappedPaymentMethods,
+        date_by: "invoice",
       }),
     staleTime: 5000,
     gcTime: 15_000,
@@ -374,8 +388,9 @@ export const useInvoice = () => {
   // Purely computed invoices state from API response
   const invoices = useMemo((): Invoice[] => {
     return (response?.data ?? []).map((order): Invoice => {
-      // Format backend date to localized Indonesian date
-      const formattedDate = formatDateTime(order.created_at);
+      // Format backend date to localized Indonesian date: prefer invoiced_at for invoice, fallback to created_at
+      const rawDate = order.invoiced_at || order.created_at;
+      const formattedDate = formatDateTime(rawDate);
 
       return {
         id: order.id,
@@ -385,6 +400,7 @@ export const useInvoice = () => {
         customerPhone: order.customer_phone || "-",
         isReseller: !!order.reseller_id,
         createdAt: formattedDate,
+        invoicedAt: order.invoiced_at ? formatDateTime(order.invoiced_at) : null,
         items: (order.order_items ?? []).map((item) => {
           let dimensionText = "Pcs";
           if (item.uom === "m2") {
@@ -573,6 +589,80 @@ export const useInvoice = () => {
     });
   };
 
+  // Mutation to cancel order in backend
+  const cancelOrderMutation = useMutation<
+    void,
+    AppError,
+    { id: string; reason: string }
+  >({
+    mutationFn: ({ id, reason }) => cancelOrderUseCase.execute(id, { reason }),
+    onSuccess: () => {
+      refetch();
+      setIsCancelOpen(false);
+      setCancelReason("");
+      toast.success(
+        "Transaksi Dibatalkan",
+        `Transaksi nota ${selectedInvoice?.invoiceNo} berhasil dibatalkan.`,
+      );
+    },
+    onError: (error) => {
+      toast.error(
+        "Pembatalan Gagal",
+        error.message ||
+          "Terjadi kesalahan saat membatalkan transaksi di server.",
+      );
+    },
+  });
+
+  const handleOpenCancel = (inv: Invoice) => {
+    if (!canCancel) {
+      toast.error(
+        "Akses Ditolak",
+        "Hanya administrator yang diizinkan untuk membatalkan invoice.",
+      );
+      return;
+    }
+
+    setSelectedInvoice(inv);
+    if (inv.amountPaid > 0) {
+      setIsCancelPaidWarningOpen(true);
+    } else {
+      setCancelReason("");
+      setIsCancelOpen(true);
+    }
+  };
+
+  const handleSwitchToRefund = () => {
+    if (!selectedInvoice) return;
+    setIsCancelPaidWarningOpen(false);
+    setRefundAmount(selectedInvoice.amountPaid);
+    setRefundMethod("cash");
+    setRefundReason("");
+    setIsRefundOpen(true);
+  };
+
+  const handleProcessCancel = () => {
+    if (!selectedInvoice) return;
+
+    if (!canCancel) {
+      toast.error(
+        "Akses Ditolak",
+        "Hanya administrator yang diizinkan untuk membatalkan invoice.",
+      );
+      return;
+    }
+
+    if (!cancelReason.trim()) {
+      toast.error("Pembatalan Gagal", "Alasan pembatalan transaksi wajib diisi.");
+      return;
+    }
+
+    cancelOrderMutation.mutate({
+      id: selectedInvoice.id,
+      reason: cancelReason.trim(),
+    });
+  };
+
   const handleProcessPayment = () => {
     if (!selectedInvoice) return;
 
@@ -696,6 +786,14 @@ export const useInvoice = () => {
     refundReason,
     setRefundReason,
 
+    // Cancel Form state & Dialog flags
+    isCancelOpen,
+    setIsCancelOpen,
+    isCancelPaidWarningOpen,
+    setIsCancelPaidWarningOpen,
+    cancelReason,
+    setCancelReason,
+
     // Computed / Query responses
     invoices,
     isLoading,
@@ -718,13 +816,19 @@ export const useInvoice = () => {
     handleOpenPay,
     handleProcessPayment,
     handleProcessRefund,
+    handleOpenCancel,
+    handleSwitchToRefund,
+    handleProcessCancel,
     handlePrintInvoice,
     handlePrintSpk,
     processPaymentMutation,
     processRefundMutation,
+    cancelOrderMutation,
+    isCancelling: cancelOrderMutation.isPending,
 
     // Role permissions
     canRefund,
+    canCancel,
 
     // Helpers
     formatCurrency,

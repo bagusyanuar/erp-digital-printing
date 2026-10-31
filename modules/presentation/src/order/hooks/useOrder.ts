@@ -48,9 +48,14 @@ export const useOrder = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDraftConfirmOpen, setIsDraftConfirmOpen] = useState(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
-  const { getOrdersUseCase, payOrderUseCase, updateOrderStatusUseCase } =
-    useOrderDI();
+  const {
+    getOrdersUseCase,
+    payOrderUseCase,
+    updateOrderStatusUseCase,
+    cancelOrderUseCase,
+  } = useOrderDI();
 
   // Cashier POS only handles PENDING_PAYMENT status orders.
   const mappedStatus = "PENDING_PAYMENT";
@@ -331,10 +336,37 @@ export const useOrder = () => {
     setIsDraftConfirmOpen(false);
   };
 
+  const cancelOrderMutation = useMutation<
+    void,
+    AppError,
+    { id: string; reason: string }
+  >({
+    mutationFn: ({ id, reason }) => cancelOrderUseCase.execute(id, { reason }),
+    onSuccess: () => {
+      refetch();
+      setIsCancelConfirmOpen(false);
+      setCancelReason("");
+      setSelectedOrderId(null);
+      toast.success("Pesanan Dibatalkan", "Pesanan berhasil dibatalkan.");
+    },
+    onError: (error) => {
+      toast.error(
+        "Pembatalan Gagal",
+        error.message || "Terjadi kesalahan saat membatalkan pesanan.",
+      );
+    },
+  });
+
   const handleCancelOrder = () => {
     if (!activeOrder) return;
-    updateStatusMutation.mutate({ id: activeOrder.id, status: "CANCELLED" });
-    setIsCancelConfirmOpen(false);
+    if (!cancelReason.trim()) {
+      toast.error("Validasi Gagal", "Alasan pembatalan wajib diisi.");
+      return;
+    }
+    cancelOrderMutation.mutate({
+      id: activeOrder.id,
+      reason: cancelReason.trim(),
+    });
   };
 
   const handleSelectOrder = (orderId: string) => {
@@ -423,6 +455,8 @@ export const useOrder = () => {
     setIsDraftConfirmOpen,
     isCancelConfirmOpen,
     setIsCancelConfirmOpen,
+    cancelReason,
+    setCancelReason,
     paymentMethod,
     setPaymentMethod,
     isSplitPayment,
@@ -451,6 +485,7 @@ export const useOrder = () => {
     isFetching,
     refetch,
     updateStatusMutation,
+    cancelOrderMutation,
     processPaymentMutation,
     handleSendBackToDraft,
     handleCancelOrder,

@@ -1,4 +1,4 @@
-import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel, SalesTrendParams, SalesTrendItem, CategorySalesParams, CategorySalesItem, PaymentSalesParams, PaymentSalesItem } from "../../domains/repositories/order.repository";
+import type { OrderRepository, OrderParams, ProcessPaymentInput, RepayPaymentInput, RefundOrderInput, CancelOrderInput, OrderReportWidgetsParams, OrderReportWidgetsModel, SalesReportWidgetsParams, SalesReportWidgetsModel, SalesTrendParams, SalesTrendItem, CategorySalesParams, CategorySalesItem, PaymentSalesParams, PaymentSalesItem } from "../../domains/repositories/order.repository";
 import type { SaveDraftOrderInput } from "../inputs/order.input";
 import type { OrderModel, OrderSpkModel, OrderPaymentModel } from "../../domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
@@ -129,6 +129,14 @@ export class GetPaymentSales {
 
   async execute(params: PaymentSalesParams): Promise<PaymentSalesItem[]> {
     return await this.orderRepository.getPaymentSales(params);
+  }
+}
+
+export class CancelOrder {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(id: string, input: CancelOrderInput): Promise<void> {
+    await this.orderRepository.cancelOrder(id, input);
   }
 }
 

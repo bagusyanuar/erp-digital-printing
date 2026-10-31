@@ -25,7 +25,7 @@ import {
 } from "@infrastructure/expense-category/containers/expense-category.container";
 import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, updateAttributeUseCase, deleteAttributeUseCase } from "@infrastructure/attribute/containers/attribute.container";
 import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase, reorderProductUseCase } from "@infrastructure/product/containers/product.container";
-import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, refundOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase, getOrderReportWidgetsUseCase, getSalesReportWidgetsUseCase, getSalesTrendUseCase, getCategorySalesUseCase, getPaymentSalesUseCase } from "@infrastructure/order/containers/order.container";
+import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, refundOrderUseCase, cancelOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase, getOrderReportWidgetsUseCase, getSalesReportWidgetsUseCase, getSalesTrendUseCase, getCategorySalesUseCase, getPaymentSalesUseCase } from "@infrastructure/order/containers/order.container";
 import { getCashFlowReportUseCase, getCashFlowSummaryUseCase, createCashFlowAdjustmentUseCase, getCashAccountsUseCase } from "@infrastructure/cash-flow/containers/cash-flow.container";
 import {
   getUsersUseCase,
@@ -102,6 +102,7 @@ export function createAppContainer(): AppContainer {
       payOrderUseCase: payOrderUseCase(httpClient),
       repayOrderUseCase: repayOrderUseCase(httpClient),
       refundOrderUseCase: refundOrderUseCase(httpClient),
+      cancelOrderUseCase: cancelOrderUseCase(httpClient),
       getOrderPaymentsUseCase: getOrderPaymentsUseCase(httpClient),
       getOrderSpkUseCase: getOrderSpkUseCase(httpClient),
       updateOrderStatusUseCase: updateOrderStatusUseCase(httpClient),

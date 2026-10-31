@@ -37,6 +37,8 @@ import {
   LuCalendar,
   LuShare2,
   LuCopy,
+  LuBan,
+  LuTriangleAlert,
 } from "@erp-digital-printing/ui/icons";
 import { useInvoice } from "../hooks/useInvoice";
 
@@ -81,6 +83,13 @@ const InvoicePage = () => {
     isRefundOpen,
     setIsRefundOpen,
     canRefund,
+    canCancel,
+    isCancelOpen,
+    setIsCancelOpen,
+    isCancelPaidWarningOpen,
+    setIsCancelPaidWarningOpen,
+    cancelReason,
+    setCancelReason,
     isPayOpen,
     setIsPayOpen,
     isSpkOpen,
@@ -130,10 +139,14 @@ const InvoicePage = () => {
     handleOpenPay,
     handleProcessPayment,
     handleProcessRefund,
+    handleOpenCancel,
+    handleSwitchToRefund,
+    handleProcessCancel,
     handlePrintInvoice,
     handlePrintSpk,
     processPaymentMutation,
     processRefundMutation,
+    isCancelling,
 
     // Helpers
     formatCurrency,
@@ -725,6 +738,17 @@ const InvoicePage = () => {
                                       </span>
                                     </DropdownItem>
                                   )}
+                                  {canCancel &&
+                                    inv.orderStatus !== "CANCELLED" && (
+                                      <DropdownItem
+                                        onClick={() => handleOpenCancel(inv)}
+                                      >
+                                        <LuBan className="h-3.5 w-3.5 text-rose-600" />
+                                        <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                                          Batalkan Transaksi
+                                        </span>
+                                      </DropdownItem>
+                                    )}
                                 </>
                               )}
                             </DropdownContent>
@@ -2353,6 +2377,182 @@ const InvoicePage = () => {
                   {processRefundMutation.isPending
                     ? "Memproses..."
                     : "Ya, Proses Refund"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </Dialog>
+      )}
+
+      {/* DIALOG: Warning Pembayaran Terdeteksi saat Batalkan Invoice */}
+      <Dialog
+        isOpen={isCancelPaidWarningOpen}
+        onClose={() => setIsCancelPaidWarningOpen(false)}
+        className="rounded-3xl p-6 bg-card border border-border/50 text-foreground max-w-md w-full"
+        showCloseButton={true}
+      >
+        {selectedInvoice && (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex flex-col gap-1 border-b border-border/30 pb-4">
+              <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                <LuTriangleAlert className="text-amber-500 shrink-0" size={22} />
+                Pembayaran Terdeteksi
+              </h2>
+              <p className="text-xs text-muted-foreground font-medium">
+                Transaksi tidak dapat dibatalkan langsung karena sudah memiliki riwayat mutasi pembayaran.
+              </p>
+            </div>
+
+            {/* Warning Details Card */}
+            <div className="bg-amber-500/10 dark:bg-amber-500/15 p-4 rounded-2xl border border-amber-500/20 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                  Nomor Nota
+                </span>
+                <span className="font-mono font-bold text-xs text-foreground">
+                  {selectedInvoice.invoiceNo}
+                </span>
+              </div>
+              <div className="flex justify-between items-center font-semibold text-xs">
+                <span className="text-muted-foreground">Pelanggan:</span>
+                <span className="text-foreground">
+                  {selectedInvoice.customerName}
+                </span>
+              </div>
+              <div className="flex justify-between items-center font-bold text-xs pt-2 border-t border-amber-500/20">
+                <span className="text-amber-700 dark:text-amber-400">
+                  Pembayaran Tercatat:
+                </span>
+                <span className="text-amber-700 dark:text-amber-400 font-extrabold text-sm">
+                  {formatCurrency(selectedInvoice.amountPaid)}
+                </span>
+              </div>
+            </div>
+
+            {/* Advisory Info */}
+            <div className="p-3.5 bg-muted/50 rounded-2xl border border-border/50 text-xs text-muted-foreground leading-relaxed">
+              Transaksi ini sudah memiliki uang masuk. Untuk menjaga akurasi laporan kas dan pembukuan keuangan, silakan gunakan fitur <strong className="text-foreground">Ajukan Refund</strong> untuk mengembalikan dana pelanggan terlebih dahulu.
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/30">
+              <Button
+                variant="outline"
+                onClick={() => setIsCancelPaidWarningOpen(false)}
+                className="rounded-xl font-bold border-border/50 hover:bg-muted"
+              >
+                Tutup
+              </Button>
+              {canRefund && (
+                <Button
+                  onClick={handleSwitchToRefund}
+                  className="rounded-xl font-bold bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1.5 shadow-md shadow-amber-600/20 active:scale-95 transition-all"
+                >
+                  <LuRotateCcw size={15} />
+                  Ajukan Refund Sekarang
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* DIALOG: Form Batalkan Transaksi Nota (Khusus Administrator) */}
+      {canCancel && (
+        <Dialog
+          isOpen={isCancelOpen}
+          onClose={() => !isCancelling && setIsCancelOpen(false)}
+          className="rounded-3xl p-6 bg-card border border-border/50 text-foreground max-w-md w-full"
+          showCloseButton={!isCancelling}
+        >
+          {selectedInvoice && (
+            <div className="space-y-5">
+              {/* Header */}
+              <div className="flex flex-col gap-1 border-b border-border/30 pb-4">
+                <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                  <LuBan className="text-rose-500 shrink-0" size={22} />
+                  Batalkan Transaksi Nota
+                </h2>
+                <p className="text-xs text-muted-foreground font-medium">
+                  Tindakan ini akan membatalkan pesanan. Nota yang dibatalkan tidak dapat diproses kembali.
+                </p>
+              </div>
+
+              {/* Order Info Card */}
+              <div className="bg-rose-500/5 dark:bg-rose-500/10 p-4 rounded-2xl border border-rose-500/10 space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                    Nomor Nota
+                  </span>
+                  <span className="font-mono font-bold text-xs text-foreground">
+                    {selectedInvoice.invoiceNo}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center font-semibold text-xs">
+                  <span className="text-muted-foreground">Pelanggan:</span>
+                  <span className="text-foreground">
+                    {selectedInvoice.customerName}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center font-semibold text-xs">
+                  <span className="text-muted-foreground">Total Tagihan:</span>
+                  <span className="text-foreground">
+                    {formatCurrency(selectedInvoice.totalAmount)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center font-bold text-xs pt-2 border-t border-rose-500/10">
+                  <span className="text-muted-foreground">Status Pembayaran:</span>
+                  <span className="text-muted-foreground">
+                    Belum Dibayar (Rp 0)
+                  </span>
+                </div>
+              </div>
+
+              {/* Form Input Alasan Pembatalan */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                  Alasan Pembatalan <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Tuliskan alasan pembatalan (contoh: Pelanggan membatalkan pesanan karena salah memilih bahan)..."
+                  disabled={isCancelling}
+                  rows={3}
+                  className="w-full p-3 rounded-2xl border border-border/80 bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-foreground resize-none transition-all placeholder:text-muted-foreground/60"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Alasan pembatalan akan disimpan untuk riwayat audit transaksi.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/30">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCancelOpen(false)}
+                  disabled={isCancelling}
+                  className="rounded-xl font-bold border-border/50 hover:bg-muted"
+                >
+                  Batal
+                </Button>
+                <Button
+                  onClick={handleProcessCancel}
+                  disabled={isCancelling || !cancelReason.trim()}
+                  className="rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 shadow-md shadow-rose-600/20 disabled:opacity-50 active:scale-95 transition-all"
+                >
+                  {isCancelling ? (
+                    <>
+                      <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      <span>Membatalkan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LuBan size={15} />
+                      <span>Ya, Batalkan Transaksi</span>
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

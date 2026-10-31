@@ -90,11 +90,12 @@ const JobEntryPage = () => {
     pageSize: 10,
   });
 
-  const { getOrdersUseCase, submitOrderUseCase, updateOrderStatusUseCase } =
+  const { getOrdersUseCase, submitOrderUseCase, cancelOrderUseCase } =
     useOrderDI();
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const [cancelTargetTicket, setCancelTargetTicket] = useState<string>("");
+  const [cancelReason, setCancelReason] = useState<string>("");
 
   // Map local status state filter to API query parameters
   const mappedStatus = useMemo(() => {
@@ -190,9 +191,13 @@ const JobEntryPage = () => {
   });
 
   // Mutation to cancel order
-  const cancelOrderMutation = useMutation<void, AppError, string>({
-    mutationFn: (id: string) =>
-      updateOrderStatusUseCase.execute(id, "CANCELLED"),
+  const cancelOrderMutation = useMutation<
+    void,
+    AppError,
+    { id: string; reason: string }
+  >({
+    mutationFn: ({ id, reason }) =>
+      cancelOrderUseCase.execute(id, { reason }),
     onSuccess: () => {
       toast.success(
         "Transaksi Dibatalkan",
@@ -200,6 +205,7 @@ const JobEntryPage = () => {
       );
       refetch();
       setSelectedTransaction(null);
+      setCancelReason("");
     },
     onError: (error: AppError) => {
       toast.error(
@@ -216,7 +222,14 @@ const JobEntryPage = () => {
 
   const handleCancelOrder = () => {
     if (!cancelTargetId) return;
-    cancelOrderMutation.mutate(cancelTargetId);
+    if (!cancelReason.trim()) {
+      toast.error("Validasi Gagal", "Alasan pembatalan wajib diisi.");
+      return;
+    }
+    cancelOrderMutation.mutate({
+      id: cancelTargetId,
+      reason: cancelReason.trim(),
+    });
     setIsCancelConfirmOpen(false);
   };
 
@@ -366,6 +379,7 @@ const JobEntryPage = () => {
                         onClick={() => {
                           setCancelTargetId(info.row.original.id);
                           setCancelTargetTicket(info.row.original.ticketNo);
+                          setCancelReason("");
                           setIsCancelConfirmOpen(true);
                         }}
                       >
@@ -717,6 +731,19 @@ const JobEntryPage = () => {
             secara permanen?
           </p>
 
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-foreground">
+              Alasan Pembatalan <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Tuliskan alasan pembatalan tiket pesanan..."
+              rows={3}
+              className="w-full p-3 rounded-2xl border border-border/80 bg-background text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-foreground resize-none transition-all placeholder:text-muted-foreground/60"
+            />
+          </div>
+
           <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
             <Button
               variant="outline"
@@ -727,7 +754,8 @@ const JobEntryPage = () => {
             </Button>
             <Button
               onClick={handleCancelOrder}
-              className="h-9 px-5 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/25 flex items-center gap-1.5 text-xs transition-all active:scale-95"
+              disabled={!cancelReason.trim() || cancelOrderMutation.isPending}
+              className="h-9 px-5 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/25 flex items-center gap-1.5 text-xs transition-all active:scale-95 disabled:opacity-50"
             >
               <LuTrash2 size={14} />
               Ya, Batalkan
