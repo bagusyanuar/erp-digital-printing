@@ -100,13 +100,15 @@ export const MergeToProductionTicketDialog: React.FC<
         </div>
 
         {/* Search Bar */}
-        <TextField
-          placeholder="Cari No. Tiket atau Nama Pelanggan Cetak..."
-          prefixIcon={LuSearch}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full"
-        />
+        <div className="p-0.5">
+          <TextField
+            placeholder="Cari No. Tiket atau Nama Pelanggan Cetak..."
+            prefixIcon={LuSearch}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full focus-visible:ring-offset-0 focus-visible:ring-2 focus-visible:ring-primary"
+          />
+        </div>
 
         {/* Production Tickets List */}
         <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1 scrollbar-thin">

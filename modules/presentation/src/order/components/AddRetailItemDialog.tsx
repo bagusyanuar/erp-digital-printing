@@ -138,13 +138,15 @@ export const AddRetailItemDialog: React.FC<AddRetailItemDialogProps> = ({
 
         {/* Search & Category Filter */}
         <div className="space-y-3">
-          <TextField
-            placeholder="Cari nama produk ritel..."
-            prefixIcon={LuSearch}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full"
-          />
+          <div className="p-0.5">
+            <TextField
+              placeholder="Cari nama produk ritel..."
+              prefixIcon={LuSearch}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full focus-visible:ring-offset-0 focus-visible:ring-2 focus-visible:ring-primary"
+            />
+          </div>
 
           {categories.length > 1 && (
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
