@@ -82,8 +82,11 @@ async function main() {
       }
     }
 
+    const tagPrefix = target === 'dev' ? 'dev-v' : 'v';
+    console.log(`🎯 Target Environment : \x1b[33m${target.toUpperCase()}\x1b[0m (Prefix Git Tag: \x1b[35m${tagPrefix}\x1b[0m)\n`);
+
     // Check if the current base version is already tagged in git
-    const candidateCurrentTag = target === 'dev' ? `dev-v${currentVersion}` : `v${currentVersion}`;
+    const candidateCurrentTag = `${tagPrefix}${currentVersion}`;
     let isCurrentVersionTagged = false;
     try {
       isCurrentVersionTagged = Boolean(run(`git tag -l "${candidateCurrentTag}"`));
@@ -98,13 +101,13 @@ async function main() {
     const majorPreview = `${parsed.major + 1}.0.0`;
 
     if (!bumpType) {
-      console.log(`\nPilih Tipe Version Bump (dari ${currentVersion}):`);
+      console.log(`Pilih Tipe Version Bump:`);
       if (!isCurrentVersionTagged) {
-        console.log(`  0) initial -> ${currentVersion} (Mulai rilis dari versi awal ${currentVersion})`);
+        console.log(`  0) initial -> Tag: \x1b[35m${tagPrefix}${currentVersion}\x1b[0m (Versi package.json: ${currentVersion})`);
       }
-      console.log(`  1) patch   -> ${patchPreview}`);
-      console.log(`  2) minor   -> ${minorPreview}`);
-      console.log(`  3) major   -> ${majorPreview}`);
+      console.log(`  1) patch   -> Tag: \x1b[35m${tagPrefix}${patchPreview}\x1b[0m (Versi package.json: ${patchPreview})`);
+      console.log(`  2) minor   -> Tag: \x1b[35m${tagPrefix}${minorPreview}\x1b[0m (Versi package.json: ${minorPreview})`);
+      console.log(`  3) major   -> Tag: \x1b[35m${tagPrefix}${majorPreview}\x1b[0m (Versi package.json: ${majorPreview})`);
       console.log(`  4) custom  -> Masukkan versi manual`);
 
       const defaultChoice = !isCurrentVersionTagged ? '0' : '1';
