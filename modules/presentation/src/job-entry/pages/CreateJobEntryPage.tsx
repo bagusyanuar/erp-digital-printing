@@ -47,6 +47,7 @@ import { productKeys } from "@infrastructure/product/keys";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
 import { useResellerDI } from "@presentation/reseller/hooks/useResellerDI";
 import { resellerKeys } from "@infrastructure/reseller/keys";
+import { useDebounce } from "../../shared/hooks/useDebounce";
 import type { SaveDraftOrderInput } from "@core/order/applications/inputs/order.input";
 import type { AppError } from "@core/shared/errors/domain.error";
 
@@ -87,9 +88,28 @@ const CreateJobEntryPage = () => {
     staleTime: 30_000,
   });
 
-  const { data: resellerResponse } = useQuery({
-    queryKey: resellerKeys.list({ limit: 100, page: 1 }),
-    queryFn: () => getResellersUseCase.execute({ limit: 100, page: 1 }),
+  // States untuk Right Column (Order Metadata & Cart)
+  const [customerType, setCustomerType] = useState<"end_user" | "reseller">(
+    "end_user",
+  );
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [selectedResellerId, setSelectedResellerId] = useState("");
+  const [resellerSearch, setResellerSearch] = useState("");
+  const debouncedResellerSearch = useDebounce(resellerSearch, 300);
+
+  const { data: resellerResponse, isFetching: isFetchingResellers } = useQuery({
+    queryKey: resellerKeys.list({
+      limit: 50,
+      page: 1,
+      search: debouncedResellerSearch.trim() || undefined,
+    }),
+    queryFn: () =>
+      getResellersUseCase.execute({
+        limit: 50,
+        page: 1,
+        search: debouncedResellerSearch.trim() || undefined,
+      }),
     staleTime: 30_000,
   });
 
@@ -101,10 +121,25 @@ const CreateJobEntryPage = () => {
     () => productResponse?.data ?? [],
     [productResponse],
   );
-  const resellers = useMemo(
-    () => resellerResponse?.data ?? [],
-    [resellerResponse],
-  );
+  const resellers = useMemo(() => {
+    const list = resellerResponse?.data ? [...resellerResponse.data] : [];
+    if (
+      selectedResellerId &&
+      customerName &&
+      !list.some((r) => r.id === selectedResellerId)
+    ) {
+      list.unshift({
+        id: selectedResellerId,
+        name: customerName,
+        email: "",
+        phone: customerPhone,
+        address: "",
+        creditLimit: 0,
+        outstandingDebt: 0,
+      });
+    }
+    return list;
+  }, [resellerResponse, selectedResellerId, customerName, customerPhone]);
 
   // Query to fetch order details from backend if in edit mode
   const { data: orderDetail, isLoading: isLoadingOrder } = useQuery({
@@ -113,14 +148,6 @@ const CreateJobEntryPage = () => {
     enabled: !!editId,
     staleTime: 5000,
   });
-
-  // States untuk Right Column (Order Metadata & Cart)
-  const [customerType, setCustomerType] = useState<"end_user" | "reseller">(
-    "end_user",
-  );
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [selectedResellerId, setSelectedResellerId] = useState("");
 
   const [notes, setNotes] = useState(() => {
     if (editId) return "";
@@ -1033,23 +1060,42 @@ const CreateJobEntryPage = () => {
                           setCustomerPhone("");
                         }
                       }}
+                      manualFilter
+                      isLoading={isFetchingResellers}
+                      onSearchChange={setResellerSearch}
                     >
                       <ComboboxTrigger className="font-semibold">
                         <span>
                           {resellers.find((r) => r.id === selectedResellerId)
-                            ?.name || "-- Pilih Reseller --"}
+                            ?.name ||
+                            (selectedResellerId
+                              ? customerName
+                              : "-- Pilih Reseller --")}
                         </span>
                       </ComboboxTrigger>
                       <ComboboxContent
                         align="start"
                         className="w-[var(--radix-popover-trigger-width)]"
                       >
-                        <ComboboxInput placeholder="Cari reseller..." />
+                        <ComboboxInput placeholder="Cari nama atau telepon reseller..." />
                         <ComboboxEmpty>Reseller tidak ditemukan.</ComboboxEmpty>
                         <ComboboxList>
                           {resellers.map((reseller) => (
-                            <ComboboxItem key={reseller.id} value={reseller.id}>
-                              {reseller.name}
+                            <ComboboxItem
+                              key={reseller.id}
+                              value={reseller.id}
+                              keywords={[reseller.name, reseller.phone]}
+                            >
+                              <div className="flex flex-col text-left py-0.5">
+                                <span className="font-medium text-foreground">
+                                  {reseller.name}
+                                </span>
+                                {reseller.phone && (
+                                  <span className="text-[10px] text-muted-foreground font-normal">
+                                    {reseller.phone}
+                                  </span>
+                                )}
+                              </div>
                             </ComboboxItem>
                           ))}
                         </ComboboxList>

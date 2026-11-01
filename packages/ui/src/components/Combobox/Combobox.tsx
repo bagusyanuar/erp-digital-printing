@@ -16,6 +16,8 @@ interface ComboboxContextValue {
   registerItem: (id: string, matches: boolean) => void;
   unregisterItem: (id: string) => void;
   matchingCount: number;
+  manualFilter: boolean;
+  isLoading: boolean;
 }
 
 const ComboboxContext = React.createContext<ComboboxContextValue | null>(null);
@@ -34,6 +36,9 @@ export interface ComboboxProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   children: React.ReactNode;
+  manualFilter?: boolean;
+  isLoading?: boolean;
+  onSearchChange?: (query: string) => void;
 }
 
 export const Combobox = ({
@@ -42,6 +47,9 @@ export const Combobox = ({
   open: controlledOpen,
   onOpenChange,
   children,
+  manualFilter = false,
+  isLoading = false,
+  onSearchChange,
 }: ComboboxProps) => {
   const [uncontrolledValue, setUncontrolledValue] = React.useState("");
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
@@ -51,6 +59,14 @@ export const Combobox = ({
   const value = controlledValue !== undefined ? controlledValue : uncontrolledValue;
   const open = controlledOpen !== undefined ? controlledOpen : uncontrolledOpen;
 
+  const handleSetSearchQuery = React.useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      onSearchChange?.(query);
+    },
+    [onSearchChange]
+  );
+
   const setOpen = React.useCallback(
     (nextOpen: boolean) => {
       if (controlledOpen === undefined) {
@@ -58,10 +74,10 @@ export const Combobox = ({
       }
       onOpenChange?.(nextOpen);
       if (!nextOpen) {
-        setSearchQuery(""); // Reset search query when closing
+        handleSetSearchQuery(""); // Reset search query when closing
       }
     },
-    [controlledOpen, onOpenChange]
+    [controlledOpen, onOpenChange, handleSetSearchQuery]
   );
 
   const handleValueChange = React.useCallback(
@@ -103,12 +119,14 @@ export const Combobox = ({
       open,
       setOpen,
       searchQuery,
-      setSearchQuery,
+      setSearchQuery: handleSetSearchQuery,
       registerItem,
       unregisterItem,
       matchingCount,
+      manualFilter,
+      isLoading,
     }),
-    [value, handleValueChange, open, setOpen, searchQuery, registerItem, unregisterItem, matchingCount]
+    [value, handleValueChange, open, setOpen, searchQuery, handleSetSearchQuery, registerItem, unregisterItem, matchingCount, manualFilter, isLoading]
   );
 
   return (
@@ -183,7 +201,7 @@ ComboboxContent.displayName = "ComboboxContent";
 export const ComboboxInput = React.forwardRef<
   HTMLInputElement,
   React.InputHTMLAttributes<HTMLInputElement>
->(({ className, ...props }, ref) => {
+>(({ className, onChange, ...props }, ref) => {
   const { searchQuery, setSearchQuery } = useCombobox();
 
   return (
@@ -196,7 +214,10 @@ export const ComboboxInput = React.forwardRef<
           className
         )}
         value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
+        onChange={(e) => {
+          setSearchQuery(e.target.value);
+          onChange?.(e);
+        }}
         {...props}
       />
     </div>
@@ -229,7 +250,7 @@ export const ComboboxItem = React.forwardRef<
   HTMLButtonElement,
   ComboboxItemProps
 >(({ className, children, value, keywords, ...props }, ref) => {
-  const { value: selectedValue, onValueChange, searchQuery, registerItem, unregisterItem } = useCombobox();
+  const { value: selectedValue, onValueChange, searchQuery, registerItem, unregisterItem, manualFilter } = useCombobox();
 
   const isSelected = selectedValue === value;
 
@@ -239,13 +260,14 @@ export const ComboboxItem = React.forwardRef<
   }, [children, value]);
 
   const matches = React.useMemo(() => {
+    if (manualFilter) return true;
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     if (textContent.toLowerCase().includes(query)) return true;
     if (value.toLowerCase().includes(query)) return true;
     if (keywords?.some((k) => k.toLowerCase().includes(query))) return true;
     return false;
-  }, [searchQuery, textContent, value, keywords]);
+  }, [manualFilter, searchQuery, textContent, value, keywords]);
 
   const id = React.useId();
   React.useEffect(() => {
@@ -282,7 +304,18 @@ export const ComboboxEmpty = ({
   children,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => {
-  const { matchingCount } = useCombobox();
+  const { matchingCount, isLoading } = useCombobox();
+
+  if (isLoading) {
+    return (
+      <div
+        className={cn("py-4 text-center text-xs text-muted-foreground animate-pulse", className)}
+        {...props}
+      >
+        Mencari data...
+      </div>
+    );
+  }
 
   if (matchingCount > 0) return null;
 
