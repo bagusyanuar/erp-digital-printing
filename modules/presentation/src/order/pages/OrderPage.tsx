@@ -25,6 +25,7 @@ import {
   LuTrash2,
   LuShare2,
   LuCopy,
+  LuPalette,
 } from "@erp-digital-printing/ui/icons";
 import { useOrder } from "../hooks/useOrder";
 import { useProfile } from "../../user/hooks/useProfile";
@@ -234,7 +235,7 @@ const OrderPage = () => {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-4 text-xs">
+                        <div className="flex items-center gap-3 sm:gap-4 text-xs flex-wrap">
                           <div className="flex items-center gap-1.5 font-semibold text-foreground flex-wrap">
                             <LuUser size={14} className="text-primary/70" />
                             <span>{order.customerName}</span>
@@ -248,6 +249,17 @@ const OrderPage = () => {
                               {order.resellerId ? "Biro / Reseller" : "Retail"}
                             </span>
                           </div>
+                          {order.designerName && (
+                            <div className="flex items-center gap-1.5 text-muted-foreground font-semibold">
+                              <LuPalette size={14} className="text-amber-500/80" />
+                              <span className="text-[11px]">
+                                Desainer:{" "}
+                                <strong className="text-foreground font-bold">
+                                  {order.designerName}
+                                </strong>
+                              </span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-1.5 text-muted-foreground font-semibold">
                             <LuCalendar size={14} />
                             {order.createdAt}
@@ -354,6 +366,17 @@ const OrderPage = () => {
                       {activeOrder.customerPhone || "-"}
                     </span>
                   </div>
+                  {activeOrder.designerName && (
+                    <div className="space-y-1 col-span-2 pt-1 border-t border-border/20">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                        Desainer Bertugas
+                      </span>
+                      <span className="font-bold text-foreground text-xs flex items-center gap-1.5 leading-none">
+                        <LuPalette size={14} className="text-amber-500/80 shrink-0" />
+                        {activeOrder.designerName}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1057,6 +1080,12 @@ const OrderPage = () => {
                   <span>Kasir:</span>
                   <span>{profile?.username || "Sistem Kasir Utama"}</span>
                 </div>
+                {lastCompletedOrder.designerName && (
+                  <div className="flex justify-between">
+                    <span>Desainer:</span>
+                    <span>{lastCompletedOrder.designerName}</span>
+                  </div>
+                )}
               </div>
 
               {/* Items listing */}
@@ -1247,6 +1276,9 @@ const OrderPage = () => {
                     lastCompletedOrder.customerName.toUpperCase(),
                   );
                   rawData += formatLine("Kasir", profile?.username || "Sistem Kasir Utama");
+                  if (lastCompletedOrder.designerName) {
+                    rawData += formatLine("Desainer", lastCompletedOrder.designerName);
+                  }
 
                   rawData +=
                     "------------------------------------------------\n";
@@ -1606,6 +1638,12 @@ const OrderPage = () => {
                 <span>Kasir:</span>
                 <span>{profile?.username || "Sistem Kasir Utama"}</span>
               </div>
+              {lastCompletedOrder.designerName && (
+                <div className="flex justify-between">
+                  <span>Desainer:</span>
+                  <span>{lastCompletedOrder.designerName}</span>
+                </div>
+              )}
             </div>
 
             {/* Items listing */}

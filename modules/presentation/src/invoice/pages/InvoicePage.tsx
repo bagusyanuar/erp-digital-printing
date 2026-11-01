@@ -1713,6 +1713,14 @@ const InvoicePage = () => {
                     {selectedInvoice.customerName}
                   </span>
                 </div>
+                {selectedInvoice.designerName && (
+                  <div className="flex justify-between">
+                    <span>Desainer:</span>
+                    <span className="font-bold uppercase">
+                      {selectedInvoice.designerName}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Tanggal:</span>
                   <span>{selectedInvoice.createdAt}</span>
@@ -1823,6 +1831,7 @@ const InvoicePage = () => {
                     "------------------------------------------------\n";
 
                   rawData += formatLine("No. Nota", selectedInvoice.invoiceNo);
+                  rawData += formatLine("No. Tiket", selectedInvoice.jobNumber);
                   rawData += formatLine("Tanggal", selectedInvoice.createdAt);
                   rawData +=
                     "------------------------------------------------\n\n";
@@ -1830,6 +1839,12 @@ const InvoicePage = () => {
                     "Pelanggan",
                     selectedInvoice.customerName.toUpperCase(),
                   );
+                  if (selectedInvoice.designerName) {
+                    rawData += formatLine(
+                      "Desainer",
+                      selectedInvoice.designerName.toUpperCase(),
+                    );
+                  }
 
                   rawData +=
                     "------------------------------------------------\n";
@@ -2011,6 +2026,12 @@ const InvoicePage = () => {
                   <span>Kasir:</span>
                   <span>{groupedPayments[0]?.cashier_name || "Sistem"}</span>
                 </div>
+                {selectedInvoice.designerName && (
+                  <div className="flex justify-between">
+                    <span>Desainer:</span>
+                    <span>{selectedInvoice.designerName}</span>
+                  </div>
+                )}
               </div>
 
               {/* Items listing */}
@@ -2162,6 +2183,12 @@ const InvoicePage = () => {
                     "Pelanggan",
                     selectedInvoice.customerName.toUpperCase(),
                   );
+                  if (selectedInvoice.designerName) {
+                    rawData += formatLine(
+                      "Desainer",
+                      selectedInvoice.designerName.toUpperCase(),
+                    );
+                  }
 
                   rawData +=
                     "------------------------------------------------\n";
@@ -2682,6 +2709,12 @@ const InvoicePage = () => {
                 <span>Kasir:</span>
                 <span>{groupedPayments[0]?.cashier_name || "Sistem"}</span>
               </div>
+              {selectedInvoice.designerName && (
+                <div className="flex justify-between">
+                  <span>Desainer:</span>
+                  <span>{selectedInvoice.designerName}</span>
+                </div>
+              )}
             </div>
 
             {/* Items listing */}

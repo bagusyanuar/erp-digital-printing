@@ -28,6 +28,8 @@ export interface OrderTransaction {
   customerName: string;
   customerPhone?: string;
   resellerId?: string | null;
+  designerId?: string;
+  designerName?: string;
   status: "NEED_PAYMENT" | "LUNAS" | "BATAL" | "PARTIAL_PAID";
   createdAt: string;
   items: OrderItem[];
@@ -95,6 +97,8 @@ export const useOrder = () => {
         customerName: order.customer_name || "Customer Walk In",
         customerPhone: order.customer_phone || "-",
         resellerId: order.reseller_id,
+        designerId: order.designer_id,
+        designerName: order.designer_name || "-",
         status:
           order.status === "PENDING_PAYMENT"
             ? "NEED_PAYMENT"
