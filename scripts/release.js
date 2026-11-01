@@ -82,6 +82,15 @@ async function main() {
       }
     }
 
+    // Check if the current base version is already tagged in git
+    const candidateCurrentTag = target === 'dev' ? `dev-v${currentVersion}` : `v${currentVersion}`;
+    let isCurrentVersionTagged = false;
+    try {
+      isCurrentVersionTagged = Boolean(run(`git tag -l "${candidateCurrentTag}"`));
+    } catch {
+      isCurrentVersionTagged = false;
+    }
+
     // Bump Type Selection
     const parsed = parseSemver(currentVersion) || { major: 1, minor: 0, patch: 0 };
     const patchPreview = `${parsed.major}.${parsed.minor}.${parsed.patch + 1}`;
@@ -90,18 +99,26 @@ async function main() {
 
     if (!bumpType) {
       console.log(`\nPilih Tipe Version Bump (dari ${currentVersion}):`);
-      console.log(`  1) patch  -> ${patchPreview}`);
-      console.log(`  2) minor  -> ${minorPreview}`);
-      console.log(`  3) major  -> ${majorPreview}`);
-      console.log(`  4) custom -> Masukkan versi manual`);
-      const bumpAns = (await rl.question('\nPilihan (1-4) [default: 1]: ')).trim();
+      if (!isCurrentVersionTagged) {
+        console.log(`  0) initial -> ${currentVersion} (Mulai rilis dari versi awal ${currentVersion})`);
+      }
+      console.log(`  1) patch   -> ${patchPreview}`);
+      console.log(`  2) minor   -> ${minorPreview}`);
+      console.log(`  3) major   -> ${majorPreview}`);
+      console.log(`  4) custom  -> Masukkan versi manual`);
 
-      if (bumpAns === '2' || bumpAns === 'minor') {
+      const defaultChoice = !isCurrentVersionTagged ? '0' : '1';
+      const promptRange = !isCurrentVersionTagged ? '0-4' : '1-4';
+      const bumpAns = (await rl.question(`\nPilihan (${promptRange}) [default: ${defaultChoice}]: `)).trim();
+
+      if (!isCurrentVersionTagged && (bumpAns === '0' || bumpAns === 'initial' || bumpAns === '')) {
+        bumpType = currentVersion;
+      } else if (bumpAns === '2' || bumpAns === 'minor') {
         bumpType = 'minor';
       } else if (bumpAns === '3' || bumpAns === 'major') {
         bumpType = 'major';
       } else if (bumpAns === '4' || bumpAns === 'custom') {
-        const customVer = (await rl.question('Masukkan versi baru (contoh: 2.2.0): ')).trim();
+        const customVer = (await rl.question(`Masukkan versi baru (contoh: ${currentVersion}): `)).trim();
         if (!parseSemver(customVer)) {
           console.error('❌ Format versi tidak valid (harus semver misal: X.Y.Z)');
           process.exit(1);
