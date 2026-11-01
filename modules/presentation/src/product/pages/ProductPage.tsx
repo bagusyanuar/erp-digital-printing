@@ -151,8 +151,13 @@ const ProductPage = () => {
 
   // Fetch categories dynamically for filter tabs
   const { data: categoryResponse } = useQuery({
-    queryKey: categoryKeys.list({ limit: 100, page: 1 }),
-    queryFn: () => getCategoriesUseCase.execute({ limit: 100, page: 1 }),
+    queryKey: categoryKeys.list({ limit: 100, page: 1, is_production: "all" }),
+    queryFn: () =>
+      getCategoriesUseCase.execute({
+        limit: 100,
+        page: 1,
+        is_production: "all",
+      }),
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });

@@ -58,12 +58,12 @@ const CategoryPage = () => {
 
   const addForm = useForm<CreateCategoryInput>({
     resolver: zodResolver(categoryInputSchema),
-    defaultValues: { name: "" },
+    defaultValues: { name: "", isProduction: true },
   });
 
   const editForm = useForm<CreateCategoryInput>({
     resolver: zodResolver(categoryInputSchema),
-    defaultValues: { name: "" },
+    defaultValues: { name: "", isProduction: true },
   });
 
   const {
@@ -89,7 +89,10 @@ const CategoryPage = () => {
   } = useCategoryTable({
     onEdit: (category) => {
       setSelectedCategory(category);
-      editForm.reset({ name: category.name });
+      editForm.reset({
+        name: category.name,
+        isProduction: category.isProduction ?? true,
+      });
       setIsEditDialogOpen(true);
     },
     onDelete: (category) => {
@@ -119,16 +122,21 @@ const CategoryPage = () => {
   } = editForm;
 
   const handleSaveCategory = addForm.handleSubmit((data) => {
-    addCategory(data.name);
-    addForm.reset();
+    addCategory(data.name, data.isProduction ?? true);
+    addForm.reset({ name: "", isProduction: true });
   });
 
   const handleUpdateCategory = editForm.handleSubmit((data) => {
     if (!selectedCategory) return;
-    updateCategory(selectedCategory.id, data.name, () => {
-      setIsEditDialogOpen(false);
-      setSelectedCategory(null);
-    });
+    updateCategory(
+      selectedCategory.id,
+      data.name,
+      data.isProduction ?? true,
+      () => {
+        setIsEditDialogOpen(false);
+        setSelectedCategory(null);
+      },
+    );
   });
 
   const handleDeleteConfirm = () => {
@@ -296,6 +304,42 @@ const CategoryPage = () => {
                 <HelperText variant="error">{errorsAdd.name.message}</HelperText>
               )}
             </div>
+
+            {/* Tipe Kategori: Produksi vs Non-Produksi */}
+            <div className="space-y-1.5">
+              <Typography variant="small" weight="medium" className="text-sm">
+                Tipe Kategori
+              </Typography>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => addForm.setValue("isProduction", true)}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    addForm.watch("isProduction") !== false
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-card border-border/60 text-muted-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  Produksi (SPK)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addForm.setValue("isProduction", false)}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    addForm.watch("isProduction") === false
+                      ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                      : "bg-card border-border/60 text-muted-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  Non-Produksi (Ritel)
+                </button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {addForm.watch("isProduction") !== false
+                  ? "Kategori ini masuk ke antrean tiket produksi percetakan (SPK)."
+                  : "Kategori produk langsung siap jual / ritel kasir (tanpa SPK)."}
+              </p>
+            </div>
           </CardContent>
 
           <CardFooter className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">
@@ -362,6 +406,42 @@ const CategoryPage = () => {
               {errorsEdit.name && (
                 <HelperText variant="error">{errorsEdit.name.message}</HelperText>
               )}
+            </div>
+
+            {/* Tipe Kategori: Produksi vs Non-Produksi */}
+            <div className="space-y-1.5">
+              <Typography variant="small" weight="medium" className="text-sm">
+                Tipe Kategori
+              </Typography>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => editForm.setValue("isProduction", true)}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    editForm.watch("isProduction") !== false
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-card border-border/60 text-muted-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  Produksi (SPK)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editForm.setValue("isProduction", false)}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    editForm.watch("isProduction") === false
+                      ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                      : "bg-card border-border/60 text-muted-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  Non-Produksi (Ritel)
+                </button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {editForm.watch("isProduction") !== false
+                  ? "Kategori ini masuk ke antrean tiket produksi percetakan (SPK)."
+                  : "Kategori produk langsung siap jual / ritel kasir (tanpa SPK)."}
+              </p>
             </div>
           </CardContent>
 

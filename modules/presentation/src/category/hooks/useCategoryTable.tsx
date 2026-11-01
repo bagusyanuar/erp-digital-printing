@@ -35,6 +35,7 @@ export interface Category {
   id: string;
   name: string;
   sequence?: number;
+  isProduction?: boolean;
   spkCategoryId?: string | null;
   spkCategoryName?: string | null;
 }
@@ -81,12 +82,14 @@ export const useCategoryTable = (options?: {
       limit: pagination.pageSize,
       page: pagination.pageIndex + 1,
       search: debouncedSearch || undefined,
+      is_production: "all",
     }),
     queryFn: () =>
       getCategoriesUseCase.execute({
         limit: pagination.pageSize,
         page: pagination.pageIndex + 1,
         search: debouncedSearch || undefined,
+        is_production: "all",
       }),
     staleTime: 10_000,
     gcTime: 30_000,
@@ -95,8 +98,9 @@ export const useCategoryTable = (options?: {
 
   // Fetch all categories for selection in modal
   const { data: allCategoriesRes } = useQuery({
-    queryKey: categoryKeys.list({ limit: 100, page: 1 }),
-    queryFn: () => getCategoriesUseCase.execute({ limit: 100, page: 1 }),
+    queryKey: categoryKeys.list({ limit: 100, page: 1, is_production: "all" }),
+    queryFn: () =>
+      getCategoriesUseCase.execute({ limit: 100, page: 1, is_production: "all" }),
     staleTime: 60_000,
   });
 
@@ -114,6 +118,7 @@ export const useCategoryTable = (options?: {
         id: model.id,
         name: model.name,
         sequence: model.sequence ?? 0,
+        isProduction: model.isProduction ?? true,
         spkCategoryId: model.spkCategoryId ?? null,
         spkCategoryName: model.spkCategory?.name ?? null,
       }),
@@ -215,13 +220,18 @@ export const useCategoryTable = (options?: {
     },
   });
 
-  const addCategory = (name: string) => {
-    createMutation.mutate({ name });
+  const addCategory = (name: string, isProduction: boolean = true) => {
+    createMutation.mutate({ name, isProduction });
   };
 
-  const updateCategory = (id: string, name: string, onSuccess?: () => void) => {
+  const updateCategory = (
+    id: string,
+    name: string,
+    isProduction: boolean = true,
+    onSuccess?: () => void,
+  ) => {
     updateMutation.mutate(
-      { id, input: { name } },
+      { id, input: { name, isProduction } },
       {
         onSuccess: () => {
           onSuccess?.();
@@ -300,6 +310,21 @@ export const useCategoryTable = (options?: {
             </span>
           </div>
         ),
+      }),
+      columnHelper.accessor("isProduction", {
+        header: "Tipe",
+        cell: (info) => {
+          const isProd = info.getValue() !== false;
+          return isProd ? (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
+              Produksi
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+              Non-Produksi (Ritel)
+            </span>
+          );
+        },
       }),
       columnHelper.accessor("spkCategoryName", {
         header: "Kategori SPK",

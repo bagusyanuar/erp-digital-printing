@@ -9,6 +9,10 @@ export function mapCategoryParamToQuery(params: CategoryParams): CategoryQuery {
     search: params.search,
     sort_by: params.sort || "sequence",
     sort_order: params.sortBy || "asc",
+    is_production:
+      params.is_production !== undefined
+        ? String(params.is_production)
+        : undefined,
   };
 }
 
@@ -19,6 +23,7 @@ export function mapCategoryResponseToModel(
     id: response.id,
     name: response.name,
     sequence: response.sequence,
+    isProduction: response.is_production ?? true,
     spkCategoryId: response.spk_category_id ?? null,
     spkCategory: response.spk_category ? mapCategoryResponseToModel(response.spk_category) : null,
   };
@@ -29,5 +34,6 @@ export function mapCreateCategoryInputToRequest(
 ): CreateCategoryRequest {
   return {
     name: input.name,
+    is_production: input.isProduction,
   };
 }
