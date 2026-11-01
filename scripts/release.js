@@ -195,8 +195,14 @@ async function main() {
       : `chore(release): v${newVersion}`;
 
     run(`git add package.json apps/back-office-app/package.json`);
-    run(`git commit -m "${commitMsg}"`);
-    console.log(`  ✓ Commit created: "${commitMsg}"`);
+    const staged = run('git diff --cached --name-only');
+    if (staged) {
+      run(`git commit -m "${commitMsg}"`);
+      console.log(`  ✓ Commit created: "${commitMsg}"`);
+    } else {
+      run(`git commit --allow-empty -m "${commitMsg}"`);
+      console.log(`  ✓ Commit created: "${commitMsg}"`);
+    }
 
     run(`git tag -a "${tagName}" -m "Release ${tagName}"`);
     console.log(`  ✓ Tag created: ${tagName}`);
