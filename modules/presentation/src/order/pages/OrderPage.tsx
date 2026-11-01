@@ -32,9 +32,13 @@ import {
 } from "@erp-digital-printing/ui/icons";
 import { useOrder } from "../hooks/useOrder";
 import { useProfile } from "../../user/hooks/useProfile";
+import { useQuery } from "@tanstack/react-query";
+import { useResellerDI } from "@presentation/reseller/hooks/useResellerDI";
+import { resellerKeys } from "@infrastructure/reseller/keys";
 import { AddRetailItemDialog } from "../components/AddRetailItemDialog";
 import { CreateRetailOrderDialog } from "../components/CreateRetailOrderDialog";
 import { MergeToProductionTicketDialog } from "../components/MergeToProductionTicketDialog";
+import { ResellerCreditLimitDialog } from "../components/ResellerCreditLimitDialog";
 
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -103,10 +107,31 @@ const OrderPage = () => {
   const [isAddRetailDialogOpen, setIsAddRetailDialogOpen] = React.useState(false);
   const [isCreateRetailDialogOpen, setIsCreateRetailDialogOpen] = React.useState(false);
   const [isMergeToTicketDialogOpen, setIsMergeToTicketDialogOpen] = React.useState(false);
+  const [isCreditLimitDialogOpen, setIsCreditLimitDialogOpen] = React.useState(false);
   const [isPrinting, setIsPrinting] = React.useState(false);
   const [isCapturingReceipt, setIsCapturingReceipt] = React.useState(false);
   const [isShareWADialogOpen, setIsShareWADialogOpen] = React.useState(false);
   const shareReceiptRef = React.useRef<HTMLDivElement>(null);
+
+  // Fetch reseller credit information if active order belongs to a reseller
+  const { getResellerByIdUseCase } = useResellerDI();
+  const activeResellerId = activeOrder?.resellerId || "";
+  const { data: currentReseller, isLoading: isLoadingReseller } = useQuery({
+    queryKey: resellerKeys.detail(activeResellerId),
+    queryFn: () => getResellerByIdUseCase.execute(activeResellerId),
+    enabled: Boolean(activeResellerId),
+    staleTime: 30_000,
+  });
+
+  // Intercept payment click: if tempo/piutang, open reseller credit limit dialog first
+  const handlePaymentSubmit = () => {
+    const isTempo = paymentMethod === "PIUTANG" || remainingAmount > 0;
+    if (isTempo) {
+      setIsCreditLimitDialogOpen(true);
+      return;
+    }
+    handleProcessPayment();
+  };
 
   const handleShareWA = async () => {
     try {
@@ -792,6 +817,7 @@ const OrderPage = () => {
                                       setPaymentMethod(method);
                                       if (method === "PIUTANG") {
                                         setSingleAmount(0);
+                                        setIsCreditLimitDialogOpen(true);
                                       } else {
                                         setSingleAmount(null); // reset to full payment of selected order
                                       }
@@ -851,14 +877,86 @@ const OrderPage = () => {
                               />
                             </div>
                             {remainingAmount > 0 && (
-                              <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-2.5 rounded-xl flex items-center gap-2 animate-in slide-in-from-top-1 duration-200">
-                                <LuInfo size={14} className="shrink-0" />
-                                <span>
-                                  Sisa Tagihan (Tempo):{" "}
-                                  <strong>
-                                    {formatCurrency(remainingAmount)}
-                                  </strong>
-                                </span>
+                              <div className="space-y-2 animate-in slide-in-from-top-1 duration-200">
+                                <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-2.5 rounded-xl flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <LuInfo size={14} className="shrink-0" />
+                                    <span>
+                                      Sisa Tagihan (Tempo):{" "}
+                                      <strong>
+                                        {formatCurrency(remainingAmount)}
+                                      </strong>
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setSingleAmount(null)}
+                                      className="text-[10px] font-black text-primary hover:underline shrink-0"
+                                    >
+                                      Lunasi Penuh
+                                    </button>
+                                    {activeOrder?.resellerId && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setIsCreditLimitDialogOpen(true)
+                                        }
+                                        className="px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 text-[10px] font-black uppercase tracking-wider shrink-0 transition-colors"
+                                      >
+                                        Cek Limit
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Live Reseller Credit Status for Partial Debt (Cash / Transfer / QRIS) */}
+                                {currentReseller && (
+                                  <div className="p-3 rounded-xl bg-card border border-border/70 flex items-center justify-between text-xs">
+                                    <div className="space-y-0.5">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                                        Sisa Limit ({currentReseller.name})
+                                      </span>
+                                      <span
+                                        className={`font-mono font-black text-sm block ${
+                                          currentReseller.creditLimit -
+                                            currentReseller.outstandingDebt <
+                                          remainingAmount
+                                            ? "text-rose-600 dark:text-rose-400"
+                                            : "text-emerald-600 dark:text-emerald-400"
+                                        }`}
+                                      >
+                                        {formatCurrency(
+                                          currentReseller.creditLimit -
+                                            currentReseller.outstandingDebt,
+                                        )}
+                                      </span>
+                                    </div>
+                                    <div className="text-right space-y-1">
+                                      <span
+                                        className={`inline-block text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                          currentReseller.creditLimit -
+                                            currentReseller.outstandingDebt <
+                                          remainingAmount
+                                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                                            : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                                        }`}
+                                      >
+                                        {currentReseller.creditLimit -
+                                          currentReseller.outstandingDebt <
+                                        remainingAmount
+                                          ? "Overlimit Sisa Tempo"
+                                          : "Sisa Limit Aman"}
+                                      </span>
+                                      <span className="text-[10px] text-muted-foreground block font-medium">
+                                        Plafon:{" "}
+                                        {formatCurrency(
+                                          currentReseller.creditLimit,
+                                        )}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
                             {changeAmount > 0 && (
@@ -874,14 +972,75 @@ const OrderPage = () => {
                             )}
                           </div>
                         ) : (
-                          <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-2.5 rounded-xl flex items-center gap-2 animate-in slide-in-from-top-1 duration-200">
-                            <LuInfo size={14} className="shrink-0" />
-                            <span>
-                              Transaksi dicatat sebagai{" "}
-                              <strong>Piutang/Hutang Penuh</strong>. Sisa
-                              Tagihan (Tempo):{" "}
-                              <strong>{formatCurrency(grandTotal)}</strong>.
-                            </span>
+                          <div className="space-y-2 animate-in fade-in duration-200">
+                            <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-2.5 rounded-xl flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <LuInfo size={14} className="shrink-0" />
+                                <span>
+                                  Transaksi dicatat sebagai{" "}
+                                  <strong>Piutang/Hutang Penuh</strong>. Sisa
+                                  Tagihan (Tempo):{" "}
+                                  <strong>{formatCurrency(grandTotal)}</strong>.
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setIsCreditLimitDialogOpen(true)
+                                }
+                                className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 text-[10px] font-black uppercase tracking-wider shrink-0 transition-colors"
+                              >
+                                Cek Limit
+                              </button>
+                            </div>
+
+                            {/* Reseller Credit Summary Quick Info */}
+                            {currentReseller && (
+                              <div className="p-3 rounded-xl bg-card border border-border/70 flex items-center justify-between text-xs">
+                                <div className="space-y-0.5">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                                    Sisa Limit ({currentReseller.name})
+                                  </span>
+                                  <span
+                                    className={`font-mono font-black text-sm block ${
+                                      currentReseller.creditLimit -
+                                        currentReseller.outstandingDebt <
+                                      grandTotal
+                                        ? "text-rose-600 dark:text-rose-400"
+                                        : "text-emerald-600 dark:text-emerald-400"
+                                    }`}
+                                  >
+                                    {formatCurrency(
+                                      currentReseller.creditLimit -
+                                        currentReseller.outstandingDebt,
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="text-right space-y-1">
+                                  <span
+                                    className={`inline-block text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                      currentReseller.creditLimit -
+                                        currentReseller.outstandingDebt <
+                                      grandTotal
+                                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                                        : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                                    }`}
+                                  >
+                                    {currentReseller.creditLimit -
+                                      currentReseller.outstandingDebt <
+                                    grandTotal
+                                      ? "Overlimit"
+                                      : "Limit Aman"}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground block font-medium">
+                                    Plafon:{" "}
+                                    {formatCurrency(
+                                      currentReseller.creditLimit,
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </>
@@ -1098,22 +1257,75 @@ const OrderPage = () => {
                                 {formatCurrency(totalPaid)}
                               </span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                               <span className="text-muted-foreground">
                                 Sisa Belum Terbayar:
                               </span>
-                              <span
-                                className={`font-black ${
-                                  remainingAmount > 0
-                                    ? "text-rose-600 dark:text-rose-400"
-                                    : "text-emerald-600 dark:text-emerald-400"
-                                }`}
-                              >
-                                {remainingAmount > 0
-                                  ? formatCurrency(remainingAmount)
-                                  : "PAS / LUNAS"}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`font-black ${
+                                    remainingAmount > 0
+                                      ? "text-rose-600 dark:text-rose-400"
+                                      : "text-emerald-600 dark:text-emerald-400"
+                                  }`}
+                                >
+                                  {remainingAmount > 0
+                                    ? formatCurrency(remainingAmount)
+                                    : "PAS / LUNAS"}
+                                </span>
+                                {remainingAmount > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setIsCreditLimitDialogOpen(true)
+                                    }
+                                    className="text-[9px] font-black uppercase text-amber-600 dark:text-amber-400 underline hover:opacity-80"
+                                  >
+                                    Cek Limit
+                                  </button>
+                                )}
+                              </div>
                             </div>
+
+                            {/* Live Reseller Credit Status for Split Payment Remaining Debt */}
+                            {currentReseller && remainingAmount > 0 && (
+                              <div className="pt-2 border-t border-border/40 flex items-center justify-between text-xs">
+                                <div className="space-y-0.5">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                                    Sisa Limit ({currentReseller.name})
+                                  </span>
+                                  <span
+                                    className={`font-mono font-black text-xs block ${
+                                      currentReseller.creditLimit -
+                                        currentReseller.outstandingDebt <
+                                      remainingAmount
+                                        ? "text-rose-600 dark:text-rose-400"
+                                        : "text-emerald-600 dark:text-emerald-400"
+                                    }`}
+                                  >
+                                    {formatCurrency(
+                                      currentReseller.creditLimit -
+                                        currentReseller.outstandingDebt,
+                                    )}
+                                  </span>
+                                </div>
+                                <span
+                                  className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                    currentReseller.creditLimit -
+                                      currentReseller.outstandingDebt <
+                                    remainingAmount
+                                      ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                                  }`}
+                                >
+                                  {currentReseller.creditLimit -
+                                    currentReseller.outstandingDebt <
+                                  remainingAmount
+                                    ? "Overlimit Sisa Tempo"
+                                    : "Sisa Limit Aman"}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </>
@@ -1154,7 +1366,7 @@ const OrderPage = () => {
                         Batal
                       </Button>
                       <Button
-                        onClick={handleProcessPayment}
+                        onClick={handlePaymentSubmit}
                         disabled={
                           !isPaymentValid || processPaymentMutation.isPending
                         }
@@ -1780,6 +1992,39 @@ const OrderPage = () => {
           }}
         />
       )}
+
+      {/* Reseller Credit Limit Warning Dialog */}
+      <ResellerCreditLimitDialog
+        isOpen={isCreditLimitDialogOpen}
+        onClose={() => setIsCreditLimitDialogOpen(false)}
+        onConfirm={() => {
+          setIsCreditLimitDialogOpen(false);
+          handleProcessPayment();
+        }}
+        onCancelPaymentMode={() => {
+          setIsCreditLimitDialogOpen(false);
+          setSingleAmount(null);
+          if (paymentMethod === "PIUTANG") {
+            setPaymentMethod("CASH");
+          }
+          if (isSplitPayment) {
+            setSplitAmounts({ cash: grandTotal, transfer: 0, qris: 0 });
+          }
+        }}
+        reseller={currentReseller}
+        isLoadingReseller={isLoadingReseller}
+        isResellerOrder={Boolean(activeOrder?.resellerId)}
+        customerName={activeOrder?.customerName || "Customer Walk In"}
+        ticketNo={activeOrder?.ticketNo || "-"}
+        orderAmount={
+          paymentMethod === "PIUTANG"
+            ? grandTotal
+            : remainingAmount || grandTotal
+        }
+        isProcessing={processPaymentMutation.isPending}
+        isPartialPayment={paymentMethod !== "PIUTANG" && remainingAmount > 0}
+        paidAmount={totalPaid}
+      />
 
       {/* Full-screen Loading Overlay for status mutations */}
       {(updateStatusMutation.isPending || cancelOrderMutation.isPending) && (

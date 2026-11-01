@@ -151,7 +151,14 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
                       {formatDateTime(bill.createdAt, bill.date)}
                     </TableCell>
                     <TableCell className="font-semibold text-xs">
-                      {bill.billNumber}
+                      <button
+                        type="button"
+                        onClick={() => onDetail(bill)}
+                        className="font-mono font-bold text-xs bg-muted/60 text-foreground hover:bg-primary/20 hover:text-primary hover:border-primary/50 px-2 py-0.5 rounded-lg border border-border/50 inline-block text-left cursor-pointer transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0"
+                        title="Klik untuk melihat Detail Rincian"
+                      >
+                        {bill.billNumber}
+                      </button>
                     </TableCell>
                     <TableCell className="font-medium text-muted-foreground text-xs">
                       <div className="flex flex-col">

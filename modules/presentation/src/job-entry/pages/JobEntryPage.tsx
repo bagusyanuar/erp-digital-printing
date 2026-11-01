@@ -238,9 +238,14 @@ const JobEntryPage = () => {
       columnHelper.accessor("ticketNo", {
         header: "No. Tiket / Transaksi",
         cell: (info) => (
-          <span className="font-mono font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg border border-slate-200/50">
+          <button
+            type="button"
+            onClick={() => setSelectedTransaction(info.row.original)}
+            className="font-mono font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-primary/20 hover:text-primary hover:border-primary/50 px-2.5 py-1 rounded-lg border border-slate-200/50 inline-block text-left cursor-pointer transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0"
+            title="Klik untuk melihat Detail Pesanan"
+          >
             {info.getValue()}
-          </span>
+          </button>
         ),
       }),
       columnHelper.accessor("createdAt", {
