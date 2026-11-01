@@ -1,6 +1,6 @@
 {
   "name": "erp-digital-printing",
-  "version": "1.0.0",
+  "version": "2.1.6",
   "description": "",
   "main": "index.js",
   "private": true,
@@ -8,7 +8,10 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:back-office": "turbo run dev --filter=@erp-digital-printing/back-office-app",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "release": "node scripts/release.js",
+    "release:dev": "node scripts/release.js dev",
+    "release:prod": "node scripts/release.js prod"
   },
   "keywords": [],
   "author": "",
