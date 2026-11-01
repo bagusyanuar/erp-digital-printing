@@ -59,8 +59,7 @@ export const ResellerCreditLimitDialog: React.FC<
   const creditLimit = reseller?.creditLimit ?? 0;
   const outstandingDebt = reseller?.outstandingDebt ?? 0;
   const remainingLimit = creditLimit - outstandingDebt;
-  const remainingAfterOrder = remainingLimit - orderAmount;
-  const isOverlimit = remainingAfterOrder < 0;
+  const isOverlimit = remainingLimit < orderAmount;
 
   return (
     <Dialog
@@ -229,8 +228,8 @@ export const ResellerCreditLimitDialog: React.FC<
               </div>
 
               {/* Rincian Transaksi Piutang Ini */}
-              <div className="p-4 rounded-2xl bg-muted/20 border border-border/50 space-y-2 text-xs">
-                <div className="flex items-center justify-between pb-2 border-b border-border/30">
+              <div className="p-4 rounded-2xl bg-muted/20 border border-border/50 text-xs">
+                <div className="flex items-center justify-between">
                   <span className="font-semibold text-muted-foreground flex items-center gap-1.5">
                     <LuReceipt size={14} className="text-primary" />
                     {isPartialPayment
@@ -248,21 +247,6 @@ export const ResellerCreditLimitDialog: React.FC<
                     )}
                   </div>
                 </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <span className="font-bold text-foreground">
-                    Estimasi Sisa Limit Setelah Transaksi:
-                  </span>
-                  <span
-                    className={`font-mono font-black text-sm ${
-                      remainingAfterOrder < 0
-                        ? "text-rose-600 dark:text-rose-400"
-                        : "text-emerald-600 dark:text-emerald-400"
-                    }`}
-                  >
-                    {formatCurrency(remainingAfterOrder)}
-                  </span>
-                </div>
               </div>
 
               {/* Banner Status Callout */}
@@ -275,12 +259,8 @@ export const ResellerCreditLimitDialog: React.FC<
                     </span>
                     <p className="text-[11px] leading-relaxed opacity-90">
                       Total tagihan piutang melampaui sisa plafon limit kredit
-                      reseller sebesar{" "}
-                      <strong className="font-mono font-bold">
-                        {formatCurrency(Math.abs(remainingAfterOrder))}
-                      </strong>
-                      . Pastikan Anda telah mengonfirmasi persetujuan pihak
-                      manajemen / owner.
+                      reseller. Silakan ganti metode pembayaran atau lakukan
+                      pelunasan piutang berjalan terlebih dahulu.
                     </p>
                   </div>
                 </div>
