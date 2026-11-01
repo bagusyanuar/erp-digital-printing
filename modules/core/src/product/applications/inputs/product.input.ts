@@ -6,6 +6,7 @@ export interface ProductParams extends PaginationParams {
   sort?: string;
   sortBy?: string;
   category_id?: string;
+  is_production?: boolean | "all";
 }
 
 export type CreateProductInput = ProductModel;

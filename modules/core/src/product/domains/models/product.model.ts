@@ -22,6 +22,8 @@ export interface ProductModel {
   id?: string;
   name: string;
   category_id: string;
+  category_name?: string;
+  category_is_production?: boolean;
   sku: string;
   uom: string;
   base_price: number;

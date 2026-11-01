@@ -25,6 +25,7 @@ export interface OrderItemModel {
   variant_name: string;
   category_id?: string;
   category_name?: string;
+  category_is_production?: boolean;
   uom: string;
   quantity: number;
   design_file_url: string;

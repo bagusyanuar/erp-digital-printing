@@ -26,9 +26,15 @@ import {
   LuShare2,
   LuCopy,
   LuPalette,
+  LuLayers,
+  LuPlus,
+  LuScissors,
 } from "@erp-digital-printing/ui/icons";
 import { useOrder } from "../hooks/useOrder";
 import { useProfile } from "../../user/hooks/useProfile";
+import { AddRetailItemDialog } from "../components/AddRetailItemDialog";
+import { CreateRetailOrderDialog } from "../components/CreateRetailOrderDialog";
+import { MergeToProductionTicketDialog } from "../components/MergeToProductionTicketDialog";
 
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -79,13 +85,24 @@ const OrderPage = () => {
     updateStatusMutation,
     cancelOrderMutation,
     processPaymentMutation,
+    activeTab,
+    setActiveTab,
+    productionTransactions,
     handleSendBackToDraft,
     handleCancelOrder,
     handleSelectOrder,
     handleUpdateItemPrice,
+    handleAddRetailItemToOrder,
+    handleRemoveItemFromOrder,
+    handleSplitItemToNewRetailOrder,
+    handleCreateDirectRetailOrder,
+    handleMergeRetailOrderToProductionTicket,
     handleProcessPayment,
   } = useOrder();
 
+  const [isAddRetailDialogOpen, setIsAddRetailDialogOpen] = React.useState(false);
+  const [isCreateRetailDialogOpen, setIsCreateRetailDialogOpen] = React.useState(false);
+  const [isMergeToTicketDialogOpen, setIsMergeToTicketDialogOpen] = React.useState(false);
   const [isPrinting, setIsPrinting] = React.useState(false);
   const [isCapturingReceipt, setIsCapturingReceipt] = React.useState(false);
   const [isShareWADialogOpen, setIsShareWADialogOpen] = React.useState(false);
@@ -163,10 +180,10 @@ const OrderPage = () => {
             </div>
             <div>
               <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider block">
-                Antrean
+                Total Antrean
               </span>
               <span className="text-lg font-black text-amber-800 dark:text-amber-300">
-                {stats.pending} Tiket
+                {stats.pending} Transaksi
               </span>
             </div>
           </div>
@@ -177,15 +194,72 @@ const OrderPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT COMPONENT (7 Columns): Order Queue & Filters */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="bg-card border border-border/50 p-3.5 rounded-2xl">
+          {/* Tab Navigation: Tiket Produksi vs Pesanan Ritel */}
+          <div className="flex items-center gap-2 p-1.5 bg-muted/40 rounded-2xl border border-border/50">
+            <button
+              type="button"
+              onClick={() => setActiveTab("PRODUCTION")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "PRODUCTION"
+                  ? "bg-card text-foreground shadow-sm border border-border/60"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <LuLayers
+                size={14}
+                className={activeTab === "PRODUCTION" ? "text-primary" : ""}
+              />
+              <span>Tiket Produksi</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary">
+                {stats.pendingProduction}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("RETAIL")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "RETAIL"
+                  ? "bg-card text-foreground shadow-sm border border-border/60"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <LuShoppingBag
+                size={14}
+                className={activeTab === "RETAIL" ? "text-amber-500" : ""}
+              />
+              <span>Pesanan Ritel / Non-Produksi</span>
+              {stats.pendingRetail > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  {stats.pendingRetail}
+                </span>
+              )}
+            </button>
+          </div>
+
+          <div className="bg-card border border-border/50 p-3.5 rounded-2xl flex items-center gap-3">
             {/* Search Input */}
             <TextField
-              placeholder="Cari No. Tiket atau Nama Pelanggan..."
+              placeholder={
+                activeTab === "PRODUCTION"
+                  ? "Cari No. Tiket atau Nama Pelanggan..."
+                  : "Cari No. Nota Ritel atau Nama Pelanggan..."
+              }
               prefixIcon={LuSearch}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full"
+              className="flex-1"
             />
+            {activeTab === "RETAIL" && (
+              <Button
+                size="sm"
+                onClick={() => setIsCreateRetailDialogOpen(true)}
+                className="h-10 px-3.5 rounded-xl font-bold bg-primary text-primary-foreground shadow-sm flex items-center gap-1.5 text-xs shrink-0"
+              >
+                <LuPlus size={14} />
+                + Nota Ritel
+              </Button>
+            )}
           </div>
 
           {/* Queue Cards */}
@@ -218,6 +292,15 @@ const OrderPage = () => {
                           <span className="font-mono font-bold text-xs bg-muted px-2.5 py-1 rounded-lg border border-border/50 text-foreground">
                             {order.ticketNo}
                           </span>
+                          {order.orderType === "RETAIL" ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              Nota Ritel
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                              Tiket Produksi
+                            </span>
+                          )}
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                               isPaid
@@ -307,11 +390,26 @@ const OrderPage = () => {
             ) : (
               <div className="flex flex-col items-center justify-center p-12 bg-card border border-dashed border-border rounded-3xl text-center space-y-3">
                 <LuInfo size={36} className="text-muted-foreground/60" />
-                <h3 className="font-bold text-foreground">Antrean Kosong</h3>
+                <h3 className="font-bold text-foreground">
+                  {activeTab === "PRODUCTION"
+                    ? "Antrean Tiket Produksi Kosong"
+                    : "Antrean Pesanan Ritel Kosong"}
+                </h3>
                 <p className="text-xs text-muted-foreground max-w-xs">
-                  Tidak ada transaksi kasir yang cocok dengan pencarian atau
-                  filter status saat ini.
+                  {activeTab === "PRODUCTION"
+                    ? "Belum ada tiket produksi baru dari Desainer yang menunggu pembayaran."
+                    : "Belum ada pesanan ritel. Klik tombol '+ Nota Ritel' di atas untuk membuat transaksi langsung."}
                 </p>
+                {activeTab === "RETAIL" && (
+                  <Button
+                    size="sm"
+                    onClick={() => setIsCreateRetailDialogOpen(true)}
+                    className="h-9 px-4 rounded-xl font-bold bg-primary text-primary-foreground shadow-sm text-xs mt-2"
+                  >
+                    <LuPlus size={14} className="mr-1.5" />
+                    Buat Nota Ritel Baru
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -336,17 +434,30 @@ const OrderPage = () => {
               <div className="p-5 border-b border-border/20 bg-muted/10 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    Pelanggan (Input Desainer)
+                    {activeOrder.orderType === "RETAIL"
+                      ? "Pelanggan (Transaksi Ritel)"
+                      : "Pelanggan (Input Desainer)"}
                   </span>
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${
-                      activeOrder.resellerId
-                        ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
-                        : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
-                    }`}
-                  >
-                    {activeOrder.resellerId ? "Biro / Reseller" : "Retail"}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {activeOrder.orderType === "RETAIL" ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+                        Nota Ritel
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
+                        Nota Produksi
+                      </span>
+                    )}
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${
+                        activeOrder.resellerId
+                          ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50"
+                          : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800/50"
+                      }`}
+                    >
+                      {activeOrder.resellerId ? "Biro / Reseller" : "Retail"}
+                    </span>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -381,20 +492,43 @@ const OrderPage = () => {
               </div>
 
               {/* Items Summary list */}
-              <div className="p-5 space-y-3 max-h-[220px] overflow-y-auto border-b border-border/20 scrollbar-thin">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
-                  Detail Item Belanja
-                </span>
+              <div className="p-5 space-y-3 max-h-[260px] overflow-y-auto border-b border-border/20 scrollbar-thin">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">
+                    Detail Item Belanja ({activeOrder.items.length})
+                  </span>
+                  {activeOrder.status !== "LUNAS" && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddRetailDialogOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all active:scale-95"
+                    >
+                      <LuPlus size={12} />
+                      + Tambah Item Ritel
+                    </button>
+                  )}
+                </div>
 
                 {activeOrder.items.map((item, idx) => (
                   <div
                     key={item.id}
-                    className="flex items-start justify-between text-xs py-2 border-b border-border/10 last:border-0"
+                    className="flex items-start justify-between text-xs py-2 border-b border-border/10 last:border-0 gap-2"
                   >
-                    <div className="space-y-0.5 flex-1 pr-3">
-                      <span className="font-bold text-foreground block line-clamp-1">
-                        {idx + 1}. {item.productName}
-                      </span>
+                    <div className="space-y-1 flex-1 pr-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-foreground block line-clamp-1">
+                          {idx + 1}. {item.productName}
+                        </span>
+                        {item.isProduction === false ? (
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                            Ritel
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                            Produksi
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[10px] text-muted-foreground block font-medium">
                         {item.dimension} | {item.finishing}
                       </span>
@@ -437,11 +571,48 @@ const OrderPage = () => {
                         </div>
                       )}
                     </div>
-                    <span className="font-black text-foreground shrink-0 self-center">
-                      {item.pricePerUnit > 0
-                        ? formatCurrency(item.subtotal)
-                        : "-"}
-                    </span>
+
+                    <div className="flex items-center gap-2 shrink-0 self-center">
+                      <span className="font-black text-foreground">
+                        {item.pricePerUnit > 0
+                          ? formatCurrency(item.subtotal)
+                          : "-"}
+                      </span>
+
+                      {/* Retail item actions: Split to separate note OR Delete */}
+                      {activeOrder.status !== "LUNAS" && item.isProduction === false && (
+                        <div className="flex items-center gap-1">
+                          {activeOrder.orderType !== "RETAIL" && (
+                            <button
+                              type="button"
+                              title="Pisahkan item ini ke Nota Ritel Baru"
+                              onClick={() =>
+                                handleSplitItemToNewRetailOrder(
+                                  activeOrder.id,
+                                  item.id,
+                                )
+                              }
+                              className="p-1.5 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/20 transition-colors"
+                            >
+                              <LuScissors size={12} />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            title="Hapus Item"
+                            onClick={() =>
+                              handleRemoveItemFromOrder(
+                                activeOrder.id,
+                                item.id,
+                              )
+                            }
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 border border-rose-500/20 transition-colors"
+                          >
+                            <LuTrash2 size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -534,17 +705,29 @@ const OrderPage = () => {
                   </div>
                 ) : (
                   <>
-                    {/* Actions: Send to Draft & Cancel Order */}
+                    {/* Actions: Send to Draft / Merge to Production & Cancel Order */}
                     <div className="grid grid-cols-2 gap-3 pb-4 border-b border-border/30">
-                      <Button
-                        variant="outline"
-                        type="button"
-                        onClick={() => setIsDraftConfirmOpen(true)}
-                        className="h-9 rounded-xl font-bold text-[11px] border-amber-500/20 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5 transition-all active:scale-95"
-                      >
-                        <LuCornerUpLeft size={13} />
-                        Kirim ke Draft
-                      </Button>
+                      {activeOrder.orderType === "RETAIL" ? (
+                        <Button
+                          variant="outline"
+                          type="button"
+                          onClick={() => setIsMergeToTicketDialogOpen(true)}
+                          className="h-9 rounded-xl font-bold text-[11px] border-blue-500/20 hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                        >
+                          <LuLayers size={13} />
+                          Gabung ke Tiket Cetak
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          type="button"
+                          onClick={() => setIsDraftConfirmOpen(true)}
+                          className="h-9 rounded-xl font-bold text-[11px] border-amber-500/20 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                        >
+                          <LuCornerUpLeft size={13} />
+                          Kirim ke Draft
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         type="button"
@@ -1559,6 +1742,44 @@ const OrderPage = () => {
           </div>
         </div>
       </Dialog>
+
+      {/* Retail Dialogs */}
+      {activeOrder && (
+        <AddRetailItemDialog
+          isOpen={isAddRetailDialogOpen}
+          onClose={() => setIsAddRetailDialogOpen(false)}
+          targetTicketNo={activeOrder.ticketNo}
+          onAddItem={(prod, qty) => {
+            handleAddRetailItemToOrder(activeOrder.id, prod, qty);
+          }}
+        />
+      )}
+
+      <CreateRetailOrderDialog
+        isOpen={isCreateRetailDialogOpen}
+        onClose={() => setIsCreateRetailDialogOpen(false)}
+        onCreateOrder={(name, phone, items) => {
+          handleCreateDirectRetailOrder(name, phone, items);
+        }}
+      />
+
+      {/* Merge Existing Retail Order into Production Ticket Dialog */}
+      {activeOrder && activeOrder.orderType === "RETAIL" && (
+        <MergeToProductionTicketDialog
+          isOpen={isMergeToTicketDialogOpen}
+          onClose={() => setIsMergeToTicketDialogOpen(false)}
+          sourceRetailTicketNo={activeOrder.ticketNo}
+          retailItemCount={activeOrder.items.length}
+          retailTotalAmount={activeOrder.grandTotal || 0}
+          productionOrders={productionTransactions}
+          onMerge={(targetProdId) => {
+            handleMergeRetailOrderToProductionTicket(
+              activeOrder.id,
+              targetProdId,
+            );
+          }}
+        />
+      )}
 
       {/* Full-screen Loading Overlay for status mutations */}
       {(updateStatusMutation.isPending || cancelOrderMutation.isPending) && (

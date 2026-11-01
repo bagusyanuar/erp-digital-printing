@@ -171,6 +171,8 @@ export interface OrderRepository {
   getCategorySales(params: CategorySalesParams): Promise<CategorySalesItem[]>;
   getProductSales(params?: ProductSalesParams): Promise<PaginatedResponse<ProductSalesItemModel>>;
   getPaymentSales(params: PaymentSalesParams): Promise<PaymentSalesItem[]>;
+  mergeOrder(targetOrderId: string, sourceOrderId: string): Promise<OrderModel>;
+  createDirectOrder(input: DraftOrderModel): Promise<OrderModel>;
 }
 
 

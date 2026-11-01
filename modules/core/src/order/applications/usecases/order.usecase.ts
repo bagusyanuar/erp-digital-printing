@@ -148,4 +148,21 @@ export class CancelOrder {
   }
 }
 
+export class MergeOrder {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(targetOrderId: string, sourceOrderId: string): Promise<OrderModel> {
+    return await this.orderRepository.mergeOrder(targetOrderId, sourceOrderId);
+  }
+}
+
+export class CreateDirectOrder {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(input: SaveDraftOrderInput): Promise<OrderModel> {
+    return await this.orderRepository.createDirectOrder(input);
+  }
+}
+
+
 

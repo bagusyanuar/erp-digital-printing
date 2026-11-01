@@ -10,6 +10,7 @@ export function mapProductParamToQuery(params: ProductParams): ProductQuery {
     sort_by: params.sort || "sequence",
     sort_order: params.sortBy || "asc",
     category_id: params.category_id,
+    is_production: params.is_production !== undefined ? String(params.is_production) : undefined,
   };
 }
 
@@ -20,6 +21,8 @@ export function mapProductResponseToModel(
     id: response.id,
     name: response.name,
     category_id: response.category_id,
+    category_name: response.category_name,
+    category_is_production: response.category_is_production,
     sku: response.sku,
     uom: response.uom,
     base_price: response.base_price,

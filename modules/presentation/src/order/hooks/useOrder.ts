@@ -7,10 +7,12 @@ import type { AppError } from "@core/shared/errors/domain.error";
 import type { OrderModel } from "@core/order/domains/models/order.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import type { ProcessPaymentInput } from "@core/order/domains/repositories/order.repository";
+import type { RetailProductItem } from "../types/retail.type";
 
 // Interface Definitions
 export interface OrderItem {
   id: string;
+  productVariantId?: string;
   productName: string;
   dimension: string;
   qty: number;
@@ -20,6 +22,11 @@ export interface OrderItem {
   widthM?: number;
   uom?: string;
   subtotal: number;
+  isProduction?: boolean;
+  categoryName?: string;
+  designFileUrl?: string;
+  productionNotes?: string;
+  finishingIds?: string[];
 }
 
 export interface OrderTransaction {
@@ -40,6 +47,7 @@ export interface OrderTransaction {
   changeAmount?: number;
   grandTotal?: number;
   remainingAmount?: number;
+  orderType?: "PRODUCTION" | "RETAIL";
 }
 
 export const useOrder = () => {
@@ -48,6 +56,10 @@ export const useOrder = () => {
   >({});
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<"PRODUCTION" | "RETAIL">(
+    "PRODUCTION",
+  );
+
   const [isDraftConfirmOpen, setIsDraftConfirmOpen] = useState(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
@@ -57,6 +69,9 @@ export const useOrder = () => {
     payOrderUseCase,
     updateOrderStatusUseCase,
     cancelOrderUseCase,
+    updateOrderUseCase,
+    mergeOrderUseCase,
+    createDirectOrderUseCase,
   } = useOrderDI();
 
   // Cashier POS only handles PENDING_PAYMENT status orders.
@@ -85,10 +100,15 @@ export const useOrder = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Purely computed transactions state combining remote data & local overrides (No useEffect!)
-  const transactions = useMemo((): OrderTransaction[] => {
+  // Purely computed all orders combining remote data & local overrides
+  const allRemoteOrders = useMemo((): OrderTransaction[] => {
     return (response?.data ?? []).map((order): OrderTransaction => {
       const override = localOverrides[order.id];
+
+      // An order is classified as RETAIL if it has items and ALL items belong to non-production categories
+      const isRetail =
+        Boolean(order.order_items && order.order_items.length > 0) &&
+        order.order_items.every((it) => it.category_is_production === false);
 
       // Base mapped order from server
       const baseOrder: OrderTransaction = {
@@ -106,6 +126,7 @@ export const useOrder = () => {
               ? "BATAL"
               : "LUNAS",
         createdAt: order.created_at,
+        orderType: isRetail ? "RETAIL" : "PRODUCTION",
         items: (order.order_items ?? []).map((item) => {
           let dimensionText = "Pcs";
           if (item.uom === "m2") {
@@ -128,8 +149,7 @@ export const useOrder = () => {
           let itemSubtotal = item.subtotal || 0;
           if (itemOverride) {
             if (item.uom === "m2") {
-              const area =
-                (item.length_m || 0) * (item.width_m || 0);
+              const area = (item.length_m || 0) * (item.width_m || 0);
               itemSubtotal = pricePerUnit * item.quantity * area;
             } else if (item.uom === "m_lari") {
               const length = item.length_m || 0;
@@ -141,6 +161,7 @@ export const useOrder = () => {
 
           return {
             id: item.id,
+            productVariantId: item.product_variant_id,
             productName:
               item.variant_name &&
               item.variant_name.toLowerCase() !== "default"
@@ -154,6 +175,10 @@ export const useOrder = () => {
             widthM: item.width_m,
             uom: item.uom,
             subtotal: itemSubtotal,
+            isProduction: item.category_is_production !== false,
+            categoryName: item.category_name,
+            designFileUrl: item.design_file_url,
+            productionNotes: item.production_notes,
           };
         }),
         grandTotal: order.grand_total,
@@ -168,13 +193,33 @@ export const useOrder = () => {
         return {
           ...baseOrder,
           ...override,
-          items: baseOrder.items, // already applied individual item overrides above
+          items: override.items ?? baseOrder.items,
         };
       }
 
       return baseOrder;
     });
   }, [response, localOverrides]);
+
+  // Production queue transactions
+  const productionTransactions = useMemo((): OrderTransaction[] => {
+    return allRemoteOrders.filter((ord) => ord.orderType === "PRODUCTION");
+  }, [allRemoteOrders]);
+
+  // Retail queue transactions
+  const retailOrders = useMemo((): OrderTransaction[] => {
+    return allRemoteOrders.filter((ord) => ord.orderType === "RETAIL");
+  }, [allRemoteOrders]);
+
+  // All combined transactions (for lookups regardless of active tab)
+  const allTransactions = useMemo((): OrderTransaction[] => {
+    return allRemoteOrders;
+  }, [allRemoteOrders]);
+
+  // Tab-filtered transactions for list queue
+  const transactions = useMemo((): OrderTransaction[] => {
+    return activeTab === "PRODUCTION" ? productionTransactions : retailOrders;
+  }, [activeTab, productionTransactions, retailOrders]);
 
   // Payment UI states
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
@@ -190,10 +235,10 @@ export const useOrder = () => {
   const [lastCompletedOrder, setLastCompletedOrder] =
     useState<OrderTransaction | null>(null);
 
-  // Active Selected Order
+  // Active Selected Order lookup in allTransactions
   const activeOrder = useMemo(() => {
-    return transactions.find((t) => t.id === selectedOrderId) || null;
-  }, [transactions, selectedOrderId]);
+    return allTransactions.find((t) => t.id === selectedOrderId) || null;
+  }, [allTransactions, selectedOrderId]);
 
   // Calculations for checkout panel
   const subtotal = useMemo(() => {
@@ -230,7 +275,8 @@ export const useOrder = () => {
         splitAmounts.cash + splitAmounts.transfer + splitAmounts.qris;
       return totalSplit > 0 && totalSplit <= grandTotal;
     }
-    const currentSingleAmount = singleAmount === null ? grandTotal : singleAmount;
+    const currentSingleAmount =
+      singleAmount === null ? grandTotal : singleAmount;
     if (currentSingleAmount < 0) return false;
     if (paymentMethod === "CASH" || paymentMethod === "PIUTANG") return true;
     return currentSingleAmount <= grandTotal;
@@ -247,15 +293,27 @@ export const useOrder = () => {
     });
   }, [transactions, searchQuery]);
 
-  // Stats
+  // Stats across production and retail
   const stats = useMemo(() => {
-    const pending = transactions.filter(
+    const pendingProduction = productionTransactions.filter(
       (t) => t.status === "NEED_PAYMENT",
     ).length;
-    const lunas = transactions.filter((t) => t.status === "LUNAS");
-    const totalRevenue = lunas.reduce((sum, t) => sum + (t.grandTotal || 0), 0);
-    return { pending, lunasCount: lunas.length, totalRevenue };
-  }, [transactions]);
+    const pendingRetail = retailOrders.filter(
+      (t) => t.status === "NEED_PAYMENT",
+    ).length;
+    const lunas = allTransactions.filter((t) => t.status === "LUNAS");
+    const totalRevenue = lunas.reduce(
+      (sum, t) => sum + (t.grandTotal || 0),
+      0,
+    );
+    return {
+      pending: pendingProduction + pendingRetail,
+      pendingProduction,
+      pendingRetail,
+      lunasCount: lunas.length,
+      totalRevenue,
+    };
+  }, [productionTransactions, retailOrders, allTransactions]);
 
   // Mutation to update order status (e.g. Send Back to Draft or Cancel Order)
   const updateStatusMutation = useMutation<
@@ -266,7 +324,6 @@ export const useOrder = () => {
     mutationFn: ({ id, status }) =>
       updateOrderStatusUseCase.execute(id, status),
     onSuccess: (_, variables) => {
-      // Refresh the orders queue from API
       refetch();
       setSelectedOrderId(null);
       toast.success(
@@ -282,6 +339,117 @@ export const useOrder = () => {
     },
   });
 
+  // Mutation to update order items in backend
+  const updateOrderItemsMutation = useMutation<
+    void,
+    AppError,
+    {
+      orderId: string;
+      targetOrder: OrderTransaction;
+      updatedItems: OrderItem[];
+      successMsg?: string;
+    }
+  >({
+    mutationFn: ({ orderId, targetOrder, updatedItems }) =>
+      updateOrderUseCase.execute(orderId, {
+        designer_id: targetOrder.designerId || "",
+        reseller_id: targetOrder.resellerId || null,
+        customer_name: targetOrder.customerName,
+        customer_phone: targetOrder.customerPhone || "",
+        notes: "",
+        items: updatedItems.map((it) => ({
+          product_variant_id: it.productVariantId || "",
+          uom: it.uom || "pcs",
+          quantity: it.qty,
+          design_file_url: it.designFileUrl || "",
+          production_notes: it.productionNotes || it.finishing || "",
+          finishing_ids: it.finishingIds || [],
+          length_m: it.lengthM,
+          width_m: it.widthM,
+        })),
+      }),
+    onSuccess: (_, variables) => {
+      refetch();
+      if (variables.successMsg) {
+        toast.success("Berhasil", variables.successMsg);
+      }
+    },
+    onError: (error) => {
+      toast.error(
+        "Gagal Menyimpan Perubahan",
+        error.message || "Terjadi kesalahan saat menyimpan perubahan order.",
+      );
+    },
+  });
+
+  // Mutation to merge a retail order into a production ticket in backend
+  const mergeOrderMutation = useMutation<
+    OrderModel,
+    AppError,
+    { targetOrderId: string; sourceOrderId: string }
+  >({
+    mutationFn: ({ targetOrderId, sourceOrderId }) =>
+      mergeOrderUseCase.execute(targetOrderId, sourceOrderId),
+    onSuccess: (mergedOrder) => {
+      refetch();
+      setActiveTab("PRODUCTION");
+      setSelectedOrderId(mergedOrder.id);
+      toast.success(
+        "Berhasil Digabungkan",
+        `Nota ritel berhasil digabungkan ke tiket ${mergedOrder.job_number}.`,
+      );
+    },
+    onError: (error) => {
+      toast.error(
+        "Gagal Menggabungkan Nota",
+        error.message || "Terjadi kesalahan saat menggabungkan nota ke backend.",
+      );
+    },
+  });
+
+  // Mutation to create a direct retail order in backend
+  const createDirectOrderMutation = useMutation<
+    OrderModel,
+    AppError,
+    {
+      customerName: string;
+      customerPhone: string;
+      items: OrderItem[];
+    }
+  >({
+    mutationFn: ({ customerName, customerPhone, items }) =>
+      createDirectOrderUseCase.execute({
+        designer_id: "",
+        reseller_id: null,
+        customer_name: customerName.trim() || "Customer Walk In",
+        customer_phone: customerPhone.trim() || "-",
+        notes: "Pesanan Ritel Kasir",
+        items: items.map((it) => ({
+          product_variant_id: it.productVariantId || "",
+          uom: it.uom || "pcs",
+          quantity: it.qty,
+          design_file_url: "",
+          production_notes: it.finishing || "Siap Ambil",
+          finishing_ids: [],
+        })),
+      }),
+    onSuccess: (newOrder) => {
+      refetch();
+      setActiveTab("RETAIL");
+      setSelectedOrderId(newOrder.id);
+      toast.success(
+        "Nota Ritel Dibuat",
+        `Transaksi ${newOrder.job_number} berhasil dibuat & siap checkout.`,
+      );
+    },
+    onError: (error) => {
+      toast.error(
+        "Gagal Membuat Nota Ritel",
+        error.message || "Terjadi kesalahan saat menyimpan nota ke server.",
+      );
+    },
+  });
+
   // Mutation to process active payment in backend
   const processPaymentMutation = useMutation<
     void,
@@ -290,7 +458,6 @@ export const useOrder = () => {
   >({
     mutationFn: ({ id, payload }) => payOrderUseCase.execute(id, payload),
     onSuccess: (_, variables) => {
-      // Refresh real orders queue from API
       refetch();
 
       const isFullyPaid = remainingAmount === 0;
@@ -374,22 +541,6 @@ export const useOrder = () => {
   };
 
   const handleSelectOrder = (orderId: string) => {
-    // Clear override of previous order if not yet paid/DP-ed
-    if (selectedOrderId && selectedOrderId !== orderId) {
-      const prevOrder = transactions.find((t) => t.id === selectedOrderId);
-      if (
-        prevOrder &&
-        prevOrder.status !== "LUNAS" &&
-        prevOrder.status !== "PARTIAL_PAID"
-      ) {
-        setLocalOverrides((prev) => {
-          const updated = { ...prev };
-          delete updated[selectedOrderId];
-          return updated;
-        });
-      }
-    }
-
     setSelectedOrderId(orderId);
     setPaymentMethod("CASH");
     setIsSplitPayment(false);
@@ -402,23 +553,172 @@ export const useOrder = () => {
     itemId: string,
     price: number,
   ) => {
+    const targetOrder = allTransactions.find((t) => t.id === orderId);
+    if (!targetOrder) return;
+
     setLocalOverrides((prev) => {
       const orderOverride = prev[orderId] || {};
-      const currentItems =
-        transactions.find((t) => t.id === orderId)?.items || [];
+      const currentItems = targetOrder.items;
       const updatedItems = currentItems.map((item) =>
-        item.id === itemId ? { ...item, pricePerUnit: price } : item,
+        item.id === itemId
+          ? {
+              ...item,
+              pricePerUnit: price,
+              subtotal:
+                item.uom === "m2"
+                  ? price *
+                    item.qty *
+                    ((item.lengthM || 0) * (item.widthM || 0))
+                  : item.uom === "m_lari"
+                    ? price * item.qty * (item.lengthM || 0)
+                    : price * item.qty,
+            }
+          : item,
+      );
+      const newGrandTotal = updatedItems.reduce(
+        (sum, it) => sum + it.subtotal,
+        0,
       );
       return {
         ...prev,
         [orderId]: {
           ...orderOverride,
           items: updatedItems,
+          grandTotal: newGrandTotal,
         },
       };
     });
   };
 
+  // Add retail (non-production) item to an active order (MERGE INTO TICKET) directly in BE
+  const handleAddRetailItemToOrder = (
+    orderId: string,
+    product: RetailProductItem,
+    qty: number,
+  ) => {
+    const targetOrder = allTransactions.find((t) => t.id === orderId);
+    if (!targetOrder) return;
+
+    const currentItems = targetOrder.items;
+    const existingIndex = currentItems.findIndex(
+      (it) => it.productVariantId === product.variantId,
+    );
+
+    let updatedItems: OrderItem[];
+    const existing =
+      existingIndex > -1 ? currentItems[existingIndex] : undefined;
+    if (existing) {
+      const newQty = existing.qty + qty;
+      const newSubtotal = existing.pricePerUnit * newQty;
+      updatedItems = currentItems.map((it, idx) =>
+        idx === existingIndex
+          ? { ...it, qty: newQty, subtotal: newSubtotal }
+          : it,
+      );
+    } else {
+      const newItem: OrderItem = {
+        id: `retail-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        productVariantId: product.variantId,
+        productName: product.name,
+        dimension: "Pcs",
+        qty,
+        finishing: "Siap Ambil",
+        pricePerUnit: product.price,
+        uom: product.uom,
+        subtotal: product.price * qty,
+        isProduction: false,
+        categoryName: product.categoryName,
+        designFileUrl: "",
+        productionNotes: "Item Ritel Tambahan",
+        finishingIds: [],
+      };
+      updatedItems = [...currentItems, newItem];
+    }
+
+    updateOrderItemsMutation.mutate({
+      orderId,
+      targetOrder,
+      updatedItems,
+      successMsg: `${product.name} (${qty}x) digabungkan ke nota ${targetOrder.ticketNo}.`,
+    });
+  };
+
+  // Remove an item from the order directly in BE
+  const handleRemoveItemFromOrder = (orderId: string, itemId: string) => {
+    const targetOrder = allTransactions.find((t) => t.id === orderId);
+    if (!targetOrder) return;
+
+    const updatedItems = targetOrder.items.filter((it) => it.id !== itemId);
+    updateOrderItemsMutation.mutate({
+      orderId,
+      targetOrder,
+      updatedItems,
+      successMsg: "Item berhasil dihapus dari daftar belanja.",
+    });
+  };
+
+  // Split a retail item out of a production ticket into a NEW separate retail order in BE (PISAH NOTA)
+  const handleSplitItemToNewRetailOrder = (
+    sourceOrderId: string,
+    itemId: string,
+  ) => {
+    const sourceOrder = allTransactions.find((t) => t.id === sourceOrderId);
+    if (!sourceOrder) return;
+
+    const itemToSplit = sourceOrder.items.find((it) => it.id === itemId);
+    if (!itemToSplit) return;
+
+    const remainingItems = sourceOrder.items.filter((it) => it.id !== itemId);
+
+    // 1. Remove from source order in BE
+    updateOrderItemsMutation.mutate(
+      {
+        orderId: sourceOrderId,
+        targetOrder: sourceOrder,
+        updatedItems: remainingItems,
+      },
+      {
+        onSuccess: () => {
+          // 2. Create standalone retail order in BE
+          createDirectOrderMutation.mutate({
+            customerName: sourceOrder.customerName || "Customer Walk In",
+            customerPhone: sourceOrder.customerPhone || "-",
+            items: [itemToSplit],
+          });
+          toast.success(
+            "Nota Berhasil Dipisahkan",
+            `Item "${itemToSplit.productName}" dipindahkan ke Nota Ritel Baru.`,
+          );
+        },
+      },
+    );
+  };
+
+  // Merge an entire existing retail order into a target production ticket in BE
+  const handleMergeRetailOrderToProductionTicket = (
+    retailOrderId: string,
+    targetProductionOrderId: string,
+  ) => {
+    mergeOrderMutation.mutate({
+      targetOrderId: targetProductionOrderId,
+      sourceOrderId: retailOrderId,
+    });
+  };
+
+  // Create a direct retail order from cashier in BE (Standalone Retail Order)
+  const handleCreateDirectRetailOrder = (
+    customerName: string,
+    customerPhone: string,
+    items: OrderItem[],
+  ) => {
+    createDirectOrderMutation.mutate({
+      customerName,
+      customerPhone,
+      items,
+    });
+  };
+
+  // Process payment for both Production and Retail orders in BE
   const handleProcessPayment = () => {
     if (!activeOrder) return;
 
@@ -435,7 +735,7 @@ export const useOrder = () => {
           },
         ];
 
-    const payload = {
+    const payload: ProcessPaymentInput = {
       reseller_id: activeOrder.resellerId || null,
       customer_name: activeOrder.customerName,
       customer_phone: activeOrder.customerPhone || "",
@@ -455,6 +755,9 @@ export const useOrder = () => {
     setSelectedOrderId,
     searchQuery,
     setSearchQuery,
+    activeTab,
+    setActiveTab,
+    retailOrders,
     isDraftConfirmOpen,
     setIsDraftConfirmOpen,
     isCancelConfirmOpen,
@@ -476,6 +779,8 @@ export const useOrder = () => {
     lastCompletedOrder,
     setLastCompletedOrder,
     transactions,
+    allTransactions,
+    productionTransactions,
     activeOrder,
     subtotal,
     grandTotal,
@@ -491,10 +796,18 @@ export const useOrder = () => {
     updateStatusMutation,
     cancelOrderMutation,
     processPaymentMutation,
+    createDirectOrderMutation,
+    mergeOrderMutation,
+    updateOrderItemsMutation,
     handleSendBackToDraft,
     handleCancelOrder,
     handleSelectOrder,
     handleUpdateItemPrice,
+    handleAddRetailItemToOrder,
+    handleRemoveItemFromOrder,
+    handleSplitItemToNewRetailOrder,
+    handleCreateDirectRetailOrder,
+    handleMergeRetailOrderToProductionTicket,
     handleProcessPayment,
   };
 };

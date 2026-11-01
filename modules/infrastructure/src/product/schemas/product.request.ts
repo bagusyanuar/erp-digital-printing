@@ -5,6 +5,7 @@ export interface ProductQuery extends PaginationQuery {
   sort_by?: string;
   sort_order?: string;
   category_id?: string;
+  is_production?: boolean | string;
 }
 
 export interface PriceTierRequest {

@@ -7,7 +7,58 @@ import type { DraftOrderRequest } from "../schemas/order.request";
 import type { ApiResponse } from "@infrastructure/libs/api-response";
 import type { OrderResponse, OrderSpkResponse, OrderPaymentResponse, ProductSalesItemResponse } from "../schemas/order.response";
 
-
+export function mapOrderResponseToModel(order: OrderResponse): OrderModel {
+  return {
+    id: order.id,
+    job_number: order.job_number,
+    invoice_number: order.invoice_number,
+    designer_id: order.designer_id,
+    designer_name: order.designer_name,
+    status: order.status,
+    payment_status: order.payment_status,
+    customer_name: order.customer_name,
+    customer_phone: order.customer_phone,
+    reseller_id: order.reseller_id,
+    notes: order.notes,
+    cancel_reason: order.cancel_reason ?? null,
+    cancelled_at: order.cancelled_at ?? null,
+    invoiced_at: order.invoiced_at ?? null,
+    total_additional_cost: order.total_additional_cost,
+    total_product_price: order.total_product_price,
+    grand_total: order.grand_total,
+    amount_paid: order.amount_paid,
+    order_items: (order.order_items ?? []).map((item) => ({
+      id: item.id,
+      product_variant_id: item.product_variant_id,
+      product_name: item.product_name,
+      variant_name: item.variant_name,
+      category_id: item.category_id,
+      category_name: item.category_name,
+      category_is_production: item.category_is_production,
+      uom: item.uom,
+      quantity: item.quantity,
+      design_file_url: item.design_file_url,
+      production_notes: item.production_notes,
+      price_per_unit: item.price_per_unit,
+      additional_cost: item.additional_cost,
+      subtotal: item.subtotal,
+      length_m: item.length_m,
+      width_m: item.width_m,
+    })),
+    order_payments: (order.order_payments ?? []).map((pay) => ({
+      id: pay.id,
+      cashier_id: pay.cashier_id,
+      cashier_name: pay.cashier_name,
+      amount: pay.amount,
+      payment_method: pay.payment_method,
+      payment_type: pay.payment_type,
+      payment_number: pay.payment_number,
+      created_at: pay.created_at,
+    })),
+    created_at: order.created_at,
+    updated_at: order.updated_at,
+  };
+}
 
 export class ApiOrderRepository implements OrderRepository {
   constructor(private readonly http: HttpClient) {}
@@ -84,55 +135,7 @@ export class ApiOrderRepository implements OrderRepository {
       );
 
       return {
-        data: (response.data ?? []).map((order): OrderModel => ({
-          id: order.id,
-          job_number: order.job_number,
-          invoice_number: order.invoice_number,
-          designer_id: order.designer_id,
-          designer_name: order.designer_name,
-          status: order.status,
-          payment_status: order.payment_status,
-          customer_name: order.customer_name,
-          customer_phone: order.customer_phone,
-          reseller_id: order.reseller_id,
-          notes: order.notes,
-          cancel_reason: order.cancel_reason ?? null,
-          cancelled_at: order.cancelled_at ?? null,
-          invoiced_at: order.invoiced_at ?? null,
-          total_additional_cost: order.total_additional_cost,
-          total_product_price: order.total_product_price,
-          grand_total: order.grand_total,
-          amount_paid: order.amount_paid,
-          order_items: (order.order_items ?? []).map((item) => ({
-            id: item.id,
-            product_variant_id: item.product_variant_id,
-            product_name: item.product_name,
-            variant_name: item.variant_name,
-            category_id: item.category_id,
-            category_name: item.category_name,
-            uom: item.uom,
-            quantity: item.quantity,
-            design_file_url: item.design_file_url,
-            production_notes: item.production_notes,
-            price_per_unit: item.price_per_unit,
-            additional_cost: item.additional_cost,
-            subtotal: item.subtotal,
-            length_m: item.length_m,
-            width_m: item.width_m,
-          })),
-          order_payments: (order.order_payments ?? []).map((pay) => ({
-            id: pay.id,
-            cashier_id: pay.cashier_id,
-            cashier_name: pay.cashier_name,
-            amount: pay.amount,
-            payment_method: pay.payment_method,
-            payment_type: pay.payment_type,
-            payment_number: pay.payment_number,
-            created_at: pay.created_at,
-          })),
-          created_at: order.created_at,
-          updated_at: order.updated_at,
-        })),
+        data: (response.data ?? []).map(mapOrderResponseToModel),
         page: response.meta?.pagination.current_page ?? 1,
         total: response.meta?.pagination.total_items ?? 0,
         limit: response.meta?.pagination.limit ?? 10,
@@ -236,55 +239,49 @@ export class ApiOrderRepository implements OrderRepository {
       if (!order) {
         throw new Error("Order tidak ditemukan.");
       }
-      return {
-        id: order.id,
-        job_number: order.job_number,
-        invoice_number: order.invoice_number,
-        designer_id: order.designer_id,
-        designer_name: order.designer_name,
-        status: order.status,
-        payment_status: order.payment_status,
-        customer_name: order.customer_name,
-        customer_phone: order.customer_phone,
-        reseller_id: order.reseller_id,
-        notes: order.notes,
-        cancel_reason: order.cancel_reason ?? null,
-        cancelled_at: order.cancelled_at ?? null,
-        invoiced_at: order.invoiced_at ?? null,
-        total_additional_cost: order.total_additional_cost,
-        total_product_price: order.total_product_price,
-        grand_total: order.grand_total,
-        amount_paid: order.amount_paid,
-        order_items: (order.order_items ?? []).map((item) => ({
-          id: item.id,
+      return mapOrderResponseToModel(order);
+    });
+  }
+
+  async mergeOrder(targetOrderId: string, sourceOrderId: string): Promise<OrderModel> {
+    return safeApiCall(async () => {
+      const response = await this.http.post<ApiResponse<OrderResponse>>(
+        `/orders/${targetOrderId}/merge`,
+        { source_order_id: sourceOrderId },
+      );
+      const order = response.data;
+      if (!order) {
+        throw new Error("Gagal menggabungkan order.");
+      }
+      return mapOrderResponseToModel(order);
+    });
+  }
+
+  async createDirectOrder(input: DraftOrderModel): Promise<OrderModel> {
+    return safeApiCall(async () => {
+      const payload = {
+        designer_id: input.designer_id || undefined,
+        reseller_id: input.reseller_id,
+        customer_name: input.customer_name,
+        customer_phone: input.customer_phone,
+        notes: input.notes,
+        items: input.items.map((item) => ({
           product_variant_id: item.product_variant_id,
-          product_name: item.product_name,
-          variant_name: item.variant_name,
-          category_id: item.category_id,
-          category_name: item.category_name,
           uom: item.uom,
           quantity: item.quantity,
-          design_file_url: item.design_file_url,
-          production_notes: item.production_notes,
-          price_per_unit: item.price_per_unit,
-          additional_cost: item.additional_cost,
-          subtotal: item.subtotal,
+          design_file_url: item.design_file_url || undefined,
+          production_notes: item.production_notes || undefined,
+          finishing_ids: item.finishing_ids,
           length_m: item.length_m,
           width_m: item.width_m,
         })),
-        order_payments: (order.order_payments ?? []).map((pay) => ({
-          id: pay.id,
-          cashier_id: pay.cashier_id,
-          cashier_name: pay.cashier_name,
-          amount: pay.amount,
-          payment_method: pay.payment_method,
-          payment_type: pay.payment_type,
-          payment_number: pay.payment_number,
-          created_at: pay.created_at,
-        })),
-        created_at: order.created_at,
-        updated_at: order.updated_at,
       };
+      const response = await this.http.post<ApiResponse<OrderResponse>>("/orders/submit", payload);
+      const order = response.data;
+      if (!order) {
+        throw new Error("Gagal membuat pesanan langsung.");
+      }
+      return mapOrderResponseToModel(order);
     });
   }
 
