@@ -151,7 +151,7 @@ export const ExpenseDetailDialog: React.FC<ExpenseDetailDialogProps> = ({
                     Supplier / Vendor
                   </span>
                   <span className="text-xs font-bold text-foreground">
-                    {bill.supplierName}
+                    {bill.supplierName || "-"}
                   </span>
                 </div>
               </div>

@@ -40,12 +40,8 @@ import {
   LuX,
   LuPlus,
   LuTrash2,
-  LuFileText,
-  LuUser,
-  LuUserCheck,
   LuPencil,
   LuBox,
-  LuReceipt,
 } from "@erp-digital-printing/ui/icons";
 import type { ExpenseBill, ExpenseBillItem } from "../types/expenseTypes";
 
@@ -152,6 +148,38 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
   const [splitAmountCash, setSplitAmountCash] = useState(() => bill ? "0" : (draftMetadata.splitAmountCash || "0"));
   const [splitAmountTransfer, setSplitAmountTransfer] = useState(() => bill ? "0" : (draftMetadata.splitAmountTransfer || "0"));
 
+  // Fetch real categories from API
+  const { getExpenseCategoriesUseCase } = useExpenseCategoryDI();
+  const { data: categoriesData } = useQuery({
+    queryKey: expenseCategoryKeys.list({ limit: 100 }),
+    queryFn: () => getExpenseCategoriesUseCase.execute({ limit: 100 }),
+    staleTime: 60_000,
+  });
+
+  const categories = useMemo(() => {
+    const list = categoriesData?.data ?? [];
+    return [...list]
+      .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        type: c.group,
+      }));
+  }, [categoriesData]);
+
+  // Fetch real suppliers from API
+  const { getSuppliersUseCase } = useSupplierDI();
+  const { data: suppliersData } = useQuery({
+    queryKey: supplierKeys.list({ limit: 100 }),
+    queryFn: () => getSuppliersUseCase.execute({ limit: 100 }),
+    staleTime: 60_000,
+  });
+
+  const suppliers = useMemo(() => {
+    const list = suppliersData?.data ?? [];
+    return [...list].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+  }, [suppliersData]);
+
   const { createExpenseUseCase } = useExpenseDI();
 
   const createExpenseMutation = useMutation<ExpenseModel, Error, CreateExpenseInput>({
@@ -244,38 +272,6 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
     splitAmountCash,
     splitAmountTransfer,
   ]);
-
-  // Fetch real categories from API
-  const { getExpenseCategoriesUseCase } = useExpenseCategoryDI();
-  const { data: categoriesData } = useQuery({
-    queryKey: expenseCategoryKeys.list({ limit: 100 }),
-    queryFn: () => getExpenseCategoriesUseCase.execute({ limit: 100 }),
-    staleTime: 60_000,
-  });
-
-  const categories = useMemo(() => {
-    const list = categoriesData?.data ?? [];
-    return [...list]
-      .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
-      .map((c) => ({
-        id: c.id,
-        name: c.name,
-        type: c.group,
-      }));
-  }, [categoriesData]);
-
-  // Fetch real suppliers from API
-  const { getSuppliersUseCase } = useSupplierDI();
-  const { data: suppliersData } = useQuery({
-    queryKey: supplierKeys.list({ limit: 100 }),
-    queryFn: () => getSuppliersUseCase.execute({ limit: 100 }),
-    staleTime: 60_000,
-  });
-
-  const suppliers = useMemo(() => {
-    const list = suppliersData?.data ?? [];
-    return [...list].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
-  }, [suppliersData]);
 
   // Reset/sync Left Panel item form when entering edit mode or clearing
   const activeCategory = categories.find((c) => c.id === itemCategoryId);
@@ -380,7 +376,7 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
     }
 
     const finalSupplierName = isManualSupplier
-      ? supplierName
+      ? (supplierName.trim() || "-")
       : suppliers.find((s) => s.id === supplierId)?.name ||
         supplierName ||
         "Cash Pihak Ketiga";
@@ -724,7 +720,7 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                     </Label>
                     {readOnly ? (
                       <div className="h-9 flex items-center font-bold text-xs">
-                        {supplierName}
+                        {supplierName || "-"}
                       </div>
                     ) : (
                       <div className="flex gap-1">
@@ -768,11 +764,10 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                   <div className="animate-in fade-in duration-300">
                     {isManualSupplier ? (
                       <TextField
-                        placeholder="Nama Supplier (Manual)"
+                        placeholder="Nama Supplier (Opsional)"
                         className="border-border/50 focus:bg-background transition-all font-medium text-xs h-9"
                         value={supplierName}
                         onChange={(e) => setSupplierName(e.target.value)}
-                        required
                       />
                     ) : (
                       <Combobox
@@ -843,7 +838,7 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
                             </TableCell>
                           </TableRow>
                         ) : (
-                          items.map((item, idx) => (
+                          items.map((item, _idx) => (
                             <TableRow
                               key={item.id}
                               className="hover:bg-muted/10 transition-colors"

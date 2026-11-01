@@ -156,7 +156,7 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
                     <TableCell className="font-medium text-muted-foreground text-xs">
                       <div className="flex flex-col">
                         <span className="font-semibold text-foreground text-xs">
-                          {bill.supplierName}
+                          {bill.supplierName || "-"}
                         </span>
                         {bill.description && (
                           <span className="text-[11px] text-muted-foreground line-clamp-1">

@@ -107,7 +107,7 @@ export const ExpensePaymentDialog: React.FC<ExpensePaymentDialogProps> = ({
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Supplier / Vendor:</span>
-                <span className="font-semibold text-foreground">{bill.supplierName}</span>
+                <span className="font-semibold text-foreground">{bill.supplierName || "-"}</span>
               </div>
               <div className="border-t border-border/20 pt-2 flex justify-between font-bold text-foreground">
                 <span>Total Tagihan:</span>
