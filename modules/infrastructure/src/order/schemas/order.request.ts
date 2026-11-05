@@ -7,6 +7,7 @@ export interface DraftOrderItemRequest {
   finishing_ids: string[];
   length_m?: number;
   width_m?: number;
+  price_per_unit?: number;
 }
 
 export interface DraftOrderRequest {

@@ -1,60 +1,84 @@
 # 🍪 Auth Cookie & Session Mechanism Guide
 
-Dokumen ini menjelaskan mekanisme autentikasi berbasis cookie yang digunakan dalam ERP Digital Printing untuk menangani skenario **Cross-Domain** antara Frontend (`made-printing.local`) dan Backend (`wolfmother613.web.id`).
+Dokumen ini menjelaskan arsitektur autentikasi berbasis cookie yang digunakan dalam ERP Digital Printing, baik saat **Local Development (HTTP)** maupun saat **Server Production (HTTPS)**.
 
-## 🛠️ Cookie Configuration (Backend)
+---
 
-Refresh Token disimpan dalam **HttpOnly Cookie** dengan atribut keamanan tingkat tinggi untuk menghindari pencurian token (XSS) dan pemblokiran browser (Third-party cookie restrictions).
+## 🏗️ Ringkasan Arsitektur
 
-### Attributes:
-| Attribute | Value | Description |
-|-----------|-------|-------------|
-| **Name** | `refresh_token` | Nama cookie untuk rotasi token. |
-| **HTTPOnly** | `true` | Mencegah JavaScript mengakses cookie (Proteksi XSS). |
-| **Secure** | `true` | Wajib aktif agar cookie hanya dikirim via HTTPS. |
-| **SameSite** | `None` | Mengizinkan cookie dikirim dalam request cross-site (beda domain). |
-| **Partitioned** | `true` | **CHIPS Mechanism**. Mempartisi cookie agar tidak diblokir oleh kebijakan "Block Third-party Cookies" browser modern. |
-| **Path** | `/` | Cookie tersedia untuk seluruh path API. |
+| Environment | Frontend URL | Backend URL | Cookie Attributes | Mekanisme |
+|---|---|---|---|---|
+| **Local Dev** | `http://localhost:5173` | `http://localhost:8000` | `SameSite=Lax`, `Secure=false`, `HttpOnly=true` | Vite Proxy (`/api` -> `8000`) + Cookie Rewrite |
+| **Production** | `https://app.domain.com` | `https://api.domain.com` | `SameSite=None`, `Secure=true`, `Partitioned=true`, `HttpOnly=true` | Direct HTTPS + CHIPS Cross-Domain Cookie |
+
+---
+
+## 🛠️ 1. Local Development (Tanpa Local SSL)
+
+Untuk menyederhanakan proses development tanpa perlu `mkcert`, sertifikat lokal, atau edit `/etc/hosts`:
+
+1. **Frontend Vite Dev Proxy:**
+   * Frontend berjalan di `http://localhost:5173`.
+   * Request API dipanggil via path relatif: `/api/v1/...` (diatur di `VITE_API_URL=/api/v1`).
+   * Vite mem-proxy request tersebut ke backend (`VITE_DEV_PROXY_TARGET=http://localhost:8000`).
+   * Vite otomatis membersihkan atribut `Domain` dan `Secure`, serta menyesuaikan `SameSite=Lax` agar browser menerima cookie di atas protokol HTTP biasa.
+2. **Backend Development Mode:**
+   * Diatur via `APP_ENV=development`.
+   * Backend otomatis mengatur `Secure: false`, `SameSite: "Lax"`, dan `Partitioned: false`.
+
+---
+
+## 🚀 2. Server Production Deployment
+
+Saat aplikasi di-upload dan dijalankan di server:
+
+### A. Konfigurasi Backend (`.env` Backend Server)
+```env
+APP_ENV=production
+APP_CORS_ALLOWED_ORIGINS=https://app.made-printing.com
+```
+* Dengan `APP_ENV=production`, backend otomatis mengaktifkan:
+  * `Secure: true` (Hanya dikirim via HTTPS).
+  * `SameSite: "None"` (Bisa dikirim antar-domain / cross-site).
+  * `Partitioned: true` (CHIPS mechanism agar tidak diblokir fitur pemblokiran third-party cookie browser).
+
+### B. Konfigurasi Frontend (Docker Container)
+Saat menjalankan container Docker frontend di server:
+```bash
+# Environment variable di docker run atau docker-compose:
+VITE_API_URL=https://api-made.wolfmother613.web.id/api/v1
+```
+* Script `entrypoint.sh` pada Docker container akan otomatis menginjeksi nilai `VITE_API_URL` ke `window.__ENV__` saat container pertama kali start.
+* Kode frontend runtime membaca `window.__ENV__.VITE_API_URL` secara dinamis.
+
+### C. Persyaratan SSL / HTTPS di Server
+* Domain Frontend dan Domain Backend **wajib** memiliki SSL/HTTPS aktif (di-handle oleh Reverse Proxy seperti Nginx host, Traefik, Certbot, atau Cloudflare).
+* Browser modern memblokir cookie dengan atribut `SameSite=None` jika tidak menggunakan protokol HTTPS (`Secure: true`).
 
 ---
 
 ## 🔄 Authentication Flow
 
 ### 1. Login
-- User memasukkan kredensial.
-- BE merespons dengan:
-    - Body: `access_token` (Short-lived, disimpan di RAM/Zustand).
-    - Header: `Set-Cookie` (Refresh Token, Partitioned).
+- User memasukkan kredensial via `/api/v1/auth/login`.
+- Response backend:
+  - Body: `access_token` (disimpan di RAM / Zustand).
+  - Header: `Set-Cookie` (Refresh Token, HttpOnly).
 
-### 2. Silent Refresh (Trigger Startup)
-Saat aplikasi di-reload (RAM kosong), Frontend menjalankan logic "Initial Auth Check":
-1. App memanggil `POST /auth/refresh`.
-2. Browser otomatis menyertakan cookie `refresh_token` (karena `withCredentials: true` dan `SameSite=None`).
-3. BE memvalidasi cookie dan mengirimkan `access_token` baru.
-4. App menyimpan token ke Zustand dan melanjutkan ke Dashboard.
+### 2. Silent Refresh (Trigger Reload / Startup)
+Saat aplikasi di-reload:
+1. RAM ter-reset kosong. Hook `useInitializeAuth` memanggil `POST /api/v1/auth/refresh`.
+2. Browser menyertakan cookie `refresh_token` (`withCredentials: true`).
+3. Backend memvalidasi token, melakukan rotasi token baru ke cookie, dan mengembalikan `access_token` baru.
+4. Token disimpan kembali ke Zustand store, dan user tetap berada di halaman tujuan tanpa ter-logout.
 
 ### 3. Automatic Token Rotation (Interceptor)
-Jika `access_token` expired saat request sedang berjalan:
-1. Interceptor menangkap error `401`.
-2. Interceptor memanggil `POST /auth/refresh` di balik layar.
-3. Jika sukses, request asli diulang (*retry*) dengan token baru.
+Jika `access_token` kedaluwarsa saat request API berjalan:
+1. Axios response interceptor menangkap status `401`.
+2. Interceptor otomatis memanggil `POST /api/v1/auth/refresh` di balik layar.
+3. Setelah sukses, request yang tadi sempat gagal diulang (*retry*) secara transparan.
 
----
-
-## ⚠️ Requirements & Troubleshooting
-
-### 1. HTTPS is Mandatory
-Atribut `Secure: true` dan `SameSite: None` **WAJIB** berjalan di protokol HTTPS. Gunakan `mkcert` untuk development lokal.
-
-### 2. Chrome DevTools Check
-Untuk memastikan mekanisme Partitioned bekerja, cek di tab **Application > Cookies**:
-- Kolom **Partition Key Site** harus berisi `https://made-printing.local`.
-- Jika kosong, berarti atribut `Partitioned` belum ter-render dengan benar oleh BE.
-
-### 3. Third-Party Cookies
-Dengan `Partitioned: true`, user tidak perlu mengaktifkan "Allow all cookies" di browser. Sistem akan tetap bekerja meskipun browser memblokir third-party cookies secara umum, karena cookie kita sudah di-partisi khusus untuk domain ERP ini.
-
----
-
-## 🚪 Logout Mechanism
-Logout harus dilakukan via API agar BE bisa menghapus cookie dengan mengirimkan header `Set-Cookie` yang sudah expired (dan tetap menyertakan atribut `Partitioned: true`).
+### 4. Logout
+- Logout dilakukan via `POST /api/v1/auth/logout`.
+- Backend mengirim header `Set-Cookie` dengan nilai kosong dan expired time lampau untuk menghapus cookie di browser.
+- Frontend membersihkan token di Zustand dan me-redirect user ke halaman login.

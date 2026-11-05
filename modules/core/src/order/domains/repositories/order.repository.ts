@@ -23,11 +23,17 @@ export interface PaymentItemInput {
   amount_paid: number;
 }
 
+export interface PaymentProcessItemPriceInput {
+  id: string;
+  price_per_unit: number;
+}
+
 export interface ProcessPaymentInput {
   reseller_id: string | null;
   customer_name: string;
   customer_phone: string;
   payments: PaymentItemInput[];
+  items?: PaymentProcessItemPriceInput[];
 }
 
 export interface RepayPaymentInput {

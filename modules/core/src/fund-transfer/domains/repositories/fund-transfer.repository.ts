@@ -1,13 +1,6 @@
 import type { PaginatedResponse } from "@core/shared/api/pagination";
-import type { FundTransferParams } from "../../applications/inputs/fund-transfer.input";
+import type { FundTransferParams, FundTransferWidgetsParams, CreateFundTransferInput } from "../../applications/inputs/fund-transfer.input";
 import type { FundTransferModel } from "../models/fund-transfer.model";
-
-import type { CreateFundTransferInput } from "../../applications/inputs/fund-transfer.input";
-
-export interface FundTransferWidgetsParams {
-  startDate?: string;
-  endDate?: string;
-}
 
 export interface FundTransferWidgetBreakdownModel {
   accountName: string;

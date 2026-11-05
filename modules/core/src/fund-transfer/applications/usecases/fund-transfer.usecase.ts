@@ -1,6 +1,6 @@
-import type { FundTransferRepository, FundTransferWidgetsParams, FundTransferWidgetsModel } from "../../domains/repositories/fund-transfer.repository";
+import type { FundTransferRepository, FundTransferWidgetsModel } from "../../domains/repositories/fund-transfer.repository";
 import type { FundTransferModel } from "../../domains/models/fund-transfer.model";
-import type { FundTransferParams, CreateFundTransferInput } from "../inputs/fund-transfer.input";
+import type { FundTransferParams, CreateFundTransferInput, FundTransferWidgetsParams } from "../inputs/fund-transfer.input";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
 export class GetFundTransfers {

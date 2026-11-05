@@ -366,6 +366,7 @@ export const useOrder = () => {
           finishing_ids: it.finishingIds || [],
           length_m: it.lengthM,
           width_m: it.widthM,
+          price_per_unit: it.pricePerUnit,
         })),
       }),
     onSuccess: (_, variables) => {
@@ -740,6 +741,10 @@ export const useOrder = () => {
       customer_name: activeOrder.customerName,
       customer_phone: activeOrder.customerPhone || "",
       payments,
+      items: activeOrder.items.map((it) => ({
+        id: it.id,
+        price_per_unit: it.pricePerUnit,
+      })),
     };
 
     processPaymentMutation.mutate({

@@ -66,6 +66,7 @@ export const NavSidebar = () => {
   const canAccessKeuangan = isAdministrator(roles) || isAdmin(roles);
   const canAccessMasterData = isAdministrator(roles) || isAdmin(roles);
   const canAccessMasterOther = isAdministrator(roles);
+  const canAccessProduct = isAdministrator(roles) || isAdmin(roles);
   const canAccessLaporan = isAdministrator(roles) || isAdmin(roles);
   const { changeUserPasswordUseCase } = useUserDI();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -303,31 +304,35 @@ export const NavSidebar = () => {
                     </SidebarItem>
                   )}
                 </NavLink>
-                <NavLink to="/product" className="contents">
-                  {({ isActive }) => (
-                    <SidebarItem
-                      asChild
-                      icon={<LuDatabase />}
-                      label="Produk"
-                      active={isActive}
-                    >
-                      <button />
-                    </SidebarItem>
-                  )}
-                </NavLink>
-                <NavLink to="/attribute" className="contents">
-                  {({ isActive }) => (
-                    <SidebarItem
-                      asChild
-                      icon={<LuBox />}
-                      label="Atribut Varian"
-                      active={isActive}
-                    >
-                      <button />
-                    </SidebarItem>
-                  )}
-                </NavLink>
               </>
+            )}
+            {canAccessProduct && (
+              <NavLink to="/product" className="contents">
+                {({ isActive }) => (
+                  <SidebarItem
+                    asChild
+                    icon={<LuDatabase />}
+                    label="Produk"
+                    active={isActive}
+                  >
+                    <button />
+                  </SidebarItem>
+                )}
+              </NavLink>
+            )}
+            {canAccessMasterOther && (
+              <NavLink to="/attribute" className="contents">
+                {({ isActive }) => (
+                  <SidebarItem
+                    asChild
+                    icon={<LuBox />}
+                    label="Atribut Varian"
+                    active={isActive}
+                  >
+                    <button />
+                  </SidebarItem>
+                )}
+              </NavLink>
             )}
             <NavLink to="/reseller" className="contents">
               {({ isActive }) => (

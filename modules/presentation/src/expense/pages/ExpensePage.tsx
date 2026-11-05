@@ -13,6 +13,8 @@ import type { AppError } from "@core/shared/errors/domain.error";
 import { useExpenseDI } from "../hooks/useExpenseDI";
 import { expenseKeys } from "@infrastructure/expense/keys";
 import { useDebounce } from "../../shared/hooks/useDebounce";
+import { useProfile } from "../../user/hooks/useProfile";
+import { isAdministrator } from "../../shared/utils/role.utils";
 
 import { ExpenseBillTable } from "../components/ExpenseBillTable";
 import { ExpenseFormDialog } from "../components/ExpenseFormDialog";
@@ -21,6 +23,9 @@ import { ExpenseDetailDialog } from "../components/ExpenseDetailDialog";
 import type { ExpenseBill } from "../types/expenseTypes";
 
 const ExpensePage = () => {
+  const { data: profile } = useProfile();
+  const isSuperAdmin = isAdministrator(profile?.roles);
+
   const queryClient = useQueryClient();
   const { getExpensesUseCase, getExpenseAnalyticsSummaryUseCase, payExpenseUseCase } =
     useExpenseDI();
@@ -143,6 +148,13 @@ const ExpensePage = () => {
   };
 
   const handleCancelBill = (bill: ExpenseBill) => {
+    if (!isSuperAdmin) {
+      toast.error(
+        "Akses Ditolak",
+        "Hanya administrator yang memiliki hak akses untuk membatalkan nota pengeluaran.",
+      );
+      return;
+    }
     toast.info(
       "Info",
       `Fitur pembatalan untuk nota ${bill.billNumber} sedang disiapkan.`,
@@ -284,6 +296,7 @@ const ExpensePage = () => {
             onDetail={handleOpenDetail}
             onPay={handleOpenPay}
             onCancel={handleCancelBill}
+            canCancel={isSuperAdmin}
           />
         </CardContent>
       </Card>

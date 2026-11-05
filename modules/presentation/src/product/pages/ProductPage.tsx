@@ -54,6 +54,8 @@ import { productKeys } from "@infrastructure/product/keys";
 import { useCategoryDI } from "@presentation/category/hooks/useCategoryDI";
 import { categoryKeys } from "@infrastructure/category/keys";
 import { useDebounce } from "../../shared/hooks/useDebounce";
+import { useProfile } from "../../user/hooks/useProfile";
+import { isAdministrator } from "../../shared/utils/role.utils";
 import type { AppError } from "@core/shared/errors/domain.error";
 
 interface Product {
@@ -67,6 +69,9 @@ interface Product {
 const columnHelper = createColumnHelper<Product>();
 
 const ProductPage = () => {
+  const { data: profile } = useProfile();
+  const isSuperAdmin = isAdministrator(profile?.roles);
+
   const [isAdding, setIsAdding] = useState(false);
   const [selectedDetailProductId, setSelectedDetailProductId] = useState<string | null>(null);
   const [selectedEditProductId, setSelectedEditProductId] = useState<string | null>(null);
@@ -258,14 +263,19 @@ const ProductPage = () => {
       columnHelper.accessor("name", {
         header: "Nama Produk / Bahan",
         cell: (info) => (
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setSelectedDetailProductId(info.row.original.id)}
+            className="flex items-center gap-3 text-left group cursor-pointer transition-all duration-150 active:scale-95 focus-visible:outline-none"
+            title="Klik untuk melihat Detail Produk"
+          >
+            <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm flex-shrink-0 transition-colors duration-150 group-hover:bg-primary/20 group-hover:border-primary/40">
               {info.getValue().charAt(0).toUpperCase()}
             </div>
-            <span className="font-bold text-foreground text-sm leading-none">
+            <span className="font-bold text-foreground text-sm leading-none bg-muted hover:bg-primary/20 hover:text-primary hover:border-primary/50 group-hover:bg-primary/20 group-hover:text-primary group-hover:border-primary/50 px-2.5 py-1.5 rounded-lg border border-border/50 inline-block transition-all duration-150 focus-visible:ring-2 focus-visible:ring-primary">
               {info.getValue()}
             </span>
-          </div>
+          </button>
         ),
       }),
       columnHelper.accessor("category", {
@@ -308,49 +318,57 @@ const ProductPage = () => {
                 </Button>
               </DropdownTrigger>
               <DropdownContent align="end" className="w-48">
-                <DropdownItem 
-                  onClick={() => handleMoveUp(info.row.index)}
-                  disabled={info.row.index === 0}
-                >
-                  <LuArrowUp className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>Pindah Atas</span>
-                </DropdownItem>
-                <DropdownItem 
-                  onClick={() => handleMoveDown(info.row.index)}
-                  disabled={info.row.index === products.length - 1}
-                >
-                  <LuArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>Pindah Bawah</span>
-                </DropdownItem>
-                <DropdownItem onClick={() => {
-                  setSelectedChangeSequenceProductId(info.row.original.id);
-                  setSequenceValue(info.row.original.sequence ?? 0);
-                }}>
-                  <LuHash className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>Ubah Urutan...</span>
-                </DropdownItem>
+                {isSuperAdmin && (
+                  <>
+                    <DropdownItem 
+                      onClick={() => handleMoveUp(info.row.index)}
+                      disabled={info.row.index === 0}
+                    >
+                      <LuArrowUp className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Pindah Atas</span>
+                    </DropdownItem>
+                    <DropdownItem 
+                      onClick={() => handleMoveDown(info.row.index)}
+                      disabled={info.row.index === products.length - 1}
+                    >
+                      <LuArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Pindah Bawah</span>
+                    </DropdownItem>
+                    <DropdownItem onClick={() => {
+                      setSelectedChangeSequenceProductId(info.row.original.id);
+                      setSequenceValue(info.row.original.sequence ?? 0);
+                    }}>
+                      <LuHash className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Ubah Urutan...</span>
+                    </DropdownItem>
+                  </>
+                )}
                 <DropdownItem onClick={() => setSelectedDetailProductId(info.row.original.id)}>
                   <LuInfo className="h-3.5 w-3.5 text-primary" />
                   <span>Detail</span>
                 </DropdownItem>
-                <DropdownItem onClick={() => setSelectedEditProductId(info.row.original.id)}>
-                  <LuPencil className="h-3.5 w-3.5 text-blue-600" />
-                  <span>Ubah</span>
-                </DropdownItem>
-                <DropdownItem
-                  variant="danger"
-                  onClick={() => setSelectedDeleteProduct(info.row.original)}
-                >
-                  <LuTrash2 className="h-3.5 w-3.5 text-rose-600" />
-                  <span>Hapus</span>
-                </DropdownItem>
+                {isSuperAdmin && (
+                  <>
+                    <DropdownItem onClick={() => setSelectedEditProductId(info.row.original.id)}>
+                      <LuPencil className="h-3.5 w-3.5 text-blue-600" />
+                      <span>Ubah</span>
+                    </DropdownItem>
+                    <DropdownItem
+                      variant="danger"
+                      onClick={() => setSelectedDeleteProduct(info.row.original)}
+                    >
+                      <LuTrash2 className="h-3.5 w-3.5 text-rose-600" />
+                      <span>Hapus</span>
+                    </DropdownItem>
+                  </>
+                )}
               </DropdownContent>
             </Dropdown>
           </div>
         ),
       }),
     ],
-    [products, handleMoveUp, handleMoveDown]
+    [products, handleMoveUp, handleMoveDown, isSuperAdmin]
   );
 
   const table = useReactTable({
@@ -401,15 +419,17 @@ const ProductPage = () => {
             </div>
 
             {/* Right Actions */}
-            <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-              <Button
-                className="h-10 px-4 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-                onClick={() => setIsAdding(true)}
-              >
-                <LuPlus size={18} />
-                Tambah Produk
-              </Button>
-            </div>
+            {isSuperAdmin && (
+              <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                <Button
+                  className="h-10 px-4 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                  onClick={() => setIsAdding(true)}
+                >
+                  <LuPlus size={18} />
+                  Tambah Produk
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Quick Categories Filter Tabs */}
@@ -508,31 +528,35 @@ const ProductPage = () => {
       </Card>
 
       {/* Add Product Modal (Stepper Form) */}
-      <Dialog
-        isOpen={isAdding}
-        onClose={() => setIsAdding(false)}
-        size="xl"
-        className="h-[90vh] max-h-[90vh] overflow-hidden flex flex-col"
-        showCloseButton={false}
-      >
-        <FormProduct onBack={() => setIsAdding(false)} />
-      </Dialog>
+      {isSuperAdmin && (
+        <Dialog
+          isOpen={isAdding}
+          onClose={() => setIsAdding(false)}
+          size="xl"
+          className="h-[90vh] max-h-[90vh] overflow-hidden flex flex-col"
+          showCloseButton={false}
+        >
+          <FormProduct onBack={() => setIsAdding(false)} />
+        </Dialog>
+      )}
 
       {/* Edit Product Modal (Stepper Form) */}
-      <Dialog
-        isOpen={!!selectedEditProductId}
-        onClose={() => setSelectedEditProductId(null)}
-        size="xl"
-        className="h-[90vh] max-h-[90vh] overflow-hidden flex flex-col"
-        showCloseButton={false}
-      >
-        {selectedEditProductId && (
-          <FormProduct
-            productId={selectedEditProductId}
-            onBack={() => setSelectedEditProductId(null)}
-          />
-        )}
-      </Dialog>
+      {isSuperAdmin && (
+        <Dialog
+          isOpen={!!selectedEditProductId}
+          onClose={() => setSelectedEditProductId(null)}
+          size="xl"
+          className="h-[90vh] max-h-[90vh] overflow-hidden flex flex-col"
+          showCloseButton={false}
+        >
+          {selectedEditProductId && (
+            <FormProduct
+              productId={selectedEditProductId}
+              onBack={() => setSelectedEditProductId(null)}
+            />
+          )}
+        </Dialog>
+      )}
 
       {/* Detail Product Modal */}
       <Dialog
@@ -551,112 +575,116 @@ const ProductPage = () => {
       </Dialog>
 
       {/* Change Sequence Dialog */}
-      <Dialog
-        isOpen={!!selectedChangeSequenceProductId}
-        onClose={() => setSelectedChangeSequenceProductId(null)}
-        size="sm"
-        showCloseButton={false}
-      >
-        <CardHeader className="px-6 py-4 border-b border-border/50 flex flex-row items-start justify-between gap-4">
-          <div className="space-y-0.5">
-            <h4 className="font-semibold text-lg tracking-tight">
-              Ubah Urutan
-            </h4>
-            <p className="text-sm text-muted-foreground">
-              Tentukan urutan baru untuk produk ini.
-            </p>
+      {isSuperAdmin && (
+        <Dialog
+          isOpen={!!selectedChangeSequenceProductId}
+          onClose={() => setSelectedChangeSequenceProductId(null)}
+          size="sm"
+          showCloseButton={false}
+        >
+          <CardHeader className="px-6 py-4 border-b border-border/50 flex flex-row items-start justify-between gap-4">
+            <div className="space-y-0.5">
+              <h4 className="font-semibold text-lg tracking-tight">
+                Ubah Urutan
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                Tentukan urutan baru untuk produk ini.
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-md text-muted-foreground hover:bg-muted active:scale-90 transition-all -mr-2 -mt-0.5"
+              onClick={() => setSelectedChangeSequenceProductId(null)}
+            >
+              <LuX className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+          <CardContent className="px-6 py-4 space-y-4">
+            <div className="space-y-2">
+              <Typography variant="small" weight="medium" className="text-sm">
+                Nomor Urutan
+              </Typography>
+              <TextField
+                type="number"
+                placeholder="Contoh: 1, 2, 3..."
+                className="border-border/50 focus:bg-background transition-all"
+                value={sequenceValue}
+                onChange={(e) => setSequenceValue(e.target.value ? Number(e.target.value) : "")}
+              />
+            </div>
+          </CardContent>
+          <div className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              className="h-10 px-4 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
+              onClick={() => setSelectedChangeSequenceProductId(null)}
+            >
+              Batal
+            </Button>
+            <Button
+              className="h-10 px-4 rounded-md font-medium bg-primary hover:bg-primary/90 active:scale-95 transition-all text-white"
+              onClick={() => {
+                if (selectedChangeSequenceProductId && typeof sequenceValue === "number") {
+                  reorderProducts(
+                    [{ id: selectedChangeSequenceProductId, sequence: sequenceValue }],
+                    () => setSelectedChangeSequenceProductId(null)
+                  );
+                }
+              }}
+              disabled={reorderMutation.isPending}
+            >
+              {reorderMutation.isPending ? "Menyimpan..." : "Simpan Urutan"}
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded-md text-muted-foreground hover:bg-muted active:scale-90 transition-all -mr-2 -mt-0.5"
-            onClick={() => setSelectedChangeSequenceProductId(null)}
-          >
-            <LuX className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent className="px-6 py-4 space-y-4">
-          <div className="space-y-2">
-            <Typography variant="small" weight="medium" className="text-sm">
-              Nomor Urutan
-            </Typography>
-            <TextField
-              type="number"
-              placeholder="Contoh: 1, 2, 3..."
-              className="border-border/50 focus:bg-background transition-all"
-              value={sequenceValue}
-              onChange={(e) => setSequenceValue(e.target.value ? Number(e.target.value) : "")}
-            />
-          </div>
-        </CardContent>
-        <div className="px-6 py-4 border-t border-border/50 flex justify-end gap-2">
-          <Button
-            variant="outline"
-            className="h-10 px-4 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
-            onClick={() => setSelectedChangeSequenceProductId(null)}
-          >
-            Batal
-          </Button>
-          <Button
-            className="h-10 px-4 rounded-md font-medium bg-primary hover:bg-primary/90 active:scale-95 transition-all text-white"
-            onClick={() => {
-              if (selectedChangeSequenceProductId && typeof sequenceValue === "number") {
-                reorderProducts(
-                  [{ id: selectedChangeSequenceProductId, sequence: sequenceValue }],
-                  () => setSelectedChangeSequenceProductId(null)
-                );
-              }
-            }}
-            disabled={reorderMutation.isPending}
-          >
-            {reorderMutation.isPending ? "Menyimpan..." : "Simpan Urutan"}
-          </Button>
-        </div>
-      </Dialog>
+        </Dialog>
+      )}
 
       {/* Delete Product Confirmation Dialog */}
-      <Dialog
-        isOpen={!!selectedDeleteProduct}
-        onClose={() => setSelectedDeleteProduct(null)}
-        size="md"
-        showCloseButton={false}
-      >
-        <CardContent className="pt-6 px-6 pb-4 flex flex-col items-center text-center space-y-4">
-          <div className="h-12 w-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20">
-            <LuTrash2 className="h-6 w-6" />
-          </div>
-          <div className="space-y-1">
-            <Typography variant="h4" weight="semibold" className="text-lg text-foreground">
-              Hapus Produk
-            </Typography>
-            <Typography className="text-muted-foreground text-sm max-w-xs">
-              Apakah Anda yakin ingin menghapus produk{" "}
-              <span className="font-bold text-foreground">
-                "{selectedDeleteProduct?.name}"
-              </span>
-              ? Tindakan ini bersifat permanen.
-            </Typography>
-          </div>
-        </CardContent>
-        <CardFooter className="px-6 py-4 bg-muted/30 border-t border-border/50 flex justify-end gap-2">
-          <Button
-            variant="outline"
-            className="h-10 px-4 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
-            onClick={() => setSelectedDeleteProduct(null)}
-            disabled={deleteMutation.isPending}
-          >
-            Batal
-          </Button>
-          <Button
-            className="h-10 px-4 rounded-md font-medium bg-rose-600 hover:bg-rose-500 active:scale-95 transition-all text-white flex items-center gap-2"
-            onClick={handleDeleteConfirm}
-            disabled={deleteMutation.isPending}
-          >
-            <LuTrash2 className="h-4 w-4" />
-            {deleteMutation.isPending ? "Menghapus..." : "Hapus Produk"}
-          </Button>
-        </CardFooter>
-      </Dialog>
+      {isSuperAdmin && (
+        <Dialog
+          isOpen={!!selectedDeleteProduct}
+          onClose={() => setSelectedDeleteProduct(null)}
+          size="md"
+          showCloseButton={false}
+        >
+          <CardContent className="pt-6 px-6 pb-4 flex flex-col items-center text-center space-y-4">
+            <div className="h-12 w-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20">
+              <LuTrash2 className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <Typography variant="h4" weight="semibold" className="text-lg text-foreground">
+                Hapus Produk
+              </Typography>
+              <Typography className="text-muted-foreground text-sm max-w-xs">
+                Apakah Anda yakin ingin menghapus produk{" "}
+                <span className="font-bold text-foreground">
+                  "{selectedDeleteProduct?.name}"
+                </span>
+                ? Tindakan ini bersifat permanen.
+              </Typography>
+            </div>
+          </CardContent>
+          <CardFooter className="px-6 py-4 bg-muted/30 border-t border-border/50 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              className="h-10 px-4 rounded-md font-medium border-border/50 hover:bg-muted/50 active:scale-95 transition-all"
+              onClick={() => setSelectedDeleteProduct(null)}
+              disabled={deleteMutation.isPending}
+            >
+              Batal
+            </Button>
+            <Button
+              className="h-10 px-4 rounded-md font-medium bg-rose-600 hover:bg-rose-500 active:scale-95 transition-all text-white flex items-center gap-2"
+              onClick={handleDeleteConfirm}
+              disabled={deleteMutation.isPending}
+            >
+              <LuTrash2 className="h-4 w-4" />
+              {deleteMutation.isPending ? "Menghapus..." : "Hapus Produk"}
+            </Button>
+          </CardFooter>
+        </Dialog>
+      )}
     </div>
   );
 };

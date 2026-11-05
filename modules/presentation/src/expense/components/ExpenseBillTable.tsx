@@ -22,6 +22,8 @@ import {
   LuReceipt,
   LuInfo,
 } from "@erp-digital-printing/ui/icons";
+import { useProfile } from "../../user/hooks/useProfile";
+import { isAdministrator } from "../../shared/utils/role.utils";
 import type { ExpenseBill } from "../types/expenseTypes";
 
 interface ExpenseBillTableProps {
@@ -35,6 +37,7 @@ interface ExpenseBillTableProps {
   onDetail: (bill: ExpenseBill) => void;
   onPay: (bill: ExpenseBill) => void;
   onCancel: (bill: ExpenseBill) => void;
+  canCancel?: boolean;
 }
 
 export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
@@ -48,7 +51,10 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
   onDetail,
   onPay,
   onCancel,
+  canCancel,
 }) => {
+  const { data: profile } = useProfile();
+  const hasCancelPermission = canCancel ?? isAdministrator(profile?.roles);
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -218,7 +224,7 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
                               </DropdownItem>
                             )}
 
-                            {!isVoid && (
+                            {hasCancelPermission && !isVoid && (
                               <DropdownItem
                                 variant="danger"
                                 onClick={() => onCancel(bill)}

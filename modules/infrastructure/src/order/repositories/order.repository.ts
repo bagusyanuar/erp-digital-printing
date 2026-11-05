@@ -80,6 +80,7 @@ export class ApiOrderRepository implements OrderRepository {
           finishing_ids: item.finishing_ids,
           length_m: item.length_m,
           width_m: item.width_m,
+          price_per_unit: item.price_per_unit,
         })),
       };
       await this.http.post("/orders/draft", payload);
@@ -274,6 +275,7 @@ export class ApiOrderRepository implements OrderRepository {
           finishing_ids: item.finishing_ids,
           length_m: item.length_m,
           width_m: item.width_m,
+          price_per_unit: item.price_per_unit,
         })),
       };
       const response = await this.http.post<ApiResponse<OrderResponse>>("/orders/submit", payload);
@@ -302,6 +304,7 @@ export class ApiOrderRepository implements OrderRepository {
           finishing_ids: item.finishing_ids,
           length_m: item.length_m,
           width_m: item.width_m,
+          price_per_unit: item.price_per_unit,
         })),
       };
       await this.http.put(`/orders/${id}`, payload);
