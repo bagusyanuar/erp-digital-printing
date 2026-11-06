@@ -692,9 +692,21 @@ const ReportSellingPage = () => {
 
                             {/* Invoice Number */}
                             <TableCell className="py-4 px-5 space-y-1">
-                              <div className="font-mono font-bold text-foreground bg-muted px-2 py-0.5 rounded-lg border border-border/50 inline-block">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const rawOrder =
+                                    (response?.data ?? []).find(
+                                      (o) => o.id === sale.id,
+                                    ) || null;
+                                  setSelectedSale(rawOrder);
+                                  setIsDetailOpen(true);
+                                }}
+                                className="font-mono font-bold text-foreground bg-muted hover:bg-primary/20 hover:text-primary hover:border-primary/50 px-2 py-0.5 rounded-lg border border-border/50 inline-block text-left cursor-pointer transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0"
+                                title="Klik untuk melihat Detail Rincian"
+                              >
                                 {sale.invoiceNumber}
-                              </div>
+                              </button>
                               <div className="text-[10px] text-muted-foreground font-semibold block">
                                 No. Tiket : {mockJobNumber}
                               </div>

@@ -39,6 +39,7 @@ import {
   LuCopy,
   LuBan,
   LuTriangleAlert,
+  LuPencil,
 } from "@erp-digital-printing/ui/icons";
 import { useInvoice } from "../hooks/useInvoice";
 
@@ -147,6 +148,18 @@ const InvoicePage = () => {
     processPaymentMutation,
     processRefundMutation,
     isCancelling,
+
+    // Edit Payment Method state & Dialog flags
+    isEditPaymentMethodOpen,
+    editingPayment,
+    editPaymentMethod,
+    setEditPaymentMethod,
+    handleOpenEditPaymentMethod,
+    handleOpenEditPaymentForInvoice,
+    handleSelectEditingPayment,
+    handleCloseEditPaymentMethod,
+    handleProcessUpdatePaymentMethod,
+    isUpdatingPaymentMethod,
 
     // Helpers
     formatCurrency,
@@ -636,12 +649,18 @@ const InvoicePage = () => {
                                   "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
                               }
                               return (
-                                <span
+                                <button
                                   key={method}
-                                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${badgeColor}`}
+                                  type="button"
+                                  onClick={() =>
+                                    handleOpenEditPaymentForInvoice(inv)
+                                  }
+                                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none hover:opacity-80 active:scale-95 transition-all cursor-pointer ${badgeColor}`}
+                                  title="Klik untuk ubah metode pembayaran"
                                 >
-                                  {method}
-                                </span>
+                                  <span>{method}</span>
+                                  <LuPencil size={8} className="opacity-70" />
+                                </button>
                               );
                             })
                           ) : (
@@ -735,6 +754,19 @@ const InvoicePage = () => {
                                       </span>
                                     </DropdownItem>
                                   )}
+                                  {inv.amountPaid > 0 &&
+                                    inv.orderStatus !== "CANCELLED" && (
+                                      <DropdownItem
+                                        onClick={() =>
+                                          handleOpenEditPaymentForInvoice(inv)
+                                        }
+                                      >
+                                        <LuPencil className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                                        <span className="text-foreground font-semibold">
+                                          Ubah Metode Bayar
+                                        </span>
+                                      </DropdownItem>
+                                    )}
                                   {inv.amountPaid > 0 && canRefund && (
                                     <DropdownItem
                                       onClick={() => {
@@ -1043,9 +1075,19 @@ const InvoicePage = () => {
                                       key={detail.id}
                                       className="flex justify-between items-center text-[10px] font-semibold"
                                     >
-                                      <span className="text-muted-foreground uppercase tracking-wider">
-                                        {detail.payment_method}
-                                      </span>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-muted-foreground uppercase tracking-wider">
+                                          {detail.payment_method}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenEditPaymentMethod(detail)}
+                                          className="inline-flex items-center justify-center p-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                          title="Ubah Metode Pembayaran"
+                                        >
+                                          <LuPencil size={10} />
+                                        </button>
+                                      </div>
                                       <span className="text-foreground">
                                         {formatCurrency(detail.amount)}
                                       </span>
@@ -2660,6 +2702,153 @@ const InvoicePage = () => {
             </Button>
           </div>
         </div>
+      </Dialog>
+
+      {/* DIALOG: Ubah Metode Pembayaran */}
+      <Dialog
+        isOpen={isEditPaymentMethodOpen}
+        onClose={handleCloseEditPaymentMethod}
+        className="rounded-lg p-6 bg-card border border-border/50 text-foreground max-w-md w-full"
+        showCloseButton={true}
+      >
+        {selectedInvoice && editingPayment && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col gap-1 border-b border-border/30 pb-4">
+              <h2 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
+                <LuPencil className="text-primary" size={18} />
+                Ubah Metode Pembayaran
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Pilih metode pembayaran pengganti untuk rincian transaksi ini.
+              </p>
+            </div>
+
+            {/* Info Box */}
+            <div className="bg-muted/40 p-4 rounded-lg border border-border/50 space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground font-medium">Nomor Nota:</span>
+                <span className="font-mono font-bold text-foreground">
+                  {selectedInvoice.invoiceNo}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground font-medium">Nominal:</span>
+                <span className="font-bold text-foreground">
+                  {formatCurrency(editingPayment.amount)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground font-medium">Metode Saat Ini:</span>
+                <span className="uppercase px-2 py-0.5 rounded text-[10px] font-bold bg-muted border border-border/50 text-foreground">
+                  {editingPayment.payment_method}
+                </span>
+              </div>
+            </div>
+
+            {/* If multiple payments exist on this invoice */}
+            {selectedInvoice.payments &&
+              selectedInvoice.payments.length > 1 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground block">
+                    Pilih Transaksi Pembayaran:
+                  </label>
+                  <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
+                    {selectedInvoice.payments.map((p, idx) => {
+                      const isCurrent = editingPayment.id === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => handleSelectEditingPayment(p)}
+                          className={`flex justify-between items-center p-2 rounded-lg border text-xs font-semibold transition-all text-left ${
+                            isCurrent
+                              ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
+                              : "border-border/60 hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>#{idx + 1}</span>
+                            <span className="uppercase px-1.5 py-0.5 rounded text-[9px] bg-muted border border-border/50 font-bold">
+                              {p.payment_method}
+                            </span>
+                          </div>
+                          <span className="font-bold text-foreground">
+                            {formatCurrency(p.amount)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+            {/* Payment Method Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-foreground block">
+                Pilih Metode Pembayaran Baru
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { id: "cash", label: "Cash / Tunai", icon: LuDollarSign },
+                    { id: "qris", label: "QRIS", icon: LuQrCode },
+                    { id: "transfer", label: "Transfer Bank", icon: LuCreditCard },
+                  ] as const
+                ).map((method) => {
+                  const Icon = method.icon;
+                  const isSelected = editPaymentMethod.toLowerCase() === method.id;
+                  return (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => setEditPaymentMethod(method.id)}
+                      className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs font-semibold gap-1.5 transition-all ${
+                        isSelected
+                          ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
+                          : "border-border/60 bg-card hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Icon size={18} />
+                      <span className="text-[11px]">{method.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/30">
+              <Button
+                variant="outline"
+                onClick={handleCloseEditPaymentMethod}
+                disabled={isUpdatingPaymentMethod}
+                className="rounded-md h-9 text-xs font-semibold"
+                type="button"
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={handleProcessUpdatePaymentMethod}
+                disabled={
+                  isUpdatingPaymentMethod ||
+                  editPaymentMethod.toLowerCase() ===
+                    editingPayment.payment_method.toLowerCase()
+                }
+                className="rounded-md h-9 text-xs font-semibold"
+              >
+                {isUpdatingPaymentMethod ? (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3.5 h-3.5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                    <span>Menyimpan...</span>
+                  </div>
+                ) : (
+                  <span>Simpan Perubahan</span>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
       </Dialog>
 
       {/* Off-screen receipt container for html2canvas WhatsApp sharing */}

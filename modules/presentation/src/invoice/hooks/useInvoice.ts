@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrderDI } from "../../order/hooks/useOrderDI";
 import { orderKeys } from "@infrastructure/order/keys";
 import { useDebounce } from "../../shared/hooks/useDebounce";
@@ -51,6 +51,7 @@ export interface Invoice {
   designerName: string;
   cancelReason?: string | null;
   cancelledAt?: string | null;
+  payments: OrderPaymentModel[];
 }
 
 const formatCurrency = (val: number) => {
@@ -85,6 +86,7 @@ const formatDateTime = (createdAt?: string, fallbackDate?: string) => {
 };
 
 export const useInvoice = () => {
+  const queryClient = useQueryClient();
   const { data: profile } = useProfile();
   const canRefund = isAdministrator(profile?.roles);
   const canCancel = isAdministrator(profile?.roles);
@@ -224,6 +226,13 @@ export const useInvoice = () => {
     useState<boolean>(false);
   const [cancelReason, setCancelReason] = useState<string>("");
 
+  // Edit Payment Method Dialog states
+  const [isEditPaymentMethodOpen, setIsEditPaymentMethodOpen] =
+    useState<boolean>(false);
+  const [editingPayment, setEditingPayment] =
+    useState<OrderPaymentModel | null>(null);
+  const [editPaymentMethod, setEditPaymentMethod] = useState<string>("cash");
+
   const outstandingAmount = useMemo(() => {
     if (!selectedInvoice) return 0;
     return selectedInvoice.totalAmount - selectedInvoice.amountPaid;
@@ -249,6 +258,7 @@ export const useInvoice = () => {
     getOrderSpkUseCase,
     getOrderReportWidgetsUseCase,
     updateOrderStatusUseCase,
+    updatePaymentMethodUseCase,
   } = useOrderDI();
 
   // Fetch SPK from backend when the modal is open
@@ -454,6 +464,7 @@ export const useInvoice = () => {
         designerName: order.designer_name || "CS",
         cancelReason: order.cancel_reason ?? null,
         cancelledAt: order.cancelled_at ?? null,
+        payments: order.order_payments ?? [],
       };
     });
   }, [response]);
@@ -620,6 +631,113 @@ export const useInvoice = () => {
       );
     },
   });
+
+  // Mutation to update payment method in backend
+  const updatePaymentMethodMutation = useMutation<
+    OrderModel,
+    AppError,
+    { orderId: string; paymentId: string; paymentMethod: string }
+  >({
+    mutationFn: ({ orderId, paymentId, paymentMethod }) =>
+      updatePaymentMethodUseCase.execute(orderId, paymentId, paymentMethod),
+    onSuccess: () => {
+      if (selectedInvoice?.id) {
+        queryClient.invalidateQueries({
+          queryKey: orderKeys.payments(selectedInvoice.id),
+        });
+      }
+      queryClient.invalidateQueries({
+        queryKey: orderKeys.lists(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: orderKeys.details(),
+      });
+      refetch();
+      setIsEditPaymentMethodOpen(false);
+      setEditingPayment(null);
+      toast.success(
+        "Metode Bayar Diperbarui",
+        "Metode pembayaran transaksi berhasil diperbarui.",
+      );
+    },
+    onError: (error) => {
+      toast.error(
+        "Gagal Mengubah Metode Bayar",
+        error.message ||
+          "Terjadi kesalahan saat mengubah metode pembayaran di server.",
+      );
+    },
+  });
+
+  const handleOpenEditPaymentMethod = (payment: OrderPaymentModel) => {
+    setEditingPayment(payment);
+    setEditPaymentMethod(payment.payment_method.toLowerCase());
+    setIsEditPaymentMethodOpen(true);
+  };
+
+  const handleOpenEditPaymentForInvoice = async (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    let pays = invoice.payments ?? [];
+    if (pays.length === 0) {
+      try {
+        pays = await getOrderPaymentsUseCase.execute(invoice.id);
+      } catch {
+        pays = [];
+      }
+    }
+
+    const firstPayment = pays[0];
+    if (!firstPayment) {
+      toast.error(
+        "Pembayaran Kosong",
+        "Invoice ini belum memiliki catatan riwayat pembayaran.",
+      );
+      return;
+    }
+
+    setEditingPayment(firstPayment);
+    setEditPaymentMethod(firstPayment.payment_method.toLowerCase());
+    setIsEditPaymentMethodOpen(true);
+  };
+
+  const handleSelectEditingPayment = (payment: OrderPaymentModel) => {
+    setEditingPayment(payment);
+    setEditPaymentMethod(payment.payment_method.toLowerCase());
+  };
+
+  const handleCloseEditPaymentMethod = () => {
+    setIsEditPaymentMethodOpen(false);
+    setEditingPayment(null);
+  };
+
+  const handleProcessUpdatePaymentMethod = () => {
+    if (!selectedInvoice || !editingPayment) return;
+
+    if (!editPaymentMethod) {
+      toast.error(
+        "Validasi Gagal",
+        "Pilih metode pembayaran yang valid.",
+      );
+      return;
+    }
+
+    if (
+      editPaymentMethod.toLowerCase() ===
+      editingPayment.payment_method.toLowerCase()
+    ) {
+      toast.info(
+        "Tidak Ada Perubahan",
+        "Metode pembayaran yang dipilih sama dengan metode saat ini.",
+      );
+      return;
+    }
+
+    updatePaymentMethodMutation.mutate({
+      orderId: selectedInvoice.id,
+      paymentId: editingPayment.id,
+      paymentMethod: editPaymentMethod.toLowerCase(),
+    });
+  };
 
   const handleOpenCancel = (inv: Invoice) => {
     if (!canCancel) {
@@ -800,6 +918,20 @@ export const useInvoice = () => {
     setIsCancelPaidWarningOpen,
     cancelReason,
     setCancelReason,
+
+    // Edit Payment Method state & Dialog flags
+    isEditPaymentMethodOpen,
+    setIsEditPaymentMethodOpen,
+    editingPayment,
+    editPaymentMethod,
+    setEditPaymentMethod,
+    handleOpenEditPaymentMethod,
+    handleOpenEditPaymentForInvoice,
+    handleSelectEditingPayment,
+    handleCloseEditPaymentMethod,
+    handleProcessUpdatePaymentMethod,
+    updatePaymentMethodMutation,
+    isUpdatingPaymentMethod: updatePaymentMethodMutation.isPending,
 
     // Computed / Query responses
     invoices,

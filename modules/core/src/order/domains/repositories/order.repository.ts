@@ -179,6 +179,7 @@ export interface OrderRepository {
   getPaymentSales(params: PaymentSalesParams): Promise<PaymentSalesItem[]>;
   mergeOrder(targetOrderId: string, sourceOrderId: string): Promise<OrderModel>;
   createDirectOrder(input: DraftOrderModel): Promise<OrderModel>;
+  updatePaymentMethod(orderId: string, paymentId: string, paymentMethod: string): Promise<OrderModel>;
 }
 
 

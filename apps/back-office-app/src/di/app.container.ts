@@ -26,7 +26,7 @@ import {
 } from "@infrastructure/expense-category/containers/expense-category.container";
 import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, updateAttributeUseCase, deleteAttributeUseCase } from "@infrastructure/attribute/containers/attribute.container";
 import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase, reorderProductUseCase } from "@infrastructure/product/containers/product.container";
-import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, refundOrderUseCase, cancelOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase, getOrderReportWidgetsUseCase, getSalesReportWidgetsUseCase, getSalesTrendUseCase, getCategorySalesUseCase, getPaymentSalesUseCase, getProductSalesUseCase, mergeOrderUseCase, createDirectOrderUseCase } from "@infrastructure/order/containers/order.container";
+import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, refundOrderUseCase, cancelOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase, getOrderReportWidgetsUseCase, getSalesReportWidgetsUseCase, getSalesTrendUseCase, getCategorySalesUseCase, getPaymentSalesUseCase, getProductSalesUseCase, mergeOrderUseCase, createDirectOrderUseCase, updatePaymentMethodUseCase } from "@infrastructure/order/containers/order.container";
 import { getCashFlowReportUseCase, getCashFlowSummaryUseCase, createCashFlowAdjustmentUseCase, getCashAccountsUseCase } from "@infrastructure/cash-flow/containers/cash-flow.container";
 import {
   getUsersUseCase,
@@ -117,6 +117,7 @@ export function createAppContainer(): AppContainer {
       getPaymentSalesUseCase: getPaymentSalesUseCase(httpClient),
       mergeOrderUseCase: mergeOrderUseCase(httpClient),
       createDirectOrderUseCase: createDirectOrderUseCase(httpClient),
+      updatePaymentMethodUseCase: updatePaymentMethodUseCase(httpClient),
     },
     cashFlow: {
       getCashFlowReportUseCase: getCashFlowReportUseCase(httpClient),

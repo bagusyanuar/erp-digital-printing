@@ -584,4 +584,20 @@ export class ApiOrderRepository implements OrderRepository {
       return response.data;
     });
   }
+
+  async updatePaymentMethod(orderId: string, paymentId: string, paymentMethod: string): Promise<OrderModel> {
+    return safeApiCall(async () => {
+      const response = await this.http.patch<ApiResponse<OrderResponse>>(
+        `/orders/${orderId}/payments/${paymentId}`,
+        { payment_method: paymentMethod }
+      );
+
+      const order = response.data;
+      if (!order) {
+        throw new Error("Gagal mengubah metode pembayaran.");
+      }
+
+      return mapOrderResponseToModel(order);
+    });
+  }
 }

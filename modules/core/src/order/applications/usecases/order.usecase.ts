@@ -164,5 +164,14 @@ export class CreateDirectOrder {
   }
 }
 
+export class UpdatePaymentMethod {
+  constructor(private readonly orderRepository: OrderRepository) {}
+
+  async execute(orderId: string, paymentId: string, paymentMethod: string): Promise<OrderModel> {
+    return await this.orderRepository.updatePaymentMethod(orderId, paymentId, paymentMethod);
+  }
+}
+
+
 
 
