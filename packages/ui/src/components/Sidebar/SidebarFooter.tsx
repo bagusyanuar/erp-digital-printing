@@ -9,14 +9,22 @@ export const SidebarFooter = ({ user, onChangePassword, onLogout, className }: S
   const [open, setOpen] = React.useState(false);
 
   return (
-    <div className={cn("mt-auto p-4 border-t border-border", className)}>
+    <div
+      className={cn(
+        "mt-auto shrink-0 p-4 border-t border-border bg-sidebar",
+        className
+      )}
+      style={{
+        paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 1.25rem))",
+      }}
+    >
       <Popover.Root open={open} onOpenChange={setOpen}>
         <Popover.Trigger asChild>
           <button
             type="button"
             className={cn(
-              "flex w-full items-center gap-3 rounded-xl border border-border bg-sidebar-accent/50 p-3 text-left transition-all hover:bg-sidebar-accent focus:outline-none cursor-pointer",
-              open && "bg-sidebar-accent"
+              "flex w-full items-center gap-3 rounded-xl border border-border bg-sidebar-accent/50 p-3 text-left transition-all hover:bg-sidebar-accent focus:outline-none cursor-pointer select-none",
+              open && "bg-sidebar-accent shadow-sm"
             )}
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary font-bold shadow-sm">
@@ -34,8 +42,10 @@ export const SidebarFooter = ({ user, onChangePassword, onLogout, className }: S
           <Popover.Content
             side="top"
             align="center"
-            sideOffset={10}
-            className="z-50 outline-none"
+            sideOffset={12}
+            avoidCollisions={true}
+            collisionPadding={{ bottom: 80, top: 20, left: 16, right: 16 }}
+            className="z-[9999] outline-none"
           >
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.95 }}

@@ -1684,16 +1684,31 @@ const InvoicePage = () => {
                   {selectedInvoice.customerName}
                 </span>
               </div>
-              {(selectedInvoice.deadline || spkResponse?.deadline) && (
+              {Boolean(
+                (
+                  selectedInvoice.deadline ||
+                  (spkResponse?.deadline
+                    ? formatDateTime(spkResponse.deadline)
+                    : "")
+                )?.trim() &&
+                  (
+                    selectedInvoice.deadline ||
+                    (spkResponse?.deadline
+                      ? formatDateTime(spkResponse.deadline)
+                      : "")
+                  )?.trim() !== "-",
+              ) && (
                 <div className="space-y-0.5 pt-2 border-t border-border/20">
                   <span className="text-[10px] text-rose-500 font-black uppercase tracking-wider block">
                     Deadline
                   </span>
                   <span className="font-bold text-rose-600 dark:text-rose-400 text-xs">
-                    {selectedInvoice.deadline ||
+                    {(
+                      selectedInvoice.deadline ||
                       (spkResponse?.deadline
                         ? formatDateTime(spkResponse.deadline)
-                        : "-")}
+                        : "")
+                    )?.trim()}
                   </span>
                 </div>
               )}
@@ -1701,7 +1716,26 @@ const InvoicePage = () => {
                 (selectedInvoice.notes || spkResponse?.notes)?.trim() &&
                   (selectedInvoice.notes || spkResponse?.notes)?.trim() !== "-",
               ) && (
-                <div className={`space-y-0.5 pt-2 border-t border-border/20 ${!(selectedInvoice.deadline || spkResponse?.deadline) ? "col-span-2" : ""}`}>
+                <div
+                  className={`space-y-0.5 pt-2 border-t border-border/20 ${
+                    !(
+                      (
+                        selectedInvoice.deadline ||
+                        (spkResponse?.deadline
+                          ? formatDateTime(spkResponse.deadline)
+                          : "")
+                      )?.trim() &&
+                      (
+                        selectedInvoice.deadline ||
+                        (spkResponse?.deadline
+                          ? formatDateTime(spkResponse.deadline)
+                          : "")
+                      )?.trim() !== "-"
+                    )
+                      ? "col-span-2"
+                      : ""
+                  }`}
+                >
                   <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider block">
                     Memo Transaksi
                   </span>
@@ -1819,15 +1853,32 @@ const InvoicePage = () => {
                     {selectedInvoice.customerName}
                   </span>
                 </div>
-                <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold">
-                  <span>Deadline:</span>
-                  <span>
-                    {selectedInvoice.deadline ||
+                {Boolean(
+                  (
+                    selectedInvoice.deadline ||
+                    (spkResponse?.deadline
+                      ? formatDateTime(spkResponse.deadline)
+                      : "")
+                  )?.trim() &&
+                    (
+                      selectedInvoice.deadline ||
                       (spkResponse?.deadline
                         ? formatDateTime(spkResponse.deadline)
-                        : "-")}
-                  </span>
-                </div>
+                        : "")
+                    )?.trim() !== "-",
+                ) && (
+                  <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold">
+                    <span>Deadline:</span>
+                    <span>
+                      {(
+                        selectedInvoice.deadline ||
+                        (spkResponse?.deadline
+                          ? formatDateTime(spkResponse.deadline)
+                          : "")
+                      )?.trim()}
+                    </span>
+                  </div>
+                )}
                 {Boolean(
                   (selectedInvoice.notes || spkResponse?.notes)?.trim() &&
                     (selectedInvoice.notes || spkResponse?.notes)?.trim() !== "-",
@@ -1919,17 +1970,31 @@ const InvoicePage = () => {
                   if (!selectedInvoice || !selectedSpkCategory) return;
                   setIsPrinting(true);
 
+                  const effectiveSpkDeadline = (
+                    selectedInvoice.deadline ||
+                    (spkResponse?.deadline
+                      ? formatDateTime(spkResponse.deadline)
+                      : "")
+                  )?.trim();
+                  const effectiveSpkMemo = (
+                    selectedInvoice.notes ||
+                    spkResponse?.notes ||
+                    ""
+                  )?.trim();
+
                   const rawData = generateSpkRawData(
                     selectedInvoice,
                     selectedSpkCategory,
                     activeSpkCategoryItems,
                     {
                       deadline:
-                        selectedInvoice.deadline ||
-                        (spkResponse?.deadline
-                          ? formatDateTime(spkResponse.deadline)
-                          : "-"),
-                      memo: selectedInvoice.notes || spkResponse?.notes,
+                        effectiveSpkDeadline && effectiveSpkDeadline !== "-"
+                          ? effectiveSpkDeadline
+                          : undefined,
+                      memo:
+                        effectiveSpkMemo && effectiveSpkMemo !== "-"
+                          ? effectiveSpkMemo
+                          : undefined,
                     },
                   );
 
@@ -1998,17 +2063,31 @@ const InvoicePage = () => {
 
                   setIsBluetoothPrinting(true);
 
+                  const effectiveSpkDeadline = (
+                    selectedInvoice.deadline ||
+                    (spkResponse?.deadline
+                      ? formatDateTime(spkResponse.deadline)
+                      : "")
+                  )?.trim();
+                  const effectiveSpkMemo = (
+                    selectedInvoice.notes ||
+                    spkResponse?.notes ||
+                    ""
+                  )?.trim();
+
                   const rawData = generateSpkRawData(
                     selectedInvoice,
                     selectedSpkCategory,
                     activeSpkCategoryItems,
                     {
                       deadline:
-                        selectedInvoice.deadline ||
-                        (spkResponse?.deadline
-                          ? formatDateTime(spkResponse.deadline)
-                          : "-"),
-                      memo: selectedInvoice.notes || spkResponse?.notes,
+                        effectiveSpkDeadline && effectiveSpkDeadline !== "-"
+                          ? effectiveSpkDeadline
+                          : undefined,
+                      memo:
+                        effectiveSpkMemo && effectiveSpkMemo !== "-"
+                          ? effectiveSpkMemo
+                          : undefined,
                     },
                   );
 
@@ -2161,16 +2240,41 @@ const InvoicePage = () => {
                     <span>{selectedInvoice.designerName}</span>
                   </div>
                 )}
-                {selectedInvoice.deadline && (
+                {Boolean(
+                  (
+                    selectedInvoice.deadline ||
+                    (spkResponse?.deadline
+                      ? formatDateTime(spkResponse.deadline)
+                      : "")
+                  )?.trim() &&
+                    (
+                      selectedInvoice.deadline ||
+                      (spkResponse?.deadline
+                        ? formatDateTime(spkResponse.deadline)
+                        : "")
+                    )?.trim() !== "-",
+                ) && (
                   <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold">
                     <span>Deadline:</span>
-                    <span>{selectedInvoice.deadline}</span>
+                    <span>
+                      {(
+                        selectedInvoice.deadline ||
+                        (spkResponse?.deadline
+                          ? formatDateTime(spkResponse.deadline)
+                          : "")
+                      )?.trim()}
+                    </span>
                   </div>
                 )}
-                {selectedInvoice.notes && selectedInvoice.notes !== "-" && (
+                {Boolean(
+                  (selectedInvoice.notes || spkResponse?.notes)?.trim() &&
+                    (selectedInvoice.notes || spkResponse?.notes)?.trim() !== "-",
+                ) && (
                   <div className="flex justify-between text-foreground font-semibold">
                     <span>Memo Transaksi:</span>
-                    <span>{selectedInvoice.notes}</span>
+                    <span>
+                      {(selectedInvoice.notes || spkResponse?.notes)?.trim()}
+                    </span>
                   </div>
                 )}
               </div>
@@ -2277,14 +2381,28 @@ const InvoicePage = () => {
                   if (!selectedInvoice) return;
                   setIsPrinting(true);
 
+                  const effectiveReceiptDeadline = (
+                    selectedInvoice.deadline ||
+                    (spkResponse?.deadline
+                      ? formatDateTime(spkResponse.deadline)
+                      : "")
+                  )?.trim();
+                  const effectiveReceiptMemo = (
+                    selectedInvoice.notes ||
+                    spkResponse?.notes ||
+                    ""
+                  )?.trim();
+
                   const rawData = generateInvoiceReceiptRawData(selectedInvoice, {
                     cashierName: currentCashierName,
                     deadline:
-                      selectedInvoice.deadline ||
-                      (spkResponse?.deadline
-                        ? formatDateTime(spkResponse.deadline)
-                        : "-"),
-                    memo: selectedInvoice.notes || spkResponse?.notes,
+                      effectiveReceiptDeadline && effectiveReceiptDeadline !== "-"
+                        ? effectiveReceiptDeadline
+                        : undefined,
+                    memo:
+                      effectiveReceiptMemo && effectiveReceiptMemo !== "-"
+                        ? effectiveReceiptMemo
+                        : undefined,
                     tenderedAmount: effectiveTendered,
                     changeAmount: effectiveChange,
                   });
@@ -2354,14 +2472,28 @@ const InvoicePage = () => {
 
                   setIsBluetoothPrinting(true);
 
+                  const effectiveReceiptDeadline = (
+                    selectedInvoice.deadline ||
+                    (spkResponse?.deadline
+                      ? formatDateTime(spkResponse.deadline)
+                      : "")
+                  )?.trim();
+                  const effectiveReceiptMemo = (
+                    selectedInvoice.notes ||
+                    spkResponse?.notes ||
+                    ""
+                  )?.trim();
+
                   const rawData = generateInvoiceReceiptRawData(selectedInvoice, {
                     cashierName: currentCashierName,
                     deadline:
-                      selectedInvoice.deadline ||
-                      (spkResponse?.deadline
-                        ? formatDateTime(spkResponse.deadline)
-                        : "-"),
-                    memo: selectedInvoice.notes || spkResponse?.notes,
+                      effectiveReceiptDeadline && effectiveReceiptDeadline !== "-"
+                        ? effectiveReceiptDeadline
+                        : undefined,
+                    memo:
+                      effectiveReceiptMemo && effectiveReceiptMemo !== "-"
+                        ? effectiveReceiptMemo
+                        : undefined,
                     tenderedAmount: effectiveTendered,
                     changeAmount: effectiveChange,
                   });

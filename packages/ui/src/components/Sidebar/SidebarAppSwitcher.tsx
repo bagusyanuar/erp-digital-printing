@@ -24,7 +24,7 @@ export const SidebarAppSwitcher = ({ currentApp, className }: SidebarAppSwitcher
   const [open, setOpen] = React.useState(false);
 
   return (
-    <div className={cn("px-4 py-3", className)}>
+    <div className={cn("px-4 py-3 shrink-0", className)}>
       <Popover.Root open={open} onOpenChange={setOpen}>
         <Popover.Trigger asChild>
           <button className={cn(

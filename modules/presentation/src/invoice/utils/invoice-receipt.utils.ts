@@ -65,8 +65,9 @@ export const generateInvoiceReceiptRawData = (
   if (invoice.designerName) {
     rawData += formatLine("Desainer", invoice.designerName.toUpperCase(), charWidth);
   }
-  if (deadline) {
-    rawData += formatLine("Deadline", deadline, charWidth);
+  const cleanDeadline = (deadline ?? invoice.deadline ?? "").trim();
+  if (cleanDeadline && cleanDeadline !== "-") {
+    rawData += formatLine("Deadline", cleanDeadline, charWidth);
   }
   const cleanMemo = (memo ?? invoice.notes ?? "").trim();
   if (cleanMemo && cleanMemo !== "-") {
@@ -176,8 +177,9 @@ export const generateSpkRawData = (
     charWidth,
   );
 
-  if (deadline) {
-    rawData += formatLine("Deadline", deadline, charWidth);
+  const cleanDeadline = (deadline ?? invoice.deadline ?? "").trim();
+  if (cleanDeadline && cleanDeadline !== "-") {
+    rawData += formatLine("Deadline", cleanDeadline, charWidth);
   }
 
   const cleanMemo = (memo ?? invoice.notes ?? "").trim();

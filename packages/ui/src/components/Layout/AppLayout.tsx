@@ -4,7 +4,7 @@ import { AppLayoutProps } from "./AppLayout.types";
 
 export const AppLayout = ({ sidebar, children, className }: AppLayoutProps) => {
   return (
-    <div className={cn("flex h-screen w-full overflow-hidden bg-background text-foreground", className)}>
+    <div className={cn("flex h-dvh max-h-dvh w-full overflow-hidden bg-background text-foreground", className)}>
       {/* Sidebar Area */}
       {sidebar}
 
