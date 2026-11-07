@@ -1759,38 +1759,33 @@ const InvoicePage = () => {
                   <span>{selectedInvoice.jobNumber}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span>Tanggal:</span>
+                  <span>{selectedInvoice.createdAt}</span>
+                </div>
+                <div className="flex justify-between">
                   <span>Pelanggan:</span>
                   <span className="font-bold uppercase">
                     {selectedInvoice.customerName}
                   </span>
                 </div>
-                {selectedInvoice.designerName && (
-                  <div className="flex justify-between">
-                    <span>Desainer:</span>
-                    <span className="font-bold uppercase">
-                      {selectedInvoice.designerName}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span>Tanggal:</span>
-                  <span>{selectedInvoice.createdAt}</span>
+                <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold">
+                  <span>Deadline:</span>
+                  <span>
+                    {selectedInvoice.deadline ||
+                      (spkResponse?.deadline
+                        ? formatDateTime(spkResponse.deadline)
+                        : "-")}
+                  </span>
                 </div>
-                {(selectedInvoice.deadline || spkResponse?.deadline) && (
-                  <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold">
-                    <span>Deadline:</span>
-                    <span>
-                      {selectedInvoice.deadline ||
-                        (spkResponse?.deadline
-                          ? formatDateTime(spkResponse.deadline)
-                          : "-")}
-                    </span>
-                  </div>
-                )}
-                {selectedInvoice.notes && selectedInvoice.notes !== "-" && (
+                {Boolean(
+                  (selectedInvoice.notes || spkResponse?.notes)?.trim() &&
+                    (selectedInvoice.notes || spkResponse?.notes)?.trim() !== "-",
+                ) && (
                   <div className="flex justify-between text-foreground font-semibold">
                     <span>Memo Transaksi:</span>
-                    <span>{selectedInvoice.notes}</span>
+                    <span>
+                      {(selectedInvoice.notes || spkResponse?.notes)?.trim()}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1841,6 +1836,11 @@ const InvoicePage = () => {
               </div>
 
               <div className="text-center pt-5 text-[10px] text-muted-foreground space-y-0.5 font-bold">
+                {selectedInvoice.designerName && (
+                  <span className="block text-foreground text-xs uppercase mb-1">
+                    DESAINER: {selectedInvoice.designerName}
+                  </span>
+                )}
                 <span className="block">
                   --- HARAP DIKERJAKAN SESUAI SPESIFIKASI ---
                 </span>
@@ -1907,26 +1907,20 @@ const InvoicePage = () => {
                     "Pelanggan",
                     selectedInvoice.customerName.toUpperCase(),
                   );
-                  if (selectedInvoice.designerName) {
-                    rawData += formatLine(
-                      "Desainer",
-                      selectedInvoice.designerName.toUpperCase(),
-                    );
-                  }
-                  if (selectedInvoice.deadline || spkResponse?.deadline) {
-                    rawData += formatLine(
-                      "Deadline",
-                      selectedInvoice.deadline ||
-                        (spkResponse?.deadline
-                          ? formatDateTime(spkResponse.deadline)
-                          : "-"),
-                    );
-                  }
-                  if (selectedInvoice.notes && selectedInvoice.notes !== "-") {
-                    rawData += formatLine(
-                      "Memo Transaksi",
-                      selectedInvoice.notes,
-                    );
+                  const spkDeadline =
+                    selectedInvoice.deadline ||
+                    (spkResponse?.deadline
+                      ? formatDateTime(spkResponse.deadline)
+                      : "-");
+                  rawData += formatLine("Deadline", spkDeadline);
+
+                  const spkMemo = (
+                    selectedInvoice.notes ||
+                    spkResponse?.notes ||
+                    ""
+                  ).trim();
+                  if (spkMemo && spkMemo !== "-") {
+                    rawData += formatLine("Memo Transaksi", spkMemo);
                   }
 
                   rawData +=
@@ -1995,6 +1989,9 @@ const InvoicePage = () => {
                   rawData += "\n";
                   // ESC/POS Command: Center Align
                   rawData += "\x1b\x61\x01";
+                  if (selectedInvoice.designerName) {
+                    rawData += `DESAINER: ${selectedInvoice.designerName.toUpperCase()}\n\n`;
+                  }
                   rawData += "--- HARAP DIKERJAKAN SESUAI SPESIFIKASI ---\n";
                   rawData += "Sistem ERP Digital Printing\n";
                   rawData += "\n\n\n\n\n\n\n";
@@ -2293,11 +2290,13 @@ const InvoicePage = () => {
                           : "-"),
                     );
                   }
-                  if (selectedInvoice.notes && selectedInvoice.notes !== "-") {
-                    rawData += formatLine(
-                      "Memo Transaksi",
-                      selectedInvoice.notes,
-                    );
+                  const invoiceMemo = (
+                    selectedInvoice.notes ||
+                    spkResponse?.notes ||
+                    ""
+                  ).trim();
+                  if (invoiceMemo && invoiceMemo !== "-") {
+                    rawData += formatLine("Memo Transaksi", invoiceMemo);
                   }
 
                   rawData +=
