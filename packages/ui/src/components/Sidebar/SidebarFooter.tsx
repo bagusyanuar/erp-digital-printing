@@ -12,10 +12,13 @@ export const SidebarFooter = ({ user, onChangePassword, onLogout, className }: S
     <div className={cn("mt-auto p-4 border-t border-border", className)}>
       <Popover.Root open={open} onOpenChange={setOpen}>
         <Popover.Trigger asChild>
-          <button className={cn(
-            "flex w-full items-center gap-3 rounded-xl border border-border bg-sidebar-accent/50 p-3 text-left transition-all hover:bg-sidebar-accent focus:outline-none",
-            open && "bg-sidebar-accent"
-          )}>
+          <button
+            type="button"
+            className={cn(
+              "flex w-full items-center gap-3 rounded-xl border border-border bg-sidebar-accent/50 p-3 text-left transition-all hover:bg-sidebar-accent focus:outline-none cursor-pointer",
+              open && "bg-sidebar-accent"
+            )}
+          >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary font-bold shadow-sm">
               {user.name.charAt(0)}
             </div>
@@ -29,18 +32,17 @@ export const SidebarFooter = ({ user, onChangePassword, onLogout, className }: S
 
         <Popover.Portal>
           <Popover.Content
-            side="right"
-            align="end"
-            sideOffset={12}
-            className="z-50"
-            asChild
+            side="top"
+            align="center"
+            sideOffset={10}
+            className="z-50 outline-none"
           >
             <motion.div
-              initial={{ opacity: 0, x: -10, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: -10, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="w-56 rounded-xl border border-border bg-card p-2 shadow-2xl shadow-black/50 backdrop-blur-xl"
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="w-64 rounded-xl border border-border bg-card p-2 shadow-2xl shadow-black/50 backdrop-blur-xl"
             >
               <div className="px-3 py-2 border-b border-border mb-1">
                 <div className="flex flex-col">
@@ -56,7 +58,7 @@ export const SidebarFooter = ({ user, onChangePassword, onLogout, className }: S
                     setOpen(false);
                     onChangePassword?.();
                   }}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all group"
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all group cursor-pointer"
                 >
                   <LuKey className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   Ganti Password
@@ -65,8 +67,12 @@ export const SidebarFooter = ({ user, onChangePassword, onLogout, className }: S
 
               <div className="mt-1 border-t border-border pt-1">
                 <button
-                  onClick={onLogout}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-bold text-rose-500 hover:bg-rose-500/10 transition-all"
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onLogout?.();
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-bold text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer"
                 >
                   <LuLogOut className="h-4 w-4" />
                   Log Out

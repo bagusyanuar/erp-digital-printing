@@ -1,4 +1,5 @@
 import type { Invoice } from "../hooks/useInvoice";
+import type { SpkItemModel } from "@core/order/domains/models/order.model";
 
 export interface InvoiceReceiptOptions {
   cashierName?: string;
@@ -130,6 +131,128 @@ export const generateInvoiceReceiptRawData = (
   // ESC/POS Command: Center Align
   rawData += "\x1b\x61\x01";
   rawData += "Terima kasih atas kunjungan Anda\n\n\n\n\n\n\n";
+
+  // ESC/POS Command: Auto Cut
+  rawData += "\x1d\x56\x00";
+
+  return rawData;
+};
+
+export interface SpkPrintOptions {
+  deadline?: string | null;
+  memo?: string | null;
+  charWidth?: number;
+}
+
+export const generateSpkRawData = (
+  invoice: Invoice,
+  categoryName: string,
+  items: SpkItemModel[],
+  options: SpkPrintOptions = {},
+): string => {
+  const { deadline, memo, charWidth = 48 } = options;
+
+  // ESC/POS Command: Center Align
+  let rawData = "\x1b\x61\x01";
+
+  // Divisi: Double Height + Double Width + Bold using ESC ! 56
+  rawData += "\x1b\x21\x38";
+  rawData += `${categoryName.toUpperCase()}\n`;
+  rawData += "\x1b\x21\x00"; // Reset print mode (standard size, normal weight)
+  rawData += "\n";
+
+  // ESC/POS Command: Left Align
+  rawData += "\x1b\x61\x00";
+  rawData += "\x1b\x21\x00"; // Ensure standard mode is applied again
+  rawData += "------------------------------------------------\n";
+
+  rawData += formatLine("No. Nota", invoice.invoiceNo, charWidth);
+  rawData += formatLine("No. Tiket", invoice.jobNumber, charWidth);
+  rawData += formatLine("Tanggal", invoice.createdAt, charWidth);
+  rawData += "------------------------------------------------\n\n";
+  rawData += formatLine(
+    "Pelanggan",
+    invoice.customerName.toUpperCase(),
+    charWidth,
+  );
+
+  if (deadline) {
+    rawData += formatLine("Deadline", deadline, charWidth);
+  }
+
+  const cleanMemo = (memo ?? invoice.notes ?? "").trim();
+  if (cleanMemo && cleanMemo !== "-") {
+    rawData += formatLine("Memo Transaksi", cleanMemo, charWidth);
+  }
+
+  rawData += "------------------------------------------------\n";
+
+  // Label: DAFTAR ITEM PRODUKSI (Normal)
+  rawData += "DAFTAR ITEM PRODUKSI:\n";
+  rawData += "------------------------------------------------\n";
+
+  items.forEach((item, idx) => {
+    // Item Name (Normal size, Not Bold)
+    const itemTitle =
+      item.variant_name && item.variant_name.toLowerCase() !== "default"
+        ? `${idx + 1}. ${item.product_name} (${item.variant_name})`
+        : `${idx + 1}. ${item.product_name}`;
+    rawData += `${itemTitle}\n`;
+
+    const hasDimensions =
+      item.uom === "m2"
+        ? item.length_m && item.width_m
+        : item.uom === "m_lari"
+          ? !!item.length_m
+          : false;
+
+    if (hasDimensions) {
+      // 1. Catatan
+      if (
+        item.production_notes &&
+        item.production_notes !== "-" &&
+        item.production_notes !== ""
+      ) {
+        rawData += `   CATATAN: ${item.production_notes}\n`;
+      }
+
+      // 2. Ukuran (in meters)
+      const lengthM = item.length_m ?? 0;
+      if (item.uom === "m_lari") {
+        rawData += `   UKURAN: ${lengthM} meter (m_lari)\n`;
+      } else {
+        const widthM = item.width_m ?? 0;
+        rawData += `   UKURAN: ${lengthM} x ${widthM} meter\n`;
+      }
+
+      // 3. Quantity
+      rawData += `   JUMLAH: ${item.quantity} pcs\n`;
+    } else {
+      // 1. Quantity
+      rawData += `   JUMLAH: ${item.quantity} ${item.uom || "pcs"}\n`;
+
+      // 2. Catatan
+      if (
+        item.production_notes &&
+        item.production_notes !== "-" &&
+        item.production_notes !== ""
+      ) {
+        rawData += `   CATATAN: ${item.production_notes}\n`;
+      }
+    }
+
+    rawData += "------------------------------------------------\n";
+  });
+
+  rawData += "\n";
+  // ESC/POS Command: Center Align
+  rawData += "\x1b\x61\x01";
+  if (invoice.designerName) {
+    rawData += `DESAINER: ${invoice.designerName.toUpperCase()}\n\n`;
+  }
+  rawData += "--- HARAP DIKERJAKAN SESUAI SPESIFIKASI ---\n";
+  rawData += "Sistem ERP Digital Printing\n";
+  rawData += "\n\n\n\n\n\n\n";
 
   // ESC/POS Command: Auto Cut
   rawData += "\x1d\x56\x00";

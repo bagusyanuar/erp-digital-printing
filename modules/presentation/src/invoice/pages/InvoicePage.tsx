@@ -46,7 +46,10 @@ import {
   printViaWebBluetooth,
   isWebBluetoothSupported,
 } from "@presentation/shared/utils/bluetooth-printer.utils";
-import { generateInvoiceReceiptRawData } from "../utils/invoice-receipt.utils";
+import {
+  generateInvoiceReceiptRawData,
+  generateSpkRawData,
+} from "../utils/invoice-receipt.utils";
 import { useInvoice } from "../hooks/useInvoice";
 
 const InvoicePage = () => {
@@ -177,7 +180,11 @@ const InvoicePage = () => {
     // Helpers
     formatCurrency,
     formatDateTime,
+    profile,
   } = useInvoice();
+
+  const currentCashierName =
+    groupedPayments[0]?.cashier_name || profile?.username || "Sistem";
 
   const [isShareWADialogOpen, setIsShareWADialogOpen] = React.useState(false);
   const [isCapturingInvoice, setIsCapturingInvoice] = React.useState(false);
@@ -933,7 +940,7 @@ const InvoicePage = () => {
                             <LuUser size={10} className="text-primary" />
                           </div>
                           <span className="font-bold text-foreground text-xs">
-                            {groupedPayments[0]?.cashier_name || "Sistem"}
+                            {currentCashierName}
                           </span>
                         </div>
                       </div>
@@ -1895,7 +1902,7 @@ const InvoicePage = () => {
             </div>
 
             {/* Bottom Actions */}
-            <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
               <Button
                 variant="outline"
                 onClick={() => setIsSpkPreviewOpen(false)}
@@ -1903,145 +1910,28 @@ const InvoicePage = () => {
               >
                 Tutup
               </Button>
+
+              {/* Opsi 1: Print Agent Lokal (PC Workshop) */}
               <Button
-                disabled={isPrinting}
+                variant="outline"
+                disabled={isPrinting || isBluetoothPrinting}
                 onClick={async () => {
                   if (!selectedInvoice || !selectedSpkCategory) return;
                   setIsPrinting(true);
 
-                  const formatLine = (
-                    left: string,
-                    right: string,
-                    charWidth = 48,
-                  ): string => {
-                    const spacesNeeded = charWidth - left.length - right.length;
-                    if (spacesNeeded > 0) {
-                      return left + " ".repeat(spacesNeeded) + right + "\n";
-                    }
-                    return (
-                      left +
-                      "\n" +
-                      " ".repeat(charWidth - right.length) +
-                      right +
-                      "\n"
-                    );
-                  };
-
-                  // ESC/POS Command: Center Align
-                  let rawData = "\x1b\x61\x01";
-
-                  // Divisi: Double Height + Double Width + Bold using ESC ! 56
-                  rawData += "\x1b\x21\x38";
-                  rawData += `${selectedSpkCategory.toUpperCase()}\n`;
-                  rawData += "\x1b\x21\x00"; // Reset print mode (standard size, normal weight)
-                  rawData += "\n";
-
-                  // ESC/POS Command: Left Align
-                  rawData += "\x1b\x61\x00";
-                  rawData += "\x1b\x21\x00"; // Ensure standard mode is applied again
-                  rawData +=
-                    "------------------------------------------------\n";
-
-                  rawData += formatLine("No. Nota", selectedInvoice.invoiceNo);
-                  rawData += formatLine("No. Tiket", selectedInvoice.jobNumber);
-                  rawData += formatLine("Tanggal", selectedInvoice.createdAt);
-                  rawData +=
-                    "------------------------------------------------\n\n";
-                  rawData += formatLine(
-                    "Pelanggan",
-                    selectedInvoice.customerName.toUpperCase(),
+                  const rawData = generateSpkRawData(
+                    selectedInvoice,
+                    selectedSpkCategory,
+                    activeSpkCategoryItems,
+                    {
+                      deadline:
+                        selectedInvoice.deadline ||
+                        (spkResponse?.deadline
+                          ? formatDateTime(spkResponse.deadline)
+                          : "-"),
+                      memo: selectedInvoice.notes || spkResponse?.notes,
+                    },
                   );
-                  const spkDeadline =
-                    selectedInvoice.deadline ||
-                    (spkResponse?.deadline
-                      ? formatDateTime(spkResponse.deadline)
-                      : "-");
-                  rawData += formatLine("Deadline", spkDeadline);
-
-                  const spkMemo = (
-                    selectedInvoice.notes ||
-                    spkResponse?.notes ||
-                    ""
-                  ).trim();
-                  if (spkMemo && spkMemo !== "-") {
-                    rawData += formatLine("Memo Transaksi", spkMemo);
-                  }
-
-                  rawData +=
-                    "------------------------------------------------\n";
-
-                  // Label: DAFTAR ITEM PRODUKSI (Normal)
-                  rawData += "DAFTAR ITEM PRODUKSI:\n";
-                  rawData +=
-                    "------------------------------------------------\n";
-
-                  activeSpkCategoryItems.forEach((item, idx) => {
-                    // Item Name (Normal size, Not Bold)
-                    const itemTitle =
-                      item.variant_name &&
-                      item.variant_name.toLowerCase() !== "default"
-                        ? `${idx + 1}. ${item.product_name} (${item.variant_name})`
-                        : `${idx + 1}. ${item.product_name}`;
-                    rawData += `${itemTitle}\n`;
-
-                    const hasDimensions =
-                      item.uom === "m2"
-                        ? item.length_m && item.width_m
-                        : item.uom === "m_lari"
-                          ? !!item.length_m
-                          : false;
-
-                    if (hasDimensions) {
-                      // 1. Catatan
-                      if (
-                        item.production_notes &&
-                        item.production_notes !== "-" &&
-                        item.production_notes !== ""
-                      ) {
-                        rawData += `   CATATAN: ${item.production_notes}\n`;
-                      }
-
-                      // 2. Ukuran (in meters)
-                      const lengthM = item.length_m ?? 0;
-                      if (item.uom === "m_lari") {
-                        rawData += `   UKURAN: ${lengthM} meter (m_lari)\n`;
-                      } else {
-                        const widthM = item.width_m ?? 0;
-                        rawData += `   UKURAN: ${lengthM} x ${widthM} meter\n`;
-                      }
-
-                      // 3. Quantity
-                      rawData += `   JUMLAH: ${item.quantity} pcs\n`;
-                    } else {
-                      // 1. Quantity
-                      rawData += `   JUMLAH: ${item.quantity} ${item.uom || "pcs"}\n`;
-
-                      // 2. Catatan
-                      if (
-                        item.production_notes &&
-                        item.production_notes !== "-" &&
-                        item.production_notes !== ""
-                      ) {
-                        rawData += `   CATATAN: ${item.production_notes}\n`;
-                      }
-                    }
-
-                    rawData +=
-                      "------------------------------------------------\n";
-                  });
-
-                  rawData += "\n";
-                  // ESC/POS Command: Center Align
-                  rawData += "\x1b\x61\x01";
-                  if (selectedInvoice.designerName) {
-                    rawData += `DESAINER: ${selectedInvoice.designerName.toUpperCase()}\n\n`;
-                  }
-                  rawData += "--- HARAP DIKERJAKAN SESUAI SPESIFIKASI ---\n";
-                  rawData += "Sistem ERP Digital Printing\n";
-                  rawData += "\n\n\n\n\n\n\n";
-
-                  // ESC/POS Command: Auto Cut
-                  rawData += "\x1d\x56\x00";
 
                   try {
                     const response = await fetch(
@@ -2079,17 +1969,87 @@ const InvoicePage = () => {
                     setIsPrinting(false);
                   }
                 }}
-                className="h-10 px-6 rounded-xl font-black bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="h-10 px-4 rounded-xl font-bold border-border/60 hover:bg-muted/50 flex items-center gap-2"
               >
                 {isPrinting ? (
+                  <div className="relative w-4 h-4">
+                    <div className="absolute inset-0 rounded-full border-2 border-foreground/20" />
+                    <div className="absolute inset-0 rounded-full border-2 border-foreground border-t-transparent animate-spin" />
+                  </div>
+                ) : (
+                  <LuPrinter size={16} />
+                )}
+                {isPrinting ? "Mencetak..." : "Print Agent (PC)"}
+              </Button>
+
+              {/* Opsi 2: Bluetooth Thermal Printer */}
+              <Button
+                disabled={isPrinting || isBluetoothPrinting}
+                onClick={async () => {
+                  if (!selectedInvoice || !selectedSpkCategory) return;
+
+                  if (!isWebBluetoothSupported()) {
+                    toast.error(
+                      "Bluetooth Tidak Didukung",
+                      "Fitur Web Bluetooth butuh Google Chrome di Android/PC dan wajib via HTTPS / localhost.",
+                    );
+                    return;
+                  }
+
+                  setIsBluetoothPrinting(true);
+
+                  const rawData = generateSpkRawData(
+                    selectedInvoice,
+                    selectedSpkCategory,
+                    activeSpkCategoryItems,
+                    {
+                      deadline:
+                        selectedInvoice.deadline ||
+                        (spkResponse?.deadline
+                          ? formatDateTime(spkResponse.deadline)
+                          : "-"),
+                      memo: selectedInvoice.notes || spkResponse?.notes,
+                    },
+                  );
+
+                  try {
+                    const deviceName = await printViaWebBluetooth(rawData);
+                    toast.success(
+                      "Mencetak SPK Berhasil",
+                      `SPK Divisi ${selectedSpkCategory} berhasil dikirim ke printer ${deviceName} via Bluetooth.`,
+                    );
+                    setIsSpkPreviewOpen(false);
+                  } catch (error) {
+                    if (error instanceof Error) {
+                      if (
+                        error.name === "NotFoundError" ||
+                        error.message.toLowerCase().includes("user cancelled")
+                      ) {
+                        return;
+                      }
+                      console.error("Bluetooth SPK print error:", error);
+                      toast.error("Gagal Cetak SPK Bluetooth", error.message);
+                    } else {
+                      toast.error(
+                        "Gagal Cetak SPK Bluetooth",
+                        "Terjadi kesalahan saat menghubungkan ke printer Bluetooth.",
+                      );
+                    }
+                  } finally {
+                    setIsBluetoothPrinting(false);
+                  }
+                }}
+                className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isBluetoothPrinting ? (
                   <div className="relative w-4 h-4">
                     <div className="absolute inset-0 rounded-full border-2 border-primary-foreground/20" />
                     <div className="absolute inset-0 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
                   </div>
                 ) : (
-                  <LuPrinter size={16} />
+                  <LuBluetooth size={16} />
                 )}
-                {isPrinting ? "Mencetak..." : "Cetak SPK"}
+                {isBluetoothPrinting ? "Menghubungkan..." : "Cetak SPK Bluetooth"}
               </Button>
             </div>
           </div>
@@ -2193,7 +2153,7 @@ const InvoicePage = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Kasir:</span>
-                  <span>{groupedPayments[0]?.cashier_name || "Sistem"}</span>
+                  <span>{currentCashierName}</span>
                 </div>
                 {selectedInvoice.designerName && (
                   <div className="flex justify-between">
@@ -2318,7 +2278,7 @@ const InvoicePage = () => {
                   setIsPrinting(true);
 
                   const rawData = generateInvoiceReceiptRawData(selectedInvoice, {
-                    cashierName: groupedPayments[0]?.cashier_name || "Sistem",
+                    cashierName: currentCashierName,
                     deadline:
                       selectedInvoice.deadline ||
                       (spkResponse?.deadline
@@ -2395,7 +2355,7 @@ const InvoicePage = () => {
                   setIsBluetoothPrinting(true);
 
                   const rawData = generateInvoiceReceiptRawData(selectedInvoice, {
-                    cashierName: groupedPayments[0]?.cashier_name || "Sistem",
+                    cashierName: currentCashierName,
                     deadline:
                       selectedInvoice.deadline ||
                       (spkResponse?.deadline
@@ -3017,7 +2977,7 @@ const InvoicePage = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Kasir:</span>
-                  <span>{groupedPayments[0]?.cashier_name || "Sistem"}</span>
+                  <span>{currentCashierName}</span>
                 </div>
                 {selectedInvoice.designerName && (
                   <div className="flex justify-between">

@@ -47,8 +47,7 @@ export const SidebarAppSwitcher = ({ currentApp, className }: SidebarAppSwitcher
             side="right"
             align="start"
             sideOffset={12}
-            className="z-50"
-            asChild
+            className="z-50 outline-none"
           >
             <motion.div
               initial={{ opacity: 0, x: -10, scale: 0.95 }}

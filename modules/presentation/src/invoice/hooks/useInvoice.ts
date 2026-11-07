@@ -286,14 +286,14 @@ export const useInvoice = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Fetch Payment History from backend when the detail modal is open
+  // Fetch Payment History from backend when the detail or receipt modal is open
   const { data: payments, isLoading: isLoadingPayments } = useQuery<
     OrderPaymentModel[],
     AppError
   >({
     queryKey: orderKeys.payments(selectedInvoice?.id ?? ""),
     queryFn: () => getOrderPaymentsUseCase.execute(selectedInvoice!.id),
-    enabled: isDetailOpen && !!selectedInvoice?.id,
+    enabled: (isDetailOpen || isReceiptOpen) && !!selectedInvoice?.id,
     staleTime: 5000,
     refetchOnWindowFocus: false,
   });
@@ -1011,9 +1011,10 @@ export const useInvoice = () => {
     cancelOrderMutation,
     isCancelling: cancelOrderMutation.isPending,
 
-    // Role permissions
+    // Role permissions & Profile
     canRefund,
     canCancel,
+    profile,
 
     // Helpers
     formatCurrency,
