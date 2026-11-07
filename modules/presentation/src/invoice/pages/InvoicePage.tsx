@@ -40,7 +40,13 @@ import {
   LuBan,
   LuTriangleAlert,
   LuPencil,
+  LuBluetooth,
 } from "@erp-digital-printing/ui/icons";
+import {
+  printViaWebBluetooth,
+  isWebBluetoothSupported,
+} from "@presentation/shared/utils/bluetooth-printer.utils";
+import { generateInvoiceReceiptRawData } from "../utils/invoice-receipt.utils";
 import { useInvoice } from "../hooks/useInvoice";
 
 const InvoicePage = () => {
@@ -113,6 +119,13 @@ const InvoicePage = () => {
     splitAmounts,
     setSplitAmounts,
 
+    // Receipt print tendered & change states
+    receiptTenderedAmount,
+    setReceiptTenderedAmount,
+    receiptChangeAmount,
+    setReceiptChangeAmount,
+    payChangeAmount,
+
     // Refund Form state
     refundAmount,
     setRefundAmount,
@@ -168,6 +181,7 @@ const InvoicePage = () => {
 
   const [isShareWADialogOpen, setIsShareWADialogOpen] = React.useState(false);
   const [isCapturingInvoice, setIsCapturingInvoice] = React.useState(false);
+  const [isBluetoothPrinting, setIsBluetoothPrinting] = React.useState(false);
   const invoiceDetailRef = React.useRef<HTMLDivElement>(null);
   const shareReceiptRef = React.useRef<HTMLDivElement>(null);
 
@@ -1302,21 +1316,23 @@ const InvoicePage = () => {
                     <input
                       type="number"
                       min="1"
-                      max={
-                        selectedInvoice.totalAmount - selectedInvoice.amountPaid
-                      }
                       value={payAmount || ""}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value) || 0;
-                        const outstanding =
-                          selectedInvoice.totalAmount -
-                          selectedInvoice.amountPaid;
-                        setPayAmount(Math.min(val, outstanding));
+                        setPayAmount(val);
                       }}
                       placeholder="Masukkan nominal bayar..."
                       className="w-full h-11 pl-9 pr-3 text-sm font-mono font-bold bg-muted/30 border border-border/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
                     />
                   </div>
+                  {payChangeAmount > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 dark:text-emerald-400 animate-in fade-in">
+                      <span className="text-xs font-bold">Kembalian Tunai:</span>
+                      <span className="text-sm font-black font-mono">
+                        {formatCurrency(payChangeAmount)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-end gap-1 px-1">
                     <button
                       type="button"
@@ -1599,7 +1615,9 @@ const InvoicePage = () => {
                   (isSplitPayment
                     ? totalSplitInput <= 0 ||
                       totalSplitInput > outstandingAmount
-                    : payAmount <= 0 || payAmount > outstandingAmount)
+                    : payAmount <= 0 ||
+                      (payMethod !== "CASH" &&
+                        payAmount > outstandingAmount))
                 }
               >
                 {processPaymentMutation.isPending ? (
@@ -1659,6 +1677,32 @@ const InvoicePage = () => {
                   {selectedInvoice.customerName}
                 </span>
               </div>
+              {(selectedInvoice.deadline || spkResponse?.deadline) && (
+                <div className="space-y-0.5 pt-2 border-t border-border/20">
+                  <span className="text-[10px] text-rose-500 font-black uppercase tracking-wider block">
+                    Deadline
+                  </span>
+                  <span className="font-bold text-rose-600 dark:text-rose-400 text-xs">
+                    {selectedInvoice.deadline ||
+                      (spkResponse?.deadline
+                        ? formatDateTime(spkResponse.deadline)
+                        : "-")}
+                  </span>
+                </div>
+              )}
+              {Boolean(
+                (selectedInvoice.notes || spkResponse?.notes)?.trim() &&
+                  (selectedInvoice.notes || spkResponse?.notes)?.trim() !== "-",
+              ) && (
+                <div className={`space-y-0.5 pt-2 border-t border-border/20 ${!(selectedInvoice.deadline || spkResponse?.deadline) ? "col-span-2" : ""}`}>
+                  <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider block">
+                    Memo Transaksi
+                  </span>
+                  <span className="font-semibold text-foreground text-xs block">
+                    {(selectedInvoice.notes || spkResponse?.notes)?.trim()}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Category Groups Container */}
@@ -2060,21 +2104,66 @@ const InvoicePage = () => {
         className="rounded-3xl p-6 bg-card border border-border/50 text-foreground overflow-hidden max-h-[90vh] flex flex-col"
         showCloseButton={true}
       >
-        {selectedInvoice && (
-          <div className="space-y-5 flex flex-col overflow-hidden">
-            {/* Header info */}
-            <div className="flex flex-col gap-1 border-b border-border/30 pb-4 pr-10">
-              <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
-                <LuPrinter size={20} className="text-primary" />
-                Preview Struk Kasir
-              </h2>
-              <p className="text-xs text-muted-foreground font-semibold">
-                Simulasi hasil cetakan thermal struk digital printing 80mm.
-              </p>
-            </div>
+        {selectedInvoice && (() => {
+          const effectiveTendered =
+            receiptTenderedAmount > 0
+              ? receiptTenderedAmount
+              : selectedInvoice.amountPaid;
+          const effectiveChange =
+            receiptChangeAmount > 0
+              ? receiptChangeAmount
+              : effectiveTendered > selectedInvoice.totalAmount
+                ? effectiveTendered - selectedInvoice.totalAmount
+                : 0;
 
-            {/* Simulated Receipt Paper container */}
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl font-mono text-[11px] leading-relaxed text-slate-800 dark:text-slate-200 overflow-y-auto max-h-[50vh] shadow-inner">
+          return (
+            <div className="space-y-5 flex flex-col overflow-hidden">
+              {/* Header info */}
+              <div className="flex flex-col gap-1 border-b border-border/30 pb-4 pr-10">
+                <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
+                  <LuPrinter size={20} className="text-primary" />
+                  Preview Struk Kasir
+                </h2>
+                <p className="text-xs text-muted-foreground font-semibold">
+                  Simulasi hasil cetakan thermal struk digital printing 80mm.
+                </p>
+              </div>
+
+              {/* Input Nominal Bayar Tunai (Opsional) */}
+              <div className="flex items-center justify-between gap-4 bg-muted/20 border border-border/50 p-3 rounded-2xl">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-foreground">
+                    Uang Diterima / Tunai (Opsional)
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Ketik nominal tunai jika ingin menampilkan uang diterima & kembalian di struk.
+                  </span>
+                </div>
+                <div className="relative w-40 shrink-0">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-xs text-muted-foreground">
+                    Rp
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={receiptTenderedAmount || ""}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setReceiptTenderedAmount(val);
+                      setReceiptChangeAmount(
+                        val > selectedInvoice.totalAmount
+                          ? val - selectedInvoice.totalAmount
+                          : 0,
+                      );
+                    }}
+                    placeholder={String(selectedInvoice.amountPaid)}
+                    className="w-full h-9 pl-9 pr-3 text-xs font-mono font-bold bg-background border border-border/70 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                  />
+                </div>
+              </div>
+
+              {/* Simulated Receipt Paper container */}
+              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl font-mono text-[11px] leading-relaxed text-slate-800 dark:text-slate-200 overflow-y-auto max-h-[50vh] shadow-inner">
               <div className="text-center space-y-1 pb-4 border-b border-dashed border-slate-300 dark:border-slate-700">
                 <span className="font-bold text-sm block">
                   DIGITAL PRINTING ERP
@@ -2170,8 +2259,15 @@ const InvoicePage = () => {
 
                 <div className="flex justify-between">
                   <span>Jumlah Bayar:</span>
-                  <span>{formatCurrency(selectedInvoice.amountPaid)}</span>
+                  <span>{formatCurrency(effectiveTendered)}</span>
                 </div>
+
+                {effectiveChange > 0 && (
+                  <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
+                    <span>Kembalian:</span>
+                    <span>{formatCurrency(effectiveChange)}</span>
+                  </div>
+                )}
 
                 {selectedInvoice.totalAmount - selectedInvoice.amountPaid >
                   0 && (
@@ -2205,7 +2301,7 @@ const InvoicePage = () => {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border/30 pt-4 mt-2">
               <Button
                 variant="outline"
                 onClick={() => setIsReceiptOpen(false)}
@@ -2213,148 +2309,25 @@ const InvoicePage = () => {
               >
                 Tutup Preview
               </Button>
+
+              {/* Opsi 1: Print Agent Lokal (PC Kasir / USB) */}
               <Button
+                variant="outline"
                 onClick={async () => {
                   if (!selectedInvoice) return;
                   setIsPrinting(true);
 
-                  const printFormatCurrency = (val: number): string => {
-                    const formattedNumber = new Intl.NumberFormat("id-ID", {
-                      maximumFractionDigits: 0,
-                    }).format(val);
-                    return `Rp ${formattedNumber}`;
-                  };
-
-                  const formatLine = (
-                    left: string,
-                    right: string,
-                    charWidth = 48,
-                  ): string => {
-                    const spacesNeeded = charWidth - left.length - right.length;
-                    if (spacesNeeded > 0) {
-                      return left + " ".repeat(spacesNeeded) + right + "\n";
-                    }
-                    return (
-                      left +
-                      "\n" +
-                      " ".repeat(charWidth - right.length) +
-                      right +
-                      "\n"
-                    );
-                  };
-
-                  // ESC/POS Command: Center Align
-                  let rawData = "\x1b\x61\x01";
-
-                  // ESC/POS Command: Print NV Bit Image #1 (normal mode)
-                  rawData += "\x1c\x70\x01\x00\n";
-
-                  rawData += "            MADE DIGITAL PRINTING           \n";
-                  rawData += " INDOOR - OUTDOOR - A3+ - DTF - SPANDUK KAIN \n";
-                  rawData += "   Jl. Kali Sindang, Jagalan, Jebres - Solo  \n";
-                  rawData += "     Buka : 08.00 (Pagi) - 01.00 (Malam)     \n";
-                  rawData += "               WA. 082134305050              \n";
-
-                  // ESC/POS Command: Left Align
-                  rawData += "\x1b\x61\x00";
-                  rawData +=
-                    "------------------------------------------------\n";
-
-                  rawData += formatLine("Tanggal", selectedInvoice.createdAt);
-                  rawData += formatLine(
-                    "No. Transaksi",
-                    selectedInvoice.invoiceNo,
-                  );
-                  rawData += formatLine(
-                    "Kasir",
-                    groupedPayments[0]?.cashier_name || "Sistem",
-                  );
-                  rawData +=
-                    "------------------------------------------------\n\n";
-                  rawData += formatLine(
-                    "Pelanggan",
-                    selectedInvoice.customerName.toUpperCase(),
-                  );
-                  if (selectedInvoice.designerName) {
-                    rawData += formatLine(
-                      "Desainer",
-                      selectedInvoice.designerName.toUpperCase(),
-                    );
-                  }
-                  if (selectedInvoice.deadline || spkResponse?.deadline) {
-                    rawData += formatLine(
-                      "Deadline",
+                  const rawData = generateInvoiceReceiptRawData(selectedInvoice, {
+                    cashierName: groupedPayments[0]?.cashier_name || "Sistem",
+                    deadline:
                       selectedInvoice.deadline ||
-                        (spkResponse?.deadline
-                          ? formatDateTime(spkResponse.deadline)
-                          : "-"),
-                    );
-                  }
-                  const invoiceMemo = (
-                    selectedInvoice.notes ||
-                    spkResponse?.notes ||
-                    ""
-                  ).trim();
-                  if (invoiceMemo && invoiceMemo !== "-") {
-                    rawData += formatLine("Memo Transaksi", invoiceMemo);
-                  }
-
-                  rawData +=
-                    "------------------------------------------------\n";
-
-                  selectedInvoice.items.forEach((item) => {
-                    rawData += `${item.productName}\n`;
-                    if (item.notes && item.notes !== "-") {
-                      rawData += `* ${item.notes}\n`;
-                    }
-                    const leftDetail =
-                      item.uom === "m2" && item.lengthM && item.widthM
-                        ? `${item.lengthM}x${item.widthM} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
-                        : item.uom === "m_lari" && item.lengthM
-                          ? `${item.lengthM} x ${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`
-                          : `${item.qty} x ${printFormatCurrency(item.pricePerUnit)}`;
-                    const rightDetail = printFormatCurrency(item.subtotal);
-                    rawData += formatLine(leftDetail, rightDetail);
-                    rawData += "\n";
+                      (spkResponse?.deadline
+                        ? formatDateTime(spkResponse.deadline)
+                        : "-"),
+                    memo: selectedInvoice.notes || spkResponse?.notes,
+                    tenderedAmount: effectiveTendered,
+                    changeAmount: effectiveChange,
                   });
-
-                  rawData +=
-                    "------------------------------------------------\n";
-
-                  const totalItemsText = `${selectedInvoice.items.length} item`;
-                  rawData += formatLine("Total Item", totalItemsText);
-                  rawData += formatLine(
-                    "Subtotal",
-                    printFormatCurrency(selectedInvoice.totalAmount),
-                  );
-
-                  rawData +=
-                    "================================================\n";
-                  rawData += formatLine(
-                    "TOTAL",
-                    printFormatCurrency(selectedInvoice.totalAmount),
-                  );
-                  rawData +=
-                    "------------------------------------------------\n";
-
-                  const remaining =
-                    selectedInvoice.totalAmount - selectedInvoice.amountPaid;
-                  const paymentMethod = remaining <= 0 ? "Lunas" : "Piutang";
-                  rawData += formatLine("Metode Bayar", paymentMethod);
-                  rawData += formatLine(
-                    "Bayar",
-                    printFormatCurrency(selectedInvoice.amountPaid),
-                  );
-
-                  rawData +=
-                    "------------------------------------------------\n";
-
-                  // ESC/POS Command: Center Align
-                  rawData += "\x1b\x61\x01";
-                  rawData += "Terima kasih atas kunjungan Anda\n\n\n\n\n\n\n";
-
-                  // ESC/POS Command: Auto Cut
-                  rawData += "\x1d\x56\x00";
 
                   try {
                     const response = await fetch(
@@ -2392,22 +2365,91 @@ const InvoicePage = () => {
                     setIsPrinting(false);
                   }
                 }}
-                disabled={isPrinting}
-                className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                disabled={isPrinting || isBluetoothPrinting}
+                className="h-10 px-4 rounded-xl font-bold border-border/60 hover:bg-muted/50 flex items-center gap-2"
               >
                 {isPrinting ? (
+                  <div className="relative w-4 h-4">
+                    <div className="absolute inset-0 rounded-full border-2 border-foreground/20" />
+                    <div className="absolute inset-0 rounded-full border-2 border-foreground border-t-transparent animate-spin" />
+                  </div>
+                ) : (
+                  <LuPrinter size={16} />
+                )}
+                {isPrinting ? "Mencetak..." : "Print Agent (PC)"}
+              </Button>
+
+              {/* Opsi 2: Bluetooth Thermal Printer (Chrome Web Bluetooth) */}
+              <Button
+                onClick={async () => {
+                  if (!selectedInvoice) return;
+
+                  if (!isWebBluetoothSupported()) {
+                    toast.error(
+                      "Bluetooth Tidak Didukung",
+                      "Fitur Web Bluetooth butuh Google Chrome di Android/PC dan wajib via HTTPS / localhost.",
+                    );
+                    return;
+                  }
+
+                  setIsBluetoothPrinting(true);
+
+                  const rawData = generateInvoiceReceiptRawData(selectedInvoice, {
+                    cashierName: groupedPayments[0]?.cashier_name || "Sistem",
+                    deadline:
+                      selectedInvoice.deadline ||
+                      (spkResponse?.deadline
+                        ? formatDateTime(spkResponse.deadline)
+                        : "-"),
+                    memo: selectedInvoice.notes || spkResponse?.notes,
+                    tenderedAmount: effectiveTendered,
+                    changeAmount: effectiveChange,
+                  });
+
+                  try {
+                    const deviceName = await printViaWebBluetooth(rawData);
+                    toast.success(
+                      "Mencetak Berhasil",
+                      `Struk berhasil dikirim ke printer ${deviceName} via Bluetooth.`,
+                    );
+                    setIsReceiptOpen(false);
+                  } catch (error) {
+                    if (error instanceof Error) {
+                      if (
+                        error.name === "NotFoundError" ||
+                        error.message.toLowerCase().includes("user cancelled")
+                      ) {
+                        return;
+                      }
+                      console.error("Bluetooth print error:", error);
+                      toast.error("Gagal Cetak Bluetooth", error.message);
+                    } else {
+                      toast.error(
+                        "Gagal Cetak Bluetooth",
+                        "Terjadi kesalahan saat menghubungkan ke printer Bluetooth.",
+                      );
+                    }
+                  } finally {
+                    setIsBluetoothPrinting(false);
+                  }
+                }}
+                disabled={isPrinting || isBluetoothPrinting}
+                className="h-10 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isBluetoothPrinting ? (
                   <div className="relative w-4 h-4">
                     <div className="absolute inset-0 rounded-full border-2 border-primary-foreground/20" />
                     <div className="absolute inset-0 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
                   </div>
                 ) : (
-                  <LuPrinter size={16} />
+                  <LuBluetooth size={16} />
                 )}
-                {isPrinting ? "Mencetak..." : "Cetak ke Thermal Printer"}
+                {isBluetoothPrinting ? "Menghubungkan..." : "Cetak Bluetooth"}
               </Button>
             </div>
           </div>
-        )}
+          );
+        })()}
       </Dialog>
 
       {canRefund && (
@@ -2927,126 +2969,146 @@ const InvoicePage = () => {
           boxSizing: "border-box",
         }}
       >
-        {selectedInvoice && (
-          <div>
-            <div className="text-center space-y-1 pb-4 border-b border-dashed border-gray-400">
-              <span className="font-bold text-sm block">
-                MADE DIGITAL PRINTING
-              </span>
-              <span className="block text-[10px] text-gray-600">
-                Jl. Kali Sindang, Jagalan, Jebres - Solo
-              </span>
-              <span className="block text-[10px] text-gray-600">
-                WA. 082134305050
-              </span>
-            </div>
+        {selectedInvoice && (() => {
+          const effectiveTendered =
+            receiptTenderedAmount > 0
+              ? receiptTenderedAmount
+              : selectedInvoice.amountPaid;
+          const effectiveChange =
+            receiptChangeAmount > 0
+              ? receiptChangeAmount
+              : effectiveTendered > selectedInvoice.totalAmount
+                ? effectiveTendered - selectedInvoice.totalAmount
+                : 0;
 
-            {/* Receipt metadata */}
-            <div className="py-3 space-y-1 border-b border-dashed border-gray-400">
-              <div className="flex justify-between">
-                <span>No. Nota:</span>
-                <span className="font-bold">{selectedInvoice.invoiceNo}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>No. Tiket/Job:</span>
-                <span className="font-bold">{selectedInvoice.jobNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Tanggal:</span>
-                <span>{selectedInvoice.createdAt}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Pelanggan:</span>
-                <span className="font-bold uppercase">
-                  {selectedInvoice.customerName}
+          return (
+            <div>
+              <div className="text-center space-y-1 pb-4 border-b border-dashed border-gray-400">
+                <span className="font-bold text-sm block">
+                  MADE DIGITAL PRINTING
+                </span>
+                <span className="block text-[10px] text-gray-600">
+                  Jl. Kali Sindang, Jagalan, Jebres - Solo
+                </span>
+                <span className="block text-[10px] text-gray-600">
+                  WA. 082134305050
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span>Kasir:</span>
-                <span>{groupedPayments[0]?.cashier_name || "Sistem"}</span>
-              </div>
-              {selectedInvoice.designerName && (
+
+              {/* Receipt metadata */}
+              <div className="py-3 space-y-1 border-b border-dashed border-gray-400">
                 <div className="flex justify-between">
-                  <span>Desainer:</span>
-                  <span>{selectedInvoice.designerName}</span>
+                  <span>No. Nota:</span>
+                  <span className="font-bold">{selectedInvoice.invoiceNo}</span>
                 </div>
-              )}
-            </div>
-
-            {/* Items listing */}
-            <div className="py-3 border-b border-dashed border-gray-400 space-y-2.5">
-              {selectedInvoice.items.map((item) => (
-                <div key={item.id} className="space-y-0.5">
-                  <span className="font-bold block">{item.productName}</span>
-                  <div className="flex justify-between text-[11px] text-gray-600">
-                    <span>
-                      {item.uom === "m2" && item.lengthM && item.widthM
-                        ? `${item.lengthM}x${item.widthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
-                        : item.uom === "m_lari" && item.lengthM
-                          ? `${item.lengthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
-                          : `${item.qty} x ${formatCurrency(item.pricePerUnit)}`}
-                      {item.notes &&
-                        item.notes !== "-" &&
-                        ` [Notes: ${item.notes}]`}
-                    </span>
-                    <span className="font-bold text-black">
-                      {formatCurrency(item.subtotal)}
-                    </span>
+                <div className="flex justify-between">
+                  <span>No. Tiket/Job:</span>
+                  <span className="font-bold">{selectedInvoice.jobNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tanggal:</span>
+                  <span>{selectedInvoice.createdAt}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Pelanggan:</span>
+                  <span className="font-bold uppercase">
+                    {selectedInvoice.customerName}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Kasir:</span>
+                  <span>{groupedPayments[0]?.cashier_name || "Sistem"}</span>
+                </div>
+                {selectedInvoice.designerName && (
+                  <div className="flex justify-between">
+                    <span>Desainer:</span>
+                    <span>{selectedInvoice.designerName}</span>
                   </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Grand summary */}
-            <div className="py-3 space-y-1.5 text-[11px]">
-              <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>
-                  {formatCurrency(
-                    selectedInvoice.items.reduce((s, i) => s + i.subtotal, 0),
-                  )}
-                </span>
+                )}
               </div>
 
-              <div className="flex justify-between font-bold text-xs border-t border-dotted border-gray-400 pt-2">
-                <span>TOTAL BELANJA:</span>
-                <span>{formatCurrency(selectedInvoice.totalAmount)}</span>
+              {/* Items listing */}
+              <div className="py-3 border-b border-dashed border-gray-400 space-y-2.5">
+                {selectedInvoice.items.map((item) => (
+                  <div key={item.id} className="space-y-0.5">
+                    <span className="font-bold block">{item.productName}</span>
+                    <div className="flex justify-between text-[11px] text-gray-600">
+                      <span>
+                        {item.uom === "m2" && item.lengthM && item.widthM
+                          ? `${item.lengthM}x${item.widthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                          : item.uom === "m_lari" && item.lengthM
+                            ? `${item.lengthM} x ${item.qty} x ${formatCurrency(item.pricePerUnit)}`
+                            : `${item.qty} x ${formatCurrency(item.pricePerUnit)}`}
+                        {item.notes &&
+                          item.notes !== "-" &&
+                          ` [Notes: ${item.notes}]`}
+                      </span>
+                      <span className="font-bold text-black">
+                        {formatCurrency(item.subtotal)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              <div className="flex justify-between">
-                <span>Jumlah Bayar:</span>
-                <span>{formatCurrency(selectedInvoice.amountPaid)}</span>
-              </div>
-
-              {selectedInvoice.totalAmount - selectedInvoice.amountPaid > 0 && (
-                <div className="flex justify-between font-bold text-red-600">
-                  <span>SISA TAGIHAN (UTANG):</span>
+              {/* Grand summary */}
+              <div className="py-3 space-y-1.5 text-[11px]">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
                   <span>
                     {formatCurrency(
-                      selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                      selectedInvoice.items.reduce((s, i) => s + i.subtotal, 0),
                     )}
                   </span>
                 </div>
-              )}
 
-              {selectedInvoice.totalAmount - selectedInvoice.amountPaid ===
-                0 && (
-                <div className="flex justify-between font-bold text-green-600">
-                  <span>Status:</span>
-                  <span>LUNAS</span>
+                <div className="flex justify-between font-bold text-xs border-t border-dotted border-gray-400 pt-2">
+                  <span>TOTAL BELANJA:</span>
+                  <span>{formatCurrency(selectedInvoice.totalAmount)}</span>
                 </div>
-              )}
-            </div>
 
-            <div className="text-center pt-5 border-t border-dashed border-gray-400 text-[10px] text-gray-500 space-y-0.5">
-              <span className="block font-bold">--- TERIMA KASIH ---</span>
-              <span className="block">
-                Barang yang sudah dibeli tidak dapat ditukar
-              </span>
-              <span className="block">atau dikembalikan. Sukses Selalu!</span>
+                <div className="flex justify-between">
+                  <span>Jumlah Bayar:</span>
+                  <span>{formatCurrency(effectiveTendered)}</span>
+                </div>
+
+                {effectiveChange > 0 && (
+                  <div className="flex justify-between font-bold text-green-600">
+                    <span>Kembalian:</span>
+                    <span>{formatCurrency(effectiveChange)}</span>
+                  </div>
+                )}
+
+                {selectedInvoice.totalAmount - selectedInvoice.amountPaid > 0 && (
+                  <div className="flex justify-between font-bold text-red-600">
+                    <span>SISA TAGIHAN (UTANG):</span>
+                    <span>
+                      {formatCurrency(
+                        selectedInvoice.totalAmount - selectedInvoice.amountPaid,
+                      )}
+                    </span>
+                  </div>
+                )}
+
+                {selectedInvoice.totalAmount - selectedInvoice.amountPaid ===
+                  0 && (
+                  <div className="flex justify-between font-bold text-green-600">
+                    <span>Status:</span>
+                    <span>LUNAS</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center pt-5 border-t border-dashed border-gray-400 text-[10px] text-gray-500 space-y-0.5">
+                <span className="block font-bold">--- TERIMA KASIH ---</span>
+                <span className="block">
+                  Barang yang sudah dibeli tidak dapat ditukar
+                </span>
+                <span className="block">atau dikembalikan. Sukses Selalu!</span>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

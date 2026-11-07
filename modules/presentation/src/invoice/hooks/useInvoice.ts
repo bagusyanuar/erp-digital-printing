@@ -217,6 +217,10 @@ export const useInvoice = () => {
     qris: number;
   }>({ cash: 0, transfer: 0, qris: 0 });
 
+  // Receipt print tendered & change states
+  const [receiptTenderedAmount, setReceiptTenderedAmount] = useState<number>(0);
+  const [receiptChangeAmount, setReceiptChangeAmount] = useState<number>(0);
+
   // Refund form states
   const [refundAmount, setRefundAmount] = useState<number>(0);
   const [refundMethod, setRefundMethod] = useState<string>("cash");
@@ -244,11 +248,18 @@ export const useInvoice = () => {
     return splitAmounts.cash + splitAmounts.transfer + splitAmounts.qris;
   }, [splitAmounts]);
 
+  const payChangeAmount = useMemo(() => {
+    if (!isSplitPayment && payMethod === "CASH" && payAmount > outstandingAmount) {
+      return payAmount - outstandingAmount;
+    }
+    return 0;
+  }, [isSplitPayment, payMethod, payAmount, outstandingAmount]);
+
   const remainingOutstanding = useMemo(() => {
-    return Math.max(
-      0,
-      outstandingAmount - (isSplitPayment ? totalSplitInput : payAmount),
-    );
+    const appliedAmount = isSplitPayment
+      ? totalSplitInput
+      : Math.min(payAmount, outstandingAmount);
+    return Math.max(0, outstandingAmount - appliedAmount);
   }, [outstandingAmount, isSplitPayment, totalSplitInput, payAmount]);
 
   const {
@@ -520,6 +531,8 @@ export const useInvoice = () => {
     setPayMethod("CASH");
     setIsSplitPayment(false);
     setSplitAmounts({ cash: 0, transfer: 0, qris: 0 });
+    setReceiptTenderedAmount(0);
+    setReceiptChangeAmount(0);
     setIsPayOpen(true);
   };
 
@@ -795,6 +808,22 @@ export const useInvoice = () => {
   const handleProcessPayment = () => {
     if (!selectedInvoice) return;
 
+    const isCashSingle = !isSplitPayment && payMethod === "CASH";
+    const actualPayAmount = isCashSingle
+      ? Math.min(payAmount, outstandingAmount)
+      : payAmount;
+    const calculatedChange = isCashSingle
+      ? Math.max(0, payAmount - outstandingAmount)
+      : 0;
+
+    if (!isCashSingle && !isSplitPayment && payAmount > outstandingAmount) {
+      toast.error(
+        "Nominal berlebih",
+        `Jumlah pembayaran non-tunai melebihi sisa tagihan (${formatCurrency(outstandingAmount)}).`,
+      );
+      return;
+    }
+
     const payments = isSplitPayment
       ? [
           { payment_method: "cash", amount_paid: splitAmounts.cash },
@@ -804,11 +833,11 @@ export const useInvoice = () => {
       : [
           {
             payment_method: payMethod.toLowerCase(),
-            amount_paid: payAmount,
+            amount_paid: actualPayAmount,
           },
         ];
 
-    if (payments.length === 0) {
+    if (payments.length === 0 || (!isSplitPayment && actualPayAmount <= 0)) {
       toast.error(
         "Nominal pelunasan tidak valid",
         "Silakan masukkan nominal pembayaran.",
@@ -825,6 +854,10 @@ export const useInvoice = () => {
       return;
     }
 
+    // Set tendered and change amount for receipt printing
+    setReceiptTenderedAmount(isCashSingle ? payAmount : actualPayAmount);
+    setReceiptChangeAmount(calculatedChange);
+
     const payload: RepayPaymentInput = {
       payments,
     };
@@ -837,6 +870,8 @@ export const useInvoice = () => {
 
   const handlePrintInvoice = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
+    setReceiptTenderedAmount(invoice.amountPaid);
+    setReceiptChangeAmount(0);
     setIsReceiptOpen(true);
   };
 
@@ -906,6 +941,13 @@ export const useInvoice = () => {
     setIsSplitPayment,
     splitAmounts,
     setSplitAmounts,
+
+    // Receipt print tendered & change states
+    receiptTenderedAmount,
+    setReceiptTenderedAmount,
+    receiptChangeAmount,
+    setReceiptChangeAmount,
+    payChangeAmount,
 
     // Refund Form state
     refundAmount,

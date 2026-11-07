@@ -1733,6 +1733,22 @@ const OrderPage = () => {
                     "Bayar",
                     printFormatCurrency(totalPaidValue),
                   );
+                  if (
+                    !isTemporaryReceipt &&
+                    lastCompletedOrder.changeAmount &&
+                    lastCompletedOrder.changeAmount > 0
+                  ) {
+                    rawData += formatLine(
+                      "Kembalian",
+                      printFormatCurrency(lastCompletedOrder.changeAmount),
+                    );
+                  }
+                  if (remaining > 0) {
+                    rawData += formatLine(
+                      "Sisa Tagihan",
+                      printFormatCurrency(remaining),
+                    );
+                  }
 
                   rawData +=
                     "------------------------------------------------\n";

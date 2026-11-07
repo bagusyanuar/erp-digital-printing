@@ -291,6 +291,28 @@ export const InvoiceDetailDialog: React.FC<InvoiceDetailDialogProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {order.deadline && (
+                    <div className="space-y-0.5 col-span-2 border-t border-border/30 pt-2">
+                      <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider block">
+                        Deadline
+                      </span>
+                      <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                        {order.deadline}
+                      </span>
+                    </div>
+                  )}
+
+                  {Boolean(order.notes?.trim() && order.notes?.trim() !== "-") && (
+                    <div className="space-y-0.5 col-span-2 border-t border-border/30 pt-2">
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                        Memo Transaksi
+                      </span>
+                      <p className="text-xs font-semibold text-foreground leading-relaxed">
+                        {order.notes.trim()}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
