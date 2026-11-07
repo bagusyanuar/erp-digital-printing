@@ -33,11 +33,24 @@ import type {
   GetCustomerReceivableSummary,
   PayCustomerInvoice,
 } from "@core/receivable/applications/usecases/receivable.usecase";
+import type {
+  GetVendorPayables,
+  GetSettledPayables,
+  GetVendorPayableSummary,
+  PayVendorExpense,
+} from "@core/payable/applications/usecases/payable.usecase";
 
 // ──────────────────────────────────────────────
 // Module Use Case Types
 // Tambahkan interface baru di sini saat modul bertambah.
 // ──────────────────────────────────────────────
+
+export interface PayableUseCases {
+  getVendorPayablesUseCase: GetVendorPayables;
+  getSettledPayablesUseCase: GetSettledPayables;
+  getVendorPayableSummaryUseCase: GetVendorPayableSummary;
+  payVendorExpenseUseCase: PayVendorExpense;
+}
 
 export interface ReceivableUseCases {
   getCustomerReceivablesUseCase: GetCustomerReceivables;
@@ -202,6 +215,7 @@ export interface AppContainer {
   dashboard: DashboardUseCases;
   report: ReportUseCases;
   receivable: ReceivableUseCases;
+  payable: PayableUseCases;
 }
 
 // ──────────────────────────────────────────────

@@ -12,10 +12,12 @@ import type {
 } from "@core/receivable/applications/inputs/receivable.input";
 import type { ReceivableRepository } from "@core/receivable/domains/repositories/receivable.repository";
 
-function calculateDaysOverdue(dueDateStr: string): { days: number; isOverdue: boolean } {
+function calculateDaysOverdue(dueDateStr?: string): { days: number; isOverdue: boolean } {
+  if (!dueDateStr) return { days: 0, isOverdue: false };
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const due = new Date(dueDateStr);
+  if (isNaN(due.getTime())) return { days: 0, isOverdue: false };
   due.setHours(0, 0, 0, 0);
 
   const diffTime = today.getTime() - due.getTime();
@@ -481,7 +483,7 @@ export class MockReceivableRepository implements ReceivableRepository {
             hasOverdue = true;
             if (days > maxDaysOverdue) maxDaysOverdue = days;
           }
-          if (!oldestDueDate || inv.dueDate < oldestDueDate) {
+          if (inv.dueDate && (!oldestDueDate || inv.dueDate < oldestDueDate)) {
             oldestDueDate = inv.dueDate;
           }
           return {

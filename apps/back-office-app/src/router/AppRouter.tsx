@@ -19,6 +19,7 @@ import { capitalInjectionRoutes } from "./modules/capital-injection.routes";
 import { capitalWithdrawalRoutes } from "./modules/capital-withdrawal.routes";
 import { fundTransferRoutes } from "./modules/fund-transfer.routes";
 import { receivableRoutes } from "./modules/receivable.routes";
+import { payableRoutes } from "./modules/payable.routes";
 import { reportRoutes } from "./modules/report.routes";
 import { PageLoader } from "../components/PageLoader";
 import MainLayout from "../layouts/MainLayout";
@@ -71,6 +72,7 @@ const router = createBrowserRouter([
                   ...capitalWithdrawalRoutes,
                   ...fundTransferRoutes,
                   ...receivableRoutes,
+                  ...payableRoutes,
                   ...cashFlowRoutes,
                   ...resellerRoutes,
                   ...reportRoutes,

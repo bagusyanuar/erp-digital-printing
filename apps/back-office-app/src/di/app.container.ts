@@ -19,6 +19,12 @@ import {
   getCustomerReceivableSummaryUseCase,
   payCustomerInvoiceUseCase,
 } from "@infrastructure/receivable/containers/receivable.container";
+import {
+  getVendorPayablesUseCase,
+  getSettledPayablesUseCase,
+  getVendorPayableSummaryUseCase,
+  payVendorExpenseUseCase,
+} from "@infrastructure/payable/containers/payable.container";
 
 
 import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, assignSPKCategoryUseCase, deleteCategoryUseCase, reorderCategoryUseCase } from "@infrastructure/category/containers/category.container";
@@ -179,6 +185,12 @@ export function createAppContainer(): AppContainer {
       getSettledReceivablesUseCase: getSettledReceivablesUseCase(httpClient),
       getCustomerReceivableSummaryUseCase: getCustomerReceivableSummaryUseCase(httpClient),
       payCustomerInvoiceUseCase: payCustomerInvoiceUseCase(httpClient),
+    },
+    payable: {
+      getVendorPayablesUseCase: getVendorPayablesUseCase(httpClient),
+      getSettledPayablesUseCase: getSettledPayablesUseCase(httpClient),
+      getVendorPayableSummaryUseCase: getVendorPayableSummaryUseCase(httpClient),
+      payVendorExpenseUseCase: payVendorExpenseUseCase(httpClient),
     },
   };
 }

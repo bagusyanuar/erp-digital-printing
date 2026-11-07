@@ -24,6 +24,7 @@ import {
   LuReceipt,
   LuArrowRightLeft,
   LuWallet,
+  LuHandCoins,
   LuTrendingDown,
   LuScale,
   LuUsers,
@@ -232,6 +233,18 @@ export const NavSidebar = () => {
                   asChild
                   icon={<LuWallet />}
                   label="Piutang Customer"
+                  active={isActive}
+                >
+                  <button />
+                </SidebarItem>
+              )}
+            </NavLink>
+            <NavLink to="/payable" className="contents">
+              {({ isActive }) => (
+                <SidebarItem
+                  asChild
+                  icon={<LuHandCoins />}
+                  label="Hutang Pengeluaran"
                   active={isActive}
                 >
                   <button />

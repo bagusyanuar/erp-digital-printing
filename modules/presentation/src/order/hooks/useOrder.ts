@@ -468,7 +468,7 @@ export const useOrder = () => {
         grandTotal,
         totalPaid: totalPaid,
         remainingAmount: remainingAmount,
-        changeAmount: 0,
+        changeAmount: changeAmount,
       };
 
       setLocalOverrides((prev) => ({
@@ -723,6 +723,12 @@ export const useOrder = () => {
   const handleProcessPayment = () => {
     if (!activeOrder) return;
 
+    const rawSingleAmount = singleAmount === null ? grandTotal : singleAmount;
+    const netSingleAmount =
+      paymentMethod === "CASH"
+        ? Math.min(rawSingleAmount, grandTotal)
+        : rawSingleAmount;
+
     const payments = isSplitPayment
       ? [
           { payment_method: "cash", amount_paid: splitAmounts.cash },
@@ -732,7 +738,7 @@ export const useOrder = () => {
       : [
           {
             payment_method: paymentMethod.toLowerCase(),
-            amount_paid: singleAmount === null ? grandTotal : singleAmount,
+            amount_paid: netSingleAmount,
           },
         ];
 
