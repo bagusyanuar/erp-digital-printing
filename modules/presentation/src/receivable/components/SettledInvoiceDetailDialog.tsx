@@ -1,5 +1,4 @@
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState } from "react";
 import { Dialog } from "@erp-digital-printing/ui/Dialog";
 import { Button } from "@erp-digital-printing/ui/Button";
 import {
@@ -7,11 +6,8 @@ import {
   LuBanknote,
   LuCreditCard,
   LuQrCode,
-  LuPackage,
-  LuLoader,
 } from "@erp-digital-printing/ui/icons";
-import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
-import { orderKeys } from "@infrastructure/order/keys";
+import { InvoiceDetailDialog } from "@presentation/invoice/components/InvoiceDetailDialog";
 import type { SettledInvoiceReceivableModel } from "@core/receivable/domains/models/receivable.model";
 
 interface SettledInvoiceDetailDialogProps {
@@ -69,21 +65,7 @@ export const SettledInvoiceDetailDialog: React.FC<SettledInvoiceDetailDialogProp
   onClose,
   invoice,
 }) => {
-  const { getOrderByIdUseCase } = useOrderDI();
-  const invoiceId = invoice?.id ?? "";
-
-  const {
-    data: orderDetail,
-    isLoading: isLoadingItems,
-    isError: isErrorItems,
-  } = useQuery({
-    queryKey: orderKeys.detail(invoiceId),
-    queryFn: () => getOrderByIdUseCase.execute(invoiceId),
-    enabled: isOpen && Boolean(invoiceId),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const orderItems = orderDetail?.order_items ?? [];
+  const [isInvoiceDetailOpen, setIsInvoiceDetailOpen] = useState(false);
 
   if (!invoice) return null;
 
@@ -143,9 +125,19 @@ export const SettledInvoiceDetailDialog: React.FC<SettledInvoiceDetailDialogProp
                   LUNAS
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                {invoice.invoiceNumber} • {invoice.jobNumber}
-              </p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsInvoiceDetailOpen(true)}
+                  className="font-mono font-bold text-xs text-foreground bg-muted hover:bg-primary/20 hover:text-primary hover:border-primary/50 px-2 py-0.5 rounded-lg border border-border/50 inline-block text-left cursor-pointer transition-all duration-150 active:scale-95"
+                  title="Klik untuk melihat Detail Nota Lengkap"
+                >
+                  {invoice.invoiceNumber}
+                </button>
+                <span className="text-xs text-muted-foreground font-mono">
+                  • {invoice.jobNumber}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -180,92 +172,20 @@ export const SettledInvoiceDetailDialog: React.FC<SettledInvoiceDetailDialogProp
           </div>
         </div>
 
-        {/* Purchased Items Section */}
-        <div className="space-y-2">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <LuPackage size={13} className="text-primary" />
-            Item yang Dibeli ({isLoadingItems ? "..." : orderItems.length})
-          </span>
-
-          {isLoadingItems ? (
-            <div className="p-3 rounded-xl border border-border/40 bg-background/50 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <LuLoader className="animate-spin text-primary" size={14} />
-              <span>Memuat rincian item nota...</span>
-            </div>
-          ) : isErrorItems ? (
-            <div className="p-2.5 rounded-xl border border-border/40 bg-background/50 text-xs text-muted-foreground flex items-center justify-between">
-              <span>Rincian item detail belum tersedia.</span>
-            </div>
-          ) : orderItems.length === 0 ? (
-            <div className="p-2.5 rounded-xl border border-border/40 bg-background/50 text-xs text-muted-foreground">
-              <span className="italic">Tidak ada rincian item spesifik pada nota ini.</span>
-            </div>
-          ) : (
-            <div className="border border-border/40 rounded-xl overflow-hidden divide-y divide-border/20 bg-background max-h-48 overflow-y-auto pr-1">
-              {orderItems.map((item, idx) => {
-                const displayName =
-                  item.variant_name &&
-                  item.variant_name.toLowerCase() !== "default" &&
-                  item.variant_name.toLowerCase() !== item.product_name.toLowerCase()
-                    ? `${item.product_name} (${item.variant_name})`
-                    : item.product_name;
-
-                const hasDimension =
-                  (item.uom === "m2" && item.length_m && item.width_m) ||
-                  (item.uom === "m_lari" && item.length_m);
-
-                const dimensionText =
-                  item.uom === "m2"
-                    ? `${item.length_m} × ${item.width_m} m`
-                    : `${item.length_m} m`;
-
-                return (
-                  <div
-                    key={item.id || idx}
-                    className="p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs hover:bg-muted/20 transition-colors"
-                  >
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-foreground">
-                          {idx + 1}. {displayName}
-                        </span>
-                        {hasDimension && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 bg-muted rounded text-muted-foreground border border-border/40">
-                            {dimensionText}
-                          </span>
-                        )}
-                      </div>
-
-                      {item.production_notes && item.production_notes !== "-" && (
-                        <p className="text-[10px] text-muted-foreground line-clamp-1">
-                          Catatan: {item.production_notes}
-                        </p>
-                      )}
-
-                      <span className="text-[10px] text-primary font-semibold block">
-                        {formatCurrency(item.price_per_unit)} × {item.quantity}{" "}
-                        {item.uom === "m2" || item.uom === "m_lari" ? "pcs" : (item.uom || "Qty")}
-                        {item.additional_cost > 0 && ` (+Finishing: ${formatCurrency(item.additional_cost)})`}
-                      </span>
-                    </div>
-
-                    <div className="sm:text-right shrink-0">
-                      <span className="font-mono font-bold text-foreground text-xs block">
-                        {formatCurrency(item.subtotal)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
         {/* Payment History Timeline */}
         <div className="space-y-3">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
-            Rincian Pembayaran yang Masuk ({invoice.payments.length})
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
+              Rincian Pembayaran yang Masuk ({invoice.payments.length})
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsInvoiceDetailOpen(true)}
+              className="text-[11px] text-primary hover:underline font-semibold"
+            >
+              Lihat Rincian Item Nota &rarr;
+            </button>
+          </div>
 
           <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
             {invoice.payments.map((p, idx) => (
@@ -294,20 +214,6 @@ export const SettledInvoiceDetailDialog: React.FC<SettledInvoiceDetailDialogProp
 
         {/* Modal Actions */}
         <div className="flex justify-end items-center pt-4 border-t border-border/30">
-          {/* 
-            NOTE KEDEPAN:
-            Jika klien nantinya butuh cetak kuitansi / tanda terima pelunasan, aktifkan tombol ini:
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => alert(`Mencetak Bukti Pelunasan Nota ${invoice.invoiceNumber}...`)}
-              className="rounded-xl text-xs font-bold flex items-center gap-1.5 h-10 border-border/60 hover:bg-muted mr-auto"
-            >
-              <LuPrinter size={15} />
-              Cetak Kuitansi
-            </Button>
-          */}
-
           <Button
             type="button"
             variant="outline"
@@ -318,6 +224,13 @@ export const SettledInvoiceDetailDialog: React.FC<SettledInvoiceDetailDialogProp
           </Button>
         </div>
       </div>
+
+      {/* Invoice Detail Dialog Popup */}
+      <InvoiceDetailDialog
+        isOpen={isInvoiceDetailOpen}
+        onClose={() => setIsInvoiceDetailOpen(false)}
+        orderId={invoice.id}
+      />
     </Dialog>
   );
 };

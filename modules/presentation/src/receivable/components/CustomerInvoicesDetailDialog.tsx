@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Dialog } from "@erp-digital-printing/ui/Dialog";
 import { Button } from "@erp-digital-printing/ui/Button";
 import {
@@ -10,11 +9,8 @@ import {
   LuMessageCircle,
   LuChevronDown,
   LuChevronUp,
-  LuPackage,
-  LuLoader,
 } from "@erp-digital-printing/ui/icons";
-import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
-import { orderKeys } from "@infrastructure/order/keys";
+import { InvoiceDetailDialog } from "@presentation/invoice/components/InvoiceDetailDialog";
 import type {
   CustomerReceivableModel,
   ReceivableInvoiceItemModel,
@@ -77,6 +73,7 @@ interface CustomerInvoiceRowProps {
   isExpanded: boolean;
   onToggle: () => void;
   onPayInvoice: (customer: CustomerReceivableModel, invoice: ReceivableInvoiceItemModel) => void;
+  onOpenInvoiceDetail: (invoiceId: string) => void;
 }
 
 const CustomerInvoiceRow: React.FC<CustomerInvoiceRowProps> = ({
@@ -85,22 +82,9 @@ const CustomerInvoiceRow: React.FC<CustomerInvoiceRowProps> = ({
   isExpanded,
   onToggle,
   onPayInvoice,
+  onOpenInvoiceDetail,
 }) => {
-  const { getOrderByIdUseCase } = useOrderDI();
   const isPaid = invoice.remainingAmount === 0;
-
-  const {
-    data: orderDetail,
-    isLoading: isLoadingItems,
-    isError: isErrorItems,
-  } = useQuery({
-    queryKey: orderKeys.detail(invoice.id),
-    queryFn: () => getOrderByIdUseCase.execute(invoice.id),
-    enabled: isExpanded,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const orderItems = orderDetail?.order_items ?? [];
 
   return (
     <div
@@ -119,9 +103,17 @@ const CustomerInvoiceRow: React.FC<CustomerInvoiceRowProps> = ({
       >
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="font-mono font-bold text-xs text-foreground">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenInvoiceDetail(invoice.id);
+              }}
+              className="font-mono font-bold text-xs text-foreground bg-muted hover:bg-primary/20 hover:text-primary hover:border-primary/50 px-2 py-0.5 rounded-lg border border-border/50 inline-block text-left cursor-pointer transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              title="Klik untuk melihat Detail Rincian Nota"
+            >
               {invoice.invoiceNumber}
-            </span>
+            </button>
             <span className="text-[11px] font-mono text-muted-foreground">
               ({invoice.jobNumber})
             </span>
@@ -183,7 +175,7 @@ const CustomerInvoiceRow: React.FC<CustomerInvoiceRowProps> = ({
               type="button"
               onClick={onToggle}
               className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/60 hover:bg-muted text-muted-foreground"
-              title="Lihat rincian item & riwayat pembayaran nota ini"
+              title="Lihat riwayat pembayaran nota ini"
             >
               {isExpanded ? <LuChevronUp size={16} /> : <LuChevronDown size={16} />}
             </button>
@@ -191,139 +183,52 @@ const CustomerInvoiceRow: React.FC<CustomerInvoiceRowProps> = ({
         </div>
       </div>
 
-      {/* Expanded Details: Items & Payment History */}
+      {/* Expanded Payment History */}
       {isExpanded && (
-        <div className="px-3.5 pb-3.5 pt-2 border-t border-border/30 bg-muted/20 space-y-3">
-          {/* Section 1: Item yang Dibeli */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <LuPackage size={13} className="text-primary" />
-                Item yang Dibeli ({isLoadingItems ? "..." : orderItems.length})
-              </span>
-            </div>
-
-            {isLoadingItems ? (
-              <div className="p-3 rounded-lg border border-border/40 bg-background/50 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                <LuLoader className="animate-spin text-primary" size={14} />
-                <span>Memuat rincian item nota...</span>
-              </div>
-            ) : isErrorItems ? (
-              <div className="p-2.5 rounded-lg border border-border/40 bg-background/50 text-xs text-muted-foreground flex items-center justify-between">
-                <span>Rincian item detail belum tersedia.</span>
-                {invoice.notes && (
-                  <span className="text-[11px] font-medium text-foreground italic">
-                    "{invoice.notes}"
-                  </span>
-                )}
-              </div>
-            ) : orderItems.length === 0 ? (
-              <div className="p-2.5 rounded-lg border border-border/40 bg-background/50 text-xs text-muted-foreground">
-                {invoice.notes ? (
-                  <span>Catatan: {invoice.notes}</span>
-                ) : (
-                  <span className="italic">Tidak ada rincian item spesifik pada nota ini.</span>
-                )}
-              </div>
-            ) : (
-              <div className="border border-border/40 rounded-xl overflow-hidden divide-y divide-border/20 bg-background">
-                {orderItems.map((item, idx) => {
-                  const displayName =
-                    item.variant_name &&
-                    item.variant_name.toLowerCase() !== "default" &&
-                    item.variant_name.toLowerCase() !== item.product_name.toLowerCase()
-                      ? `${item.product_name} (${item.variant_name})`
-                      : item.product_name;
-
-                  const hasDimension =
-                    (item.uom === "m2" && item.length_m && item.width_m) ||
-                    (item.uom === "m_lari" && item.length_m);
-
-                  const dimensionText =
-                    item.uom === "m2"
-                      ? `${item.length_m} × ${item.width_m} m`
-                      : `${item.length_m} m`;
-
-                  return (
-                    <div
-                      key={item.id || idx}
-                      className="p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs hover:bg-muted/20 transition-colors"
-                    >
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-foreground">
-                            {idx + 1}. {displayName}
-                          </span>
-                          {hasDimension && (
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 bg-muted rounded text-muted-foreground border border-border/40">
-                              {dimensionText}
-                            </span>
-                          )}
-                        </div>
-
-                        {item.production_notes && item.production_notes !== "-" && (
-                          <p className="text-[10px] text-muted-foreground line-clamp-1">
-                            Catatan: {item.production_notes}
-                          </p>
-                        )}
-
-                        <span className="text-[10px] text-primary font-semibold block">
-                          {formatCurrency(item.price_per_unit)} × {item.quantity}{" "}
-                          {item.uom === "m2" || item.uom === "m_lari" ? "pcs" : (item.uom || "Qty")}
-                          {item.additional_cost > 0 && ` (+Finishing: ${formatCurrency(item.additional_cost)})`}
-                        </span>
-                      </div>
-
-                      <div className="sm:text-right shrink-0">
-                        <span className="font-mono font-bold text-foreground text-xs block">
-                          {formatCurrency(item.subtotal)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Section 2: Riwayat Pembayaran Nota */}
-          <div className="space-y-1.5 pt-2 border-t border-border/30">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <LuReceipt size={13} className="text-emerald-600" />
+        <div className="px-3.5 pb-3.5 pt-2 border-t border-border/30 bg-muted/20 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
               Riwayat Pembayaran Nota ({invoice.payments.length})
             </span>
-
-            {invoice.payments.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic py-1">
-                Belum ada pembayaran yang dicatat untuk nota ini.
-              </p>
-            ) : (
-              <div className="space-y-1.5">
-                {invoice.payments.map((p, idx) => (
-                  <div
-                    key={p.id}
-                    className="p-2.5 rounded-lg border border-border/50 bg-background flex items-center justify-between text-xs"
-                  >
-                    <div>
-                      <span className="font-bold text-foreground">
-                        Pembayaran #{idx + 1}
-                      </span>
-                      <span className="text-muted-foreground ml-2 uppercase text-[10px] font-semibold bg-muted px-1.5 py-0.5 rounded">
-                        {p.paymentMethod}
-                      </span>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {formatDateTime(p.paymentDate)} • Kasir: {p.cashierName}
-                        {p.notes && ` • "${p.notes}"`}
-                      </p>
-                    </div>
-                    <span className="font-mono font-bold text-emerald-600">
-                      +{formatCurrency(p.amount)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => onOpenInvoiceDetail(invoice.id)}
+              className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-1"
+            >
+              Lihat Rincian Item Nota &rarr;
+            </button>
           </div>
+
+          {invoice.payments.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic py-1">
+              Belum ada pembayaran yang dicatat untuk nota ini.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {invoice.payments.map((p, idx) => (
+                <div
+                  key={p.id}
+                  className="p-2.5 rounded-lg border border-border/50 bg-background flex items-center justify-between text-xs"
+                >
+                  <div>
+                    <span className="font-bold text-foreground">
+                      Pembayaran #{idx + 1}
+                    </span>
+                    <span className="text-muted-foreground ml-2 uppercase text-[10px] font-semibold bg-muted px-1.5 py-0.5 rounded">
+                      {p.paymentMethod}
+                    </span>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {formatDateTime(p.paymentDate)} • Kasir: {p.cashierName}
+                      {p.notes && ` • "${p.notes}"`}
+                    </p>
+                  </div>
+                  <span className="font-mono font-bold text-emerald-600">
+                    +{formatCurrency(p.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -337,6 +242,7 @@ export const CustomerInvoicesDetailDialog: React.FC<CustomerInvoicesDetailDialog
   onPayInvoice,
 }) => {
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
+  const [inspectInvoiceId, setInspectInvoiceId] = useState<string | null>(null);
 
   if (!customer) return null;
 
@@ -467,6 +373,7 @@ export const CustomerInvoicesDetailDialog: React.FC<CustomerInvoicesDetailDialog
                 isExpanded={expandedInvoiceId === inv.id}
                 onToggle={() => toggleExpand(inv.id)}
                 onPayInvoice={onPayInvoice}
+                onOpenInvoiceDetail={(id) => setInspectInvoiceId(id)}
               />
             ))}
           </div>
@@ -484,6 +391,13 @@ export const CustomerInvoicesDetailDialog: React.FC<CustomerInvoicesDetailDialog
           </Button>
         </div>
       </div>
+
+      {/* Invoice Detail Dialog (Popup on clicking invoice number) */}
+      <InvoiceDetailDialog
+        isOpen={Boolean(inspectInvoiceId)}
+        onClose={() => setInspectInvoiceId(null)}
+        orderId={inspectInvoiceId}
+      />
     </Dialog>
   );
 };
