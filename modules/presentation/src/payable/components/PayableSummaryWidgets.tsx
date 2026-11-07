@@ -4,7 +4,6 @@ import {
   LuReceipt,
   LuCircleCheck,
   LuBuilding2,
-  LuTriangleAlert,
 } from "@erp-digital-printing/ui/icons";
 import type { VendorPayableSummaryModel } from "@core/payable/domains/models/payable.model";
 
@@ -26,7 +25,7 @@ export const PayableSummaryWidgets: React.FC<PayableSummaryWidgetsProps> = ({
   isLoading = false,
 }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {/* 1. Total Hutang Berjalan */}
       <Card className="rounded-xl border-border/50 shadow-sm bg-gradient-to-br from-card via-card to-amber-500/5">
         <CardContent className="p-5 flex items-center justify-between">
@@ -47,27 +46,7 @@ export const PayableSummaryWidgets: React.FC<PayableSummaryWidgetsProps> = ({
         </CardContent>
       </Card>
 
-      {/* 2. Lewat Jatuh Tempo (Overdue) */}
-      <Card className="rounded-xl border-border/50 shadow-sm bg-gradient-to-br from-card via-card to-rose-500/5">
-        <CardContent className="p-5 flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
-              Lewat Jatuh Tempo
-            </span>
-            <h3 className="text-xl font-black text-rose-600 dark:text-rose-500 tracking-tight">
-              {isLoading ? "..." : formatCurrency(summary?.totalOverduePayable ?? 0)}
-            </h3>
-            <p className="text-[10px] text-rose-500/80 font-medium">
-              Tagihan yang telah melampaui tanggal tempo
-            </p>
-          </div>
-          <div className="h-11 w-11 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-500 shrink-0">
-            <LuTriangleAlert size={20} />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 3. Total Hutang Lunas (Tertagih/Terbayar) */}
+      {/* 2. Total Hutang Lunas (Terlunasi) */}
       <Card className="rounded-xl border-border/50 shadow-sm bg-gradient-to-br from-card via-card to-emerald-500/5">
         <CardContent className="p-5 flex items-center justify-between">
           <div className="space-y-1">
@@ -81,13 +60,13 @@ export const PayableSummaryWidgets: React.FC<PayableSummaryWidgetsProps> = ({
               Riwayat nota vendor yang telah lunas
             </p>
           </div>
-          <div className="h-11 w-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-500 shrink-0">
+          <div className="h-11 w-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
             <LuCircleCheck size={20} />
           </div>
         </CardContent>
       </Card>
 
-      {/* 4. Vendor Berhutang */}
+      {/* 3. Vendor Berhutang */}
       <Card className="rounded-xl border-border/50 shadow-sm bg-gradient-to-br from-card via-card to-primary/5">
         <CardContent className="p-5 flex items-center justify-between">
           <div className="space-y-1">
@@ -109,4 +88,3 @@ export const PayableSummaryWidgets: React.FC<PayableSummaryWidgetsProps> = ({
     </div>
   );
 };
-

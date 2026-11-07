@@ -2,7 +2,7 @@ export interface PayablePaymentResponse {
   id: string;
   payable_expense_id: string;
   amount: number;
-  payment_method: "cash" | "transfer" | "qris";
+  payment_method: string;
   recorded_by: string;
   payment_date: string;
   source_account?: string;
@@ -13,9 +13,9 @@ export interface PayableExpenseResponse {
   id: string;
   expense_number: string;
   reference_number?: string;
-  category_name: string;
+  category_name?: string;
   expense_date: string;
-  due_date: string;
+  due_date?: string;
   total_amount: number;
   amount_paid: number;
   remaining_amount: number;
@@ -28,7 +28,7 @@ export interface VendorPayableResponse {
   id: string;
   vendor_name: string;
   vendor_phone: string;
-  vendor_category: "SUPPLIER" | "SUBKONTRAK" | "OPERASIONAL" | "MAINTENANCE";
+  vendor_category?: string;
   total_expenses_count: number;
   unpaid_expenses_count: number;
   total_amount: number;
@@ -37,7 +37,7 @@ export interface VendorPayableResponse {
   has_overdue?: boolean;
   max_days_overdue?: number;
   oldest_due_date?: string;
-  expenses: PayableExpenseResponse[];
+  expenses?: PayableExpenseResponse[];
 }
 
 export interface SettledPayableResponse {
@@ -45,23 +45,22 @@ export interface SettledPayableResponse {
   vendor_id: string;
   vendor_name: string;
   vendor_phone: string;
-  vendor_category: string;
+  vendor_category?: string;
   expense_number: string;
   reference_number?: string;
-  category_name: string;
+  category_name?: string;
   expense_date: string;
   settled_date: string;
   total_amount: number;
   amount_paid: number;
   payment_method: "cash" | "transfer" | "qris" | "split";
-  payments: PayablePaymentResponse[];
+  payments?: PayablePaymentResponse[];
   notes?: string;
 }
 
 export interface VendorPayableSummaryResponse {
   total_active_payable: number;
-  total_overdue_payable: number;
+  total_overdue_payable?: number;
   total_settled_payable: number;
   active_vendor_count: number;
 }
-

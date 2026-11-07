@@ -20,6 +20,7 @@ export interface ExpensePaymentHistory {
 export interface ExpenseBill {
   id: string;
   billNumber: string;
+  expenseNumber?: string;
   date: string;
   createdAt?: string;
   supplierId?: string;

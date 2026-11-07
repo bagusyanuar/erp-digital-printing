@@ -21,6 +21,7 @@ import {
   LuBan,
   LuReceipt,
   LuInfo,
+  LuExternalLink,
 } from "@erp-digital-printing/ui/icons";
 import { useProfile } from "../../user/hooks/useProfile";
 import { isAdministrator } from "../../shared/utils/role.utils";
@@ -119,6 +120,7 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
               <TableHead className="text-center">Tanggal</TableHead>
               <TableHead>No. Nota</TableHead>
               <TableHead>Supplier / Vendor</TableHead>
+              <TableHead>Deskripsi & Ref</TableHead>
               <TableHead className="text-right">Total Tagihan</TableHead>
               <TableHead className="text-right">Sudah Dibayar</TableHead>
               <TableHead className="text-right">Sisa Hutang</TableHead>
@@ -129,7 +131,7 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-12 text-center space-y-3">
+                <TableCell colSpan={9} className="py-12 text-center space-y-3">
                   <div className="relative w-8 h-8 mx-auto">
                     <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
                     <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -144,6 +146,27 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
                 const isVoid = bill.paymentStatus === "VOID";
                 const remainingDebt = bill.totalAmount - bill.paidAmount;
 
+                const uniqueCategories = Array.from(
+                  new Set(
+                    bill.items
+                      .map((it) => it.categoryName)
+                      .filter((name): name is string => Boolean(name && name.trim() !== ""))
+                  )
+                );
+                const uniqueGroups = Array.from(
+                  new Set(
+                    bill.items
+                      .map((it) => it.expenseType)
+                      .filter((grp): grp is "PRODUCTION" | "OPERATIONAL" => Boolean(grp))
+                  )
+                );
+
+                const fallbackDesc =
+                  bill.items.length > 0
+                    ? bill.items.map((it) => it.description).filter(Boolean).join(", ")
+                    : "-";
+                const displayDesc = bill.description || fallbackDesc || "-";
+
                 return (
                   <TableRow
                     key={bill.id}
@@ -153,10 +176,10 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
                         : ""
                     }
                   >
-                    <TableCell className="font-medium text-center text-xs text-muted-foreground">
+                    <TableCell className="font-medium text-center text-xs text-muted-foreground whitespace-nowrap">
                       {formatDateTime(bill.createdAt, bill.date)}
                     </TableCell>
-                    <TableCell className="font-semibold text-xs">
+                    <TableCell className="font-semibold text-xs whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => onDetail(bill)}
@@ -166,28 +189,81 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
                         {bill.billNumber}
                       </button>
                     </TableCell>
-                    <TableCell className="font-medium text-muted-foreground text-xs">
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-foreground text-xs">
-                          {bill.supplierName || "-"}
+                    <TableCell className="font-medium text-muted-foreground text-xs whitespace-nowrap">
+                      <span className="font-semibold text-foreground text-xs">
+                        {bill.supplierName || "-"}
+                      </span>
+                    </TableCell>
+                    <TableCell
+                      className="cursor-pointer group hover:bg-primary/5 transition-colors"
+                      onClick={() => onDetail(bill)}
+                      title="Klik untuk melihat Detail Rincian"
+                    >
+                      <div className="flex flex-col gap-1 max-w-xs">
+                        <span className="text-xs text-foreground font-semibold line-clamp-1 group-hover:text-primary transition-colors flex items-center gap-1">
+                          {displayDesc}
+                          <LuExternalLink
+                            size={12}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-primary shrink-0"
+                          />
                         </span>
-                        {bill.description && (
-                          <span className="text-[11px] text-muted-foreground line-clamp-1">
-                            {bill.description}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Group Badges */}
+                          {uniqueGroups.map((group) => (
+                            <span
+                              key={group}
+                              className={`text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                                group === "PRODUCTION"
+                                  ? "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20"
+                                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                              }`}
+                            >
+                              {group === "PRODUCTION" ? "Produksi" : "Operasional"}
+                            </span>
+                          ))}
+
+                          {/* Category Badges */}
+                          {uniqueCategories.slice(0, 2).map((catName) => (
+                            <span
+                              key={catName}
+                              className="text-[10px] font-bold text-violet-600 dark:text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded w-max border border-violet-500/20"
+                            >
+                              {catName}
+                            </span>
+                          ))}
+                          {uniqueCategories.length > 2 && (
+                            <span
+                              title={uniqueCategories.slice(2).join(", ")}
+                              className="text-[10px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border/30"
+                            >
+                              +{uniqueCategories.length - 2}
+                            </span>
+                          )}
+
+                          {/* Reference Badges */}
+                          {bill.expenseNumber && bill.expenseNumber !== bill.billNumber && (
+                            <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded w-max border border-blue-500/20 font-bold">
+                              Ref: {bill.expenseNumber}
+                            </span>
+                          )}
+                          {bill.id && (
+                            <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded w-max border border-border/30">
+                              Ref ID: {bill.id.substring(0, 8)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right font-bold text-foreground text-xs">
+                    <TableCell className="text-right font-bold text-foreground text-xs whitespace-nowrap">
                       {formatCurrency(bill.totalAmount)}
                     </TableCell>
-                    <TableCell className="text-right font-bold text-emerald-600 text-xs">
+                    <TableCell className="text-right font-bold text-emerald-600 text-xs whitespace-nowrap">
                       {formatCurrency(bill.paidAmount)}
                     </TableCell>
-                    <TableCell className="text-right font-bold text-rose-600 text-xs">
+                    <TableCell className="text-right font-bold text-rose-600 text-xs whitespace-nowrap">
                       {formatCurrency(isVoid ? 0 : remainingDebt)}
                     </TableCell>
-                    <TableCell className="text-center text-xs">
+                    <TableCell className="text-center text-xs whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-extrabold tracking-wide ${getStatusBadgeClass(
                           bill.paymentStatus,
@@ -243,7 +319,7 @@ export const ExpenseBillTable: React.FC<ExpenseBillTableProps> = ({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className="py-12 px-5 text-center space-y-3"
                 >
                   <LuInfo

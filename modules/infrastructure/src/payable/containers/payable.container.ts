@@ -8,11 +8,11 @@ import {
 import { MockPayableRepository } from "../repositories/mock-payable.repository";
 import { ApiPayableRepository } from "../repositories/payable.repository";
 
-// Singleton instance for mock repository to retain mutations during the session
-const mockPayableRepoInstance = new MockPayableRepository();
+// Toggle switch: set to false to use real BE endpoints
+const USE_MOCK = false;
 
-// Toggle switch: set to false to switch to real API when BE endpoints are deployed
-const USE_MOCK = true;
+// Fallback singleton instance for mock repository
+const mockPayableRepoInstance = new MockPayableRepository();
 
 export function getVendorPayablesUseCase(http: HttpClient): GetVendorPayables {
   const repository = USE_MOCK ? mockPayableRepoInstance : new ApiPayableRepository(http);
@@ -33,4 +33,3 @@ export function payVendorExpenseUseCase(http: HttpClient): PayVendorExpense {
   const repository = USE_MOCK ? mockPayableRepoInstance : new ApiPayableRepository(http);
   return new PayVendorExpense(repository);
 }
-

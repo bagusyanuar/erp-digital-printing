@@ -145,7 +145,7 @@ export const PayablePaymentDialog: React.FC<PayablePaymentDialogProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       showCloseButton={true}
-      className="max-w-xl w-full p-6 sm:p-7 rounded-2xl border-border/50 bg-card text-foreground"
+      className="max-w-2xl w-full p-6 sm:p-8 rounded-2xl border-border/50 bg-card text-foreground shadow-2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Header */}
@@ -182,6 +182,18 @@ export const PayablePaymentDialog: React.FC<PayablePaymentDialogProps> = ({
             </span>
           </div>
         </div>
+
+        {/* Catatan / Deskripsi Nota Pengeluaran */}
+        {expense.notes && (
+          <div className="p-3 rounded-xl bg-muted/30 border border-border/40 text-xs space-y-1">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+              Catatan / Rincian Pengeluaran:
+            </span>
+            <p className="text-foreground font-medium whitespace-pre-wrap break-words">
+              {expense.notes}
+            </p>
+          </div>
+        )}
 
         {/* Payment Mode Selector (Single vs Split) */}
         <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 text-xs">
@@ -269,7 +281,7 @@ export const PayablePaymentDialog: React.FC<PayablePaymentDialogProps> = ({
                 <select
                   value={sourceAccount}
                   onChange={(e) => setSourceAccount(e.target.value)}
-                  className="w-full h-9 px-3 rounded-md bg-background border border-border/60 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full h-10 px-3 rounded-lg bg-background border border-border/60 text-xs text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                 >
                   <option value="BCA Operasional">BCA Operasional (0234-889-112)</option>
                   <option value="Mandiri Bisnis">Mandiri Bisnis (132-00-998877-1)</option>
@@ -313,7 +325,7 @@ export const PayablePaymentDialog: React.FC<PayablePaymentDialogProps> = ({
                   value={payAmount || ""}
                   onChange={(e) => setPayAmount(Number(e.target.value))}
                   placeholder="0"
-                  className="w-full h-9 pl-9 pr-3 rounded-md bg-background border border-border/60 text-sm font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border border-border/60 text-sm font-bold text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                 />
               </div>
 
@@ -402,16 +414,16 @@ export const PayablePaymentDialog: React.FC<PayablePaymentDialogProps> = ({
         )}
 
         {/* Notes Input */}
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 p-0.5">
           <label className="text-xs font-semibold text-foreground">
             Catatan / Keterangan Pembayaran (Opsional)
           </label>
-          <input
-            type="text"
+          <textarea
+            rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Contoh: Transfer pelunasan via m-banking BCA referensi 88910"
-            className="w-full h-9 px-3 rounded-md bg-background border border-border/60 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full min-h-[84px] p-3 rounded-lg bg-background border border-border/60 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
           />
         </div>
 

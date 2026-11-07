@@ -5,11 +5,6 @@ import {
   LuReceipt,
   LuCircleCheck,
   LuCalendar,
-  LuCreditCard,
-  LuBanknote,
-  LuQrCode,
-  LuSplit,
-  LuClock,
 } from "@erp-digital-printing/ui/icons";
 import type { SettledExpensePayableModel } from "@core/payable/domains/models/payable.model";
 
@@ -80,7 +75,7 @@ export const SettledExpenseDetailDialog: React.FC<SettledExpenseDetailDialogProp
           </div>
         </div>
 
-        {/* Vendor & Category Info */}
+        {/* Vendor Info */}
         <div className="p-3.5 rounded-xl bg-muted/30 border border-border/40 space-y-2 text-xs">
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Vendor / Supplier:</span>
@@ -89,10 +84,6 @@ export const SettledExpenseDetailDialog: React.FC<SettledExpenseDetailDialogProp
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Kontak / Telepon:</span>
             <span className="font-mono text-foreground">{item.vendorPhone}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Kategori Pengeluaran:</span>
-            <span className="font-semibold text-foreground">{item.categoryName}</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Tgl Transaksi:</span>
@@ -149,7 +140,7 @@ export const SettledExpenseDetailDialog: React.FC<SettledExpenseDetailDialogProp
                   </div>
                 </div>
                 {p.notes && (
-                  <span className="text-[11px] text-muted-foreground italic max-w-[160px] truncate text-right">
+                  <span className="text-[11px] text-muted-foreground italic max-w-xs break-words whitespace-pre-wrap text-right">
                     "{p.notes}"
                   </span>
                 )}
@@ -168,4 +159,3 @@ export const SettledExpenseDetailDialog: React.FC<SettledExpenseDetailDialogProp
     </Dialog>
   );
 };
-

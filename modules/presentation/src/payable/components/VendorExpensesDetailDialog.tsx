@@ -9,7 +9,6 @@ import {
   LuMessageCircle,
   LuChevronDown,
   LuChevronUp,
-  LuTriangleAlert,
   LuCalendar,
 } from "@erp-digital-printing/ui/icons";
 import type {
@@ -90,10 +89,7 @@ export const VendorExpensesDetailDialog: React.FC<VendorExpensesDetailDialogProp
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground">
-                  {vendor.vendorCategory}
-                </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground font-medium">
                   {vendor.expenses.length} Total Nota
                 </span>
               </div>
@@ -160,7 +156,6 @@ export const VendorExpensesDetailDialog: React.FC<VendorExpensesDetailDialogProp
 
           <div className="max-h-[380px] overflow-y-auto space-y-2.5 pr-1">
             {vendor.expenses.map((exp) => {
-              const isOverdue = exp.isOverdue && exp.remainingAmount > 0;
               const isExpanded = expandedExpenseId === exp.id;
               const hasPayments = exp.payments && exp.payments.length > 0;
 
@@ -170,9 +165,7 @@ export const VendorExpensesDetailDialog: React.FC<VendorExpensesDetailDialogProp
                   className={`border rounded-xl transition-all duration-200 ${
                     exp.remainingAmount === 0
                       ? "border-emerald-500/20 bg-emerald-500/5"
-                      : isOverdue
-                        ? "border-rose-500/30 bg-rose-500/5"
-                        : "border-border/50 bg-card"
+                      : "border-border/50 bg-card"
                   }`}
                 >
                   <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -187,18 +180,10 @@ export const VendorExpensesDetailDialog: React.FC<VendorExpensesDetailDialogProp
                             Ref: {exp.referenceNumber}
                           </span>
                         )}
-                        <span className="text-xs font-medium text-muted-foreground">
-                          • {exp.categoryName}
-                        </span>
                         {exp.remainingAmount === 0 ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                             <LuCircleCheck size={11} />
                             Lunas
-                          </span>
-                        ) : isOverdue ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                            <LuTriangleAlert size={11} />
-                            Overdue ({exp.daysOverdue}h)
                           </span>
                         ) : exp.amountPaid > 0 ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
@@ -218,14 +203,10 @@ export const VendorExpensesDetailDialog: React.FC<VendorExpensesDetailDialogProp
                           <LuCalendar size={12} />
                           Tgl: {formatDate(exp.expenseDate)}
                         </span>
-                        <span className="flex items-center gap-1 font-medium">
-                          <LuClock size={12} />
-                          Jatuh Tempo: {formatDate(exp.dueDate)}
-                        </span>
                       </div>
 
                       {exp.notes && (
-                        <p className="text-xs text-muted-foreground/90 italic pt-0.5">
+                        <p className="text-xs text-muted-foreground/90 italic pt-0.5 whitespace-pre-wrap break-words">
                           "{exp.notes}"
                         </p>
                       )}
@@ -298,7 +279,7 @@ export const VendorExpensesDetailDialog: React.FC<VendorExpensesDetailDialogProp
                               </div>
                             </div>
                             {pay.notes && (
-                              <div className="text-[11px] text-muted-foreground italic text-right max-w-[200px] truncate">
+                              <div className="text-[11px] text-muted-foreground italic text-right max-w-xs break-words whitespace-pre-wrap">
                                 "{pay.notes}"
                               </div>
                             )}
@@ -323,4 +304,3 @@ export const VendorExpensesDetailDialog: React.FC<VendorExpensesDetailDialogProp
     </Dialog>
   );
 };
-

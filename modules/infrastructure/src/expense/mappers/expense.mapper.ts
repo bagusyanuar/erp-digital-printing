@@ -60,6 +60,7 @@ export function mapResponseToModel(response: ExpenseResponse): ExpenseModel {
 
   return {
     id: response.id,
+    expenseNumber: response.expense_number,
     invoiceNumber: response.invoice_number || response.expense_number,
     supplierId: response.supplier_id,
     vendorName: response.vendor_name,
@@ -78,6 +79,9 @@ function mapItemResponseToModel(item: ExpenseItemResponse): ExpenseItemModel {
   return {
     id: item.id,
     expenseCategoryId: item.expense_category_id,
+    categoryName: item.expense_category?.name,
+    categoryGroup: item.expense_category?.group,
+    productCategoryName: item.expense_category?.product_category?.name,
     description: item.description,
     amount: item.amount,
     createdAt: item.created_at,

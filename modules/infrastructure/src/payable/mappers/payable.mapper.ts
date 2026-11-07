@@ -81,12 +81,16 @@ export function mapPayVendorExpenseToRequest(
 export function mapPayablePaymentResponseToModel(
   res: PayablePaymentResponse,
 ): PayablePaymentModel {
+  const method = res.payment_method?.toLowerCase();
+  const paymentMethod: "cash" | "transfer" | "qris" =
+    method === "transfer" ? "transfer" : method === "qris" ? "qris" : "cash";
+
   return {
     id: res.id,
     payableExpenseId: res.payable_expense_id,
     amount: res.amount,
-    paymentMethod: res.payment_method,
-    recordedBy: res.recorded_by,
+    paymentMethod,
+    recordedBy: res.recorded_by || "Finance",
     paymentDate: res.payment_date,
     sourceAccount: res.source_account,
     notes: res.notes,
@@ -96,15 +100,15 @@ export function mapPayablePaymentResponseToModel(
 export function mapPayableExpenseResponseToModel(
   res: PayableExpenseResponse,
 ): PayableExpenseItemModel {
-  const { days, isOverdue } = calculateDaysOverdue(res.due_date);
+  const { days, isOverdue } = calculateDaysOverdue(res.due_date || "");
 
   return {
     id: res.id,
     expenseNumber: res.expense_number,
     referenceNumber: res.reference_number,
-    categoryName: res.category_name,
+    categoryName: res.category_name || "Pengeluaran",
     expenseDate: res.expense_date,
-    dueDate: res.due_date,
+    dueDate: res.due_date || "-",
     daysOverdue: days,
     isOverdue,
     totalAmount: res.total_amount,
@@ -130,7 +134,7 @@ export function mapVendorPayableResponseToModel(
     id: res.id,
     vendorName: res.vendor_name,
     vendorPhone: res.vendor_phone,
-    vendorCategory: res.vendor_category,
+    vendorCategory: (res.vendor_category as "SUPPLIER" | "SUBKONTRAK" | "OPERASIONAL" | "MAINTENANCE") || "SUPPLIER",
     totalExpensesCount: res.total_expenses_count,
     unpaidExpensesCount: res.unpaid_expenses_count,
     totalAmount: res.total_amount,
@@ -151,10 +155,10 @@ export function mapSettledExpenseResponseToModel(
     vendorId: res.vendor_id,
     vendorName: res.vendor_name,
     vendorPhone: res.vendor_phone,
-    vendorCategory: res.vendor_category,
+    vendorCategory: res.vendor_category || "SUPPLIER",
     expenseNumber: res.expense_number,
     referenceNumber: res.reference_number,
-    categoryName: res.category_name,
+    categoryName: res.category_name || "Pengeluaran",
     expenseDate: res.expense_date,
     settledDate: res.settled_date,
     totalAmount: res.total_amount,
@@ -175,4 +179,3 @@ export function mapSummaryResponseToModel(
     activeVendorCount: res.active_vendor_count ?? 0,
   };
 }
-

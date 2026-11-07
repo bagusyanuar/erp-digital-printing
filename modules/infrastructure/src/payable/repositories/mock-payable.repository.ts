@@ -549,9 +549,7 @@ export class MockPayableRepository implements PayableRepository {
 
     // Status filter
     if (params.tab === "ACTIVE" && params.status && params.status !== "ALL") {
-      if (params.status === "OVERDUE") {
-        filtered = filtered.filter((v) => v.hasOverdue);
-      } else if (params.status === "PARTIAL") {
+      if (params.status === "PARTIAL") {
         filtered = filtered.filter((v) => v.totalPaid > 0 && v.totalRemaining > 0);
       } else if (params.status === "UNPAID") {
         filtered = filtered.filter((v) => v.totalPaid === 0);

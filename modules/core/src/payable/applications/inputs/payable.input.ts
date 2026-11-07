@@ -2,7 +2,7 @@ import type { PaginationParams } from "@core/shared/api/pagination";
 
 export type PayableTabType = "ACTIVE" | "HISTORY";
 
-export type VendorPayableStatusFilter = "ALL" | "OVERDUE" | "PARTIAL" | "UNPAID";
+export type VendorPayableStatusFilter = "ALL" | "PARTIAL" | "UNPAID";
 
 export interface VendorPayableParams extends PaginationParams {
   tab: PayableTabType;

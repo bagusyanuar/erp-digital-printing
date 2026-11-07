@@ -12,6 +12,8 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import type { AppError } from "@core/shared/errors/domain.error";
 import { useExpenseDI } from "../hooks/useExpenseDI";
 import { expenseKeys } from "@infrastructure/expense/keys";
+import { useExpenseCategoryDI } from "@presentation/expense-category/hooks/useExpenseCategoryDI";
+import { expenseCategoryKeys } from "@infrastructure/expense-category/keys";
 import { useDebounce } from "../../shared/hooks/useDebounce";
 import { useProfile } from "../../user/hooks/useProfile";
 import { isAdministrator } from "../../shared/utils/role.utils";
@@ -92,11 +94,30 @@ const ExpensePage = () => {
     staleTime: 30_000,
   });
 
+  // Category lookup for badge & item details
+  const { getExpenseCategoriesUseCase } = useExpenseCategoryDI();
+  const { data: categoriesData } = useQuery({
+    queryKey: expenseCategoryKeys.list({ limit: 100 }),
+    queryFn: () => getExpenseCategoriesUseCase.execute({ limit: 100 }),
+    staleTime: 60_000,
+  });
+
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, { name: string; group: "PRODUCTION" | "OPERATIONAL" }>();
+    if (categoriesData?.data) {
+      for (const cat of categoriesData.data) {
+        map.set(cat.id, { name: cat.name, group: cat.group });
+      }
+    }
+    return map;
+  }, [categoriesData]);
+
   const bills = useMemo((): ExpenseBill[] => {
     if (!response?.data) return [];
     return response.data.map((item) => ({
       id: item.id,
       billNumber: item.invoiceNumber,
+      expenseNumber: item.expenseNumber,
       date:
         (item.createdAt ? item.createdAt.split("T")[0] : null) ??
         toLocalDateString(new Date()),
@@ -108,14 +129,18 @@ const ExpensePage = () => {
       paidAmount: item.paidAmount,
       paymentStatus: item.paymentStatus,
       description: item.description,
-      items: item.items.map((it) => ({
-        id: it.id,
-        description: it.description,
-        amount: it.amount,
-        categoryId: it.expenseCategoryId,
-        categoryName: "Kategori",
-        expenseType: "OPERATIONAL",
-      })),
+      items: item.items.map((it) => {
+        const catInfo = categoryMap.get(it.expenseCategoryId);
+        return {
+          id: it.id,
+          description: it.description,
+          amount: it.amount,
+          categoryId: it.expenseCategoryId,
+          categoryName: it.categoryName || catInfo?.name || "Kategori",
+          expenseType: it.categoryGroup || catInfo?.group || "OPERATIONAL",
+          productCategoryName: it.productCategoryName,
+        };
+      }),
       payments: item.payments.map((p) => ({
         id: p.id,
         expenseBillId: item.id,
@@ -126,7 +151,7 @@ const ExpensePage = () => {
         amountPaid: p.amount,
       })),
     }));
-  }, [response]);
+  }, [response, categoryMap]);
 
   const totalEntries = response?.total ?? 0;
 

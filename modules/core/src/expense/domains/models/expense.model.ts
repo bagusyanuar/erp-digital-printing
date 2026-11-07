@@ -1,6 +1,9 @@
 export interface ExpenseItemModel {
   id: string;
   expenseCategoryId: string;
+  categoryName?: string;
+  categoryGroup?: "PRODUCTION" | "OPERATIONAL";
+  productCategoryName?: string;
   description: string;
   amount: number;
   createdAt: string;
@@ -16,6 +19,7 @@ export interface ExpensePaymentModel {
 
 export interface ExpenseModel {
   id: string;
+  expenseNumber?: string;
   invoiceNumber: string;
   supplierId: string | null;
   vendorName: string;

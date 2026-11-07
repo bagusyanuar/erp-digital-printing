@@ -245,7 +245,6 @@ const PayablePage: React.FC = () => {
                   {(
                     [
                       { id: "ALL", label: "Semua" },
-                      { id: "OVERDUE", label: "Overdue" },
                       { id: "PARTIAL", label: "Sebagian" },
                       { id: "UNPAID", label: "Belum Bayar" },
                     ] as const
@@ -277,7 +276,7 @@ const PayablePage: React.FC = () => {
                     setActiveDateRange(range);
                     setActivePage(1);
                   }}
-                  placeholder="Filter Jatuh Tempo"
+                  placeholder="Filter Tanggal Transaksi"
                   className="h-9 text-xs w-full sm:w-auto"
                 />
                 {activeDateRange && (

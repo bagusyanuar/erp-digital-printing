@@ -11,7 +11,6 @@ import {
 } from "@erp-digital-printing/ui/Table";
 import {
   LuEye,
-  LuCircleCheck,
   LuFileText,
   LuCreditCard,
   LuBanknote,
@@ -118,9 +117,6 @@ export const SettledPayableTable: React.FC<SettledPayableTableProps> = ({
               Nama Vendor / Kontak
             </TableHead>
             <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider py-3.5 text-center">
-              Kategori
-            </TableHead>
-            <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider py-3.5 text-center">
               Tgl Pengeluaran
             </TableHead>
             <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider py-3.5 text-center">
@@ -151,9 +147,6 @@ export const SettledPayableTable: React.FC<SettledPayableTableProps> = ({
                   <div className="h-3 w-24 bg-muted/60 rounded" />
                 </TableCell>
                 <TableCell className="text-center">
-                  <div className="h-5 w-20 bg-muted rounded-full mx-auto" />
-                </TableCell>
-                <TableCell className="text-center">
                   <div className="h-4 w-20 bg-muted rounded mx-auto" />
                 </TableCell>
                 <TableCell className="text-center">
@@ -172,7 +165,7 @@ export const SettledPayableTable: React.FC<SettledPayableTableProps> = ({
             ))
           ) : items.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
+              <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
                 <div className="flex flex-col items-center justify-center space-y-2">
                   <div className="h-10 w-10 rounded-full bg-muted/40 flex items-center justify-center text-muted-foreground/60">
                     <LuFileText size={20} />
@@ -215,13 +208,6 @@ export const SettledPayableTable: React.FC<SettledPayableTableProps> = ({
                       {item.vendorPhone}
                     </div>
                   </div>
-                </TableCell>
-
-                {/* Category */}
-                <TableCell className="text-center">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-secondary text-secondary-foreground">
-                    {item.categoryName}
-                  </span>
                 </TableCell>
 
                 {/* Tanggal Expense */}
@@ -273,4 +259,3 @@ export const SettledPayableTable: React.FC<SettledPayableTableProps> = ({
     </div>
   );
 };
-

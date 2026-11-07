@@ -15,7 +15,6 @@ import {
   LuCircleCheck,
   LuClock,
   LuFileText,
-  LuTriangleAlert,
 } from "@erp-digital-printing/ui/icons";
 import type { VendorPayableModel } from "@core/payable/domains/models/payable.model";
 
@@ -59,7 +58,7 @@ export const VendorPayableTable: React.FC<VendorPayableTableProps> = ({
 
     let expenseLines = "";
     unpaidExpenses.forEach((exp, idx) => {
-      expenseLines += `\n${idx + 1}. *${exp.expenseNumber}* (${exp.referenceNumber || "-"}) - Sisa: ${formatCurrency(exp.remainingAmount)} (Tempo: ${exp.dueDate})`;
+      expenseLines += `\n${idx + 1}. *${exp.expenseNumber}* (${exp.referenceNumber || "-"}) - Sisa: ${formatCurrency(exp.remainingAmount)}`;
     });
 
     const message = `Halo *${vendor.vendorName}*, kami dari Keuangan Percetakan ingin mengonfirmasi rekap tagihan tempo berjalan sebanyak *${unpaidExpenses.length} nota* dengan total sisa hutang *${formatCurrency(vendor.totalRemaining)}*:\n${expenseLines}\n\nKami sedang memproses jadwal pembayaran/transfer ke rekening Anda. Mohon info nomor rekening terbaru jika ada perubahan. Terima kasih! 🙏`;
@@ -75,9 +74,6 @@ export const VendorPayableTable: React.FC<VendorPayableTableProps> = ({
           <TableRow className="border-b border-border/40 bg-muted/20">
             <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider py-3.5 pl-6">
               Nama Vendor / Supplier
-            </TableHead>
-            <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider py-3.5 text-center">
-              Kategori
             </TableHead>
             <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider py-3.5 text-center">
               Jumlah Nota
@@ -109,9 +105,6 @@ export const VendorPayableTable: React.FC<VendorPayableTableProps> = ({
                   <div className="h-3 w-24 bg-muted/60 rounded" />
                 </TableCell>
                 <TableCell className="text-center">
-                  <div className="h-5 w-20 bg-muted rounded-full mx-auto" />
-                </TableCell>
-                <TableCell className="text-center">
                   <div className="h-4 w-12 bg-muted rounded mx-auto" />
                 </TableCell>
                 <TableCell>
@@ -133,7 +126,7 @@ export const VendorPayableTable: React.FC<VendorPayableTableProps> = ({
             ))
           ) : vendors.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
+              <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
                 <div className="flex flex-col items-center justify-center space-y-2">
                   <div className="h-10 w-10 rounded-full bg-muted/40 flex items-center justify-center text-muted-foreground/60">
                     <LuFileText size={20} />
@@ -147,7 +140,6 @@ export const VendorPayableTable: React.FC<VendorPayableTableProps> = ({
             </TableRow>
           ) : (
             vendors.map((vendor) => {
-              const isOverdue = vendor.hasOverdue && vendor.totalRemaining > 0;
               const isPaid = vendor.totalRemaining === 0;
               const isPartial = vendor.totalPaid > 0 && vendor.totalRemaining > 0;
 
@@ -163,22 +155,10 @@ export const VendorPayableTable: React.FC<VendorPayableTableProps> = ({
                       <div className="font-bold text-foreground text-sm group-hover:text-primary transition-colors flex items-center gap-1.5">
                         <span>{vendor.vendorName}</span>
                       </div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2">
-                        <span>{vendor.vendorPhone}</span>
-                        {vendor.oldestDueDate && vendor.totalRemaining > 0 && (
-                          <span className="text-[11px] text-muted-foreground/80">
-                            Tempo: {vendor.oldestDueDate}
-                          </span>
-                        )}
+                      <div className="text-xs text-muted-foreground">
+                        {vendor.vendorPhone}
                       </div>
                     </div>
-                  </TableCell>
-
-                  {/* Category */}
-                  <TableCell className="text-center">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-secondary text-secondary-foreground">
-                      {vendor.vendorCategory}
-                    </span>
                   </TableCell>
 
                   {/* Total Invoices Count */}
@@ -199,11 +179,6 @@ export const VendorPayableTable: React.FC<VendorPayableTableProps> = ({
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                         <LuCircleCheck size={13} />
                         Lunas
-                      </span>
-                    ) : isOverdue ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                        <LuTriangleAlert size={13} />
-                        Overdue ({vendor.maxDaysOverdue}h)
                       </span>
                     ) : isPartial ? (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
@@ -278,4 +253,3 @@ export const VendorPayableTable: React.FC<VendorPayableTableProps> = ({
     </div>
   );
 };
-
