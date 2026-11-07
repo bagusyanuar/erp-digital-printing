@@ -3,6 +3,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCashFlowDI } from "../hooks/useCashFlowDI";
 import { useUserDI } from "../../user/hooks/useUserDI";
+import { useOrderDI } from "../../order/hooks/useOrderDI";
+import { useExpenseDI } from "../../expense/hooks/useExpenseDI";
+import { useExpenseCategoryDI } from "../../expense-category/hooks/useExpenseCategoryDI";
+import DetailReportSelling from "../../report-selling/components/DetailReportSelling";
+import { ExpenseDetailDialog } from "../../expense/components/ExpenseDetailDialog";
+import type { ExpenseBill } from "../../expense/types/expenseTypes";
+import type { OrderModel } from "@core/order/domains/models/order.model";
+import type { ExpenseModel } from "@core/expense/domains/models/expense.model";
+import type { CashFlowTransactionModel } from "@core/cash-flow/domains/models/cash-flow.model";
 import { cashFlowKeys } from "@infrastructure/cash-flow/keys/cash-flow.key";
 import { userKeys } from "@infrastructure/user/keys/user.key";
 import type { AppError } from "@core/shared/errors/domain.error";
@@ -37,6 +46,8 @@ import {
   LuArrowUpRight,
   LuArrowDownRight,
   LuFilter,
+  LuExternalLink,
+  LuReceipt,
 } from "@erp-digital-printing/ui/icons";
 
 // Backend category mappings
@@ -59,6 +70,38 @@ const formatDate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+const mapExpenseToBill = (
+  item: ExpenseModel,
+  categoryMap: Map<string, string>,
+): ExpenseBill => ({
+  id: item.id,
+  billNumber: item.invoiceNumber,
+  date: item.createdAt ? item.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+  createdAt: item.createdAt,
+  supplierName: item.vendorName,
+  discount: item.discount,
+  ...(item.supplierId ? { supplierId: item.supplierId } : {}),
+  totalAmount: item.totalAmount,
+  paidAmount: item.paidAmount,
+  paymentStatus: item.paymentStatus,
+  description: item.description,
+  items: (item.items || []).map((it) => ({
+    id: it.id,
+    description: it.description,
+    amount: it.amount,
+    categoryId: it.expenseCategoryId,
+    categoryName: categoryMap.get(it.expenseCategoryId) || "Biaya Operasional",
+    expenseType: "OPERATIONAL",
+  })),
+  payments: (item.payments || []).map((p) => ({
+    id: p.id,
+    expenseBillId: item.id,
+    paymentDate: p.paymentDate ? p.paymentDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+    paymentAccount: p.paymentMethod === "cash" ? "Cash" : "Transfer",
+    amountPaid: p.amount,
+  })),
+});
+
 const CashFlowPage = () => {
   const queryClient = useQueryClient();
   const {
@@ -68,6 +111,141 @@ const CashFlowPage = () => {
     getCashAccountsUseCase,
   } = useCashFlowDI();
   const { getUsersUseCase } = useUserDI();
+  const { getOrdersUseCase } = useOrderDI();
+  const { getExpensesUseCase } = useExpenseDI();
+  const { getExpenseCategoriesUseCase } = useExpenseCategoryDI();
+
+  // Selected Transaction for Detail Modal
+  const [selectedTx, setSelectedTx] = useState<CashFlowTransactionModel | null>(null);
+
+  const isOrderTx =
+    selectedTx?.referenceType === "ORDER_PAYMENT" ||
+    selectedTx?.referenceType === "REFUND";
+  const isExpenseTx =
+    selectedTx?.referenceType === "EXPENSE" ||
+    selectedTx?.referenceType === "EXPENSE_PAYMENT";
+
+  const orderSearchKey = useMemo(() => {
+    if (!selectedTx || !isOrderTx) return "";
+    if (selectedTx.invoiceNumber && selectedTx.invoiceNumber.trim() !== "") {
+      return selectedTx.invoiceNumber.trim();
+    }
+    const match = selectedTx.description?.match(
+      /(?:Order|Invoice|Refund)\s+([A-Za-z0-9\-_/]+)/i,
+    );
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+    return selectedTx.customerName?.trim() || "";
+  }, [selectedTx, isOrderTx]);
+
+  const { data: orderDetail = null, isLoading: isLoadingOrder } = useQuery<
+    OrderModel | null,
+    AppError
+  >({
+    queryKey: ["cashflow-order-detail", selectedTx?.id, orderSearchKey],
+    queryFn: async (): Promise<OrderModel | null> => {
+      if (!orderSearchKey) return null;
+      const res = await getOrdersUseCase.execute({
+        page: 1,
+        limit: 5,
+        search: orderSearchKey,
+      });
+      if (!res.data || res.data.length === 0) return null;
+      const exact = res.data.find(
+        (o) =>
+          (orderSearchKey &&
+            (o.invoice_number?.toLowerCase() === orderSearchKey.toLowerCase() ||
+              o.job_number?.toLowerCase() === orderSearchKey.toLowerCase())) ||
+          (selectedTx?.invoiceNumber &&
+            o.invoice_number?.toLowerCase() ===
+              selectedTx.invoiceNumber.toLowerCase()),
+      );
+      return exact || res.data[0] || null;
+    },
+    enabled: !!selectedTx && isOrderTx && !!orderSearchKey,
+    staleTime: 30_000,
+  });
+
+  const expenseSearchKey = useMemo(() => {
+    if (!selectedTx || !isExpenseTx) return "";
+    if (selectedTx.invoiceNumber && selectedTx.invoiceNumber.trim() !== "") {
+      return selectedTx.invoiceNumber.trim();
+    }
+    const match = selectedTx.description?.match(
+      /(?:Nota|Pengeluaran|Inv|Cicilan Pengeluaran)\s+([A-Za-z0-9\-_/]+)/i,
+    );
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+    return "";
+  }, [selectedTx, isExpenseTx]);
+
+  const { data: categoriesData } = useQuery({
+    queryKey: ["expense-categories-lookup"],
+    queryFn: () => getExpenseCategoriesUseCase.execute({ limit: 100 }),
+    staleTime: 60_000,
+  });
+
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    categoriesData?.data?.forEach((cat) => {
+      map.set(cat.id, cat.name);
+    });
+    return map;
+  }, [categoriesData]);
+
+  const { data: expenseDetail = null, isLoading: isLoadingExpense } = useQuery<
+    ExpenseBill | null,
+    AppError
+  >({
+    queryKey: ["cashflow-expense-detail", selectedTx?.id, expenseSearchKey],
+    queryFn: async (): Promise<ExpenseBill | null> => {
+      if (!expenseSearchKey) return null;
+      const res = await getExpensesUseCase.execute({
+        page: 1,
+        limit: 5,
+        search: expenseSearchKey,
+      });
+      if (!res.data || res.data.length === 0) return null;
+      const exact = res.data.find(
+        (e) =>
+          (expenseSearchKey &&
+            e.invoiceNumber?.toLowerCase() ===
+              expenseSearchKey.toLowerCase()) ||
+          (selectedTx?.invoiceNumber &&
+            e.invoiceNumber?.toLowerCase() ===
+              selectedTx.invoiceNumber.toLowerCase()),
+      );
+      const item = exact || res.data[0];
+      if (!item) return null;
+      return mapExpenseToBill(item, categoryMap);
+    },
+    enabled: !!selectedTx && isExpenseTx && !!expenseSearchKey,
+    staleTime: 30_000,
+  });
+
+  const isLoadingDetail =
+    (isOrderTx && isLoadingOrder) || (isExpenseTx && isLoadingExpense);
+
+  const isGenericModalOpen = useMemo(() => {
+    if (!selectedTx) return false;
+    if (isOrderTx) {
+      return !isLoadingOrder && !orderDetail;
+    }
+    if (isExpenseTx) {
+      return !isLoadingExpense && !expenseDetail;
+    }
+    return true;
+  }, [
+    selectedTx,
+    isOrderTx,
+    isExpenseTx,
+    isLoadingOrder,
+    orderDetail,
+    isLoadingExpense,
+    expenseDetail,
+  ]);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState("");
@@ -678,14 +856,22 @@ const CashFlowPage = () => {
                               {CATEGORY_LABELS[tx.referenceType] || tx.referenceType}
                             </span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell
+                            className="cursor-pointer group hover:bg-primary/5 transition-colors"
+                            onClick={() => setSelectedTx(tx)}
+                            title="Klik untuk melihat detail rincian"
+                          >
                             <div className="flex flex-col gap-0.5 max-w-xs">
-                              <span className="text-xs text-foreground font-semibold line-clamp-1">
+                              <span className="text-xs text-foreground font-semibold line-clamp-1 group-hover:text-primary transition-colors flex items-center gap-1">
                                 {tx.description || "-"}
+                                <LuExternalLink
+                                  size={12}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-primary shrink-0"
+                                />
                               </span>
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 {tx.invoiceNumber && (
-                                  <span className="text-[10px] text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded w-max border border-blue-500/20 font-bold">
+                                  <span className="text-[10px] text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded w-max border border-blue-500/20 font-bold group-hover:border-blue-500/40 transition-colors">
                                     Invoice: {tx.invoiceNumber}
                                   </span>
                                 )}
@@ -934,6 +1120,200 @@ const CashFlowPage = () => {
 
         </form>
       </Dialog>
+
+      {/* Loading Modal for Order / Expense Detail */}
+      <Dialog
+        isOpen={isLoadingDetail}
+        onClose={() => setSelectedTx(null)}
+        size="sm"
+        className="rounded-3xl p-6 bg-card border border-border/50 text-foreground"
+      >
+        <div className="flex flex-col items-center justify-center py-6 gap-3 text-center">
+          <LuRefreshCw className="animate-spin text-primary" size={32} />
+          <span className="text-sm font-bold text-foreground">
+            Memuat rincian transaksi...
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Menghubungkan ke data {isOrderTx ? "penjualan" : "pengeluaran"}...
+          </span>
+        </div>
+      </Dialog>
+
+      {/* Detail Modal: Penjualan / Order */}
+      {orderDetail && (
+        <DetailReportSelling
+          isOpen={!!selectedTx && isOrderTx && !isLoadingDetail && !!orderDetail}
+          onClose={() => setSelectedTx(null)}
+          sale={orderDetail}
+        />
+      )}
+
+      {/* Detail Modal: Pengeluaran / Expense */}
+      {expenseDetail && (
+        <ExpenseDetailDialog
+          isOpen={!!selectedTx && isExpenseTx && !isLoadingDetail && !!expenseDetail}
+          onClose={() => setSelectedTx(null)}
+          bill={expenseDetail}
+        />
+      )}
+
+      {/* Detail Modal: Transaksi Arus Kas Lainnya / Fallback */}
+      {selectedTx && isGenericModalOpen && !isLoadingDetail && (
+        <Dialog
+          isOpen={true}
+          onClose={() => setSelectedTx(null)}
+          size="md"
+          className="rounded-3xl p-6 bg-card border border-border/50 text-foreground overflow-hidden max-w-lg w-full"
+          showCloseButton={true}
+        >
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex flex-col gap-1 border-b border-border/30 pb-3">
+              <h2 className="text-lg font-black tracking-tight text-foreground flex items-center gap-2">
+                <LuReceipt size={20} className="text-primary" />
+                Detail Transaksi Arus Kas
+              </h2>
+              <p className="text-xs text-muted-foreground font-semibold">
+                Kategori:{" "}
+                <span className="text-foreground font-bold">
+                  {CATEGORY_LABELS[selectedTx.referenceType] || selectedTx.referenceType}
+                </span>
+              </p>
+            </div>
+
+            {/* Notice if search fallback */}
+            {(isOrderTx || isExpenseTx) && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-700 dark:text-amber-400 text-xs font-semibold flex items-start gap-2">
+                <LuInfo size={16} className="shrink-0 mt-0.5" />
+                <span>
+                  Rincian dokumen {isOrderTx ? "faktur pesanan" : "nota belanja"} terkait tidak ditemukan di sistem. Menampilkan data transaksi arus kas.
+                </span>
+              </div>
+            )}
+
+            {/* Amount Hero Card */}
+            <div
+              className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-1 text-center ${
+                selectedTx.type === "DEBIT"
+                  ? "bg-emerald-500/5 border-emerald-500/20"
+                  : "bg-rose-500/5 border-rose-500/20"
+              }`}
+            >
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                {selectedTx.type === "DEBIT" ? (
+                  <>
+                    <LuArrowUpRight size={13} className="text-emerald-500" />
+                    Kas Masuk (Inflow)
+                  </>
+                ) : (
+                  <>
+                    <LuArrowDownRight size={13} className="text-rose-500" />
+                    Kas Keluar (Outflow)
+                  </>
+                )}
+              </span>
+              <span
+                className={`text-2xl font-black ${
+                  selectedTx.type === "DEBIT"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-rose-600 dark:text-rose-400"
+                }`}
+              >
+                Rp {selectedTx.amount.toLocaleString("id-ID")}
+              </span>
+            </div>
+
+            {/* Transaction Details Grid */}
+            <div className="bg-muted/30 p-4 rounded-2xl border border-border/40 space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                    Waktu Transaksi
+                  </span>
+                  <span className="font-bold text-foreground block mt-0.5">
+                    {new Date(selectedTx.transactionDate).toLocaleString("id-ID", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                    Metode Pembayaran
+                  </span>
+                  <span className="font-bold uppercase text-foreground block mt-0.5 px-2 py-0.5 bg-muted rounded w-max border border-border/50 text-[10px]">
+                    {selectedTx.paymentMethod}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                    Kasir / Operator
+                  </span>
+                  <span className="font-bold text-foreground block mt-0.5">
+                    {selectedTx.cashierName || "-"}
+                  </span>
+                </div>
+
+                {selectedTx.customerName && (
+                  <div>
+                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                      Pelanggan
+                    </span>
+                    <span className="font-bold text-foreground block mt-0.5">
+                      {selectedTx.customerName}
+                    </span>
+                  </div>
+                )}
+
+                {selectedTx.invoiceNumber && (
+                  <div>
+                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                      No. Invoice / Nota
+                    </span>
+                    <span className="font-mono font-bold text-blue-600 dark:text-blue-400 block mt-0.5">
+                      {selectedTx.invoiceNumber}
+                    </span>
+                  </div>
+                )}
+
+                {selectedTx.referenceId && (
+                  <div>
+                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                      Reference ID
+                    </span>
+                    <span className="font-mono text-[10px] text-muted-foreground block mt-0.5 break-all">
+                      {selectedTx.referenceId}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-border/30 pt-2.5">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                  Deskripsi Transaksi
+                </span>
+                <p className="text-xs font-semibold text-foreground mt-0.5 leading-relaxed">
+                  {selectedTx.description || "-"}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSelectedTx(null)}
+                className="h-10 px-6 rounded-xl font-bold border-border hover:bg-muted/50 text-xs"
+              >
+                Tutup
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
 
     </div>
   );
