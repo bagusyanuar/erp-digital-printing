@@ -6,5 +6,6 @@ export interface SaveDraftOrderInput {
   customer_name: string;
   customer_phone: string;
   notes: string;
+  deadline?: string | null;
   items: DraftOrderItemModel[];
 }

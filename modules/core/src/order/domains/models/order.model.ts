@@ -16,6 +16,7 @@ export interface DraftOrderModel {
   customer_name: string;
   customer_phone: string;
   notes: string;
+  deadline?: string | null;
   items: DraftOrderItemModel[];
 }
 
@@ -50,6 +51,7 @@ export interface OrderModel {
   customer_phone: string | null;
   reseller_id: string | null;
   notes: string;
+  deadline?: string | null;
   cancel_reason?: string | null;
   cancelled_at?: string | null;
   invoiced_at?: string | null;
@@ -88,6 +90,8 @@ export interface OrderSpkModel {
   customer_name: string;
   customer_phone: string;
   status: string;
+  notes?: string | null;
+  deadline?: string | null;
   spk_by_category: SpkCategoryModel[];
 }
 

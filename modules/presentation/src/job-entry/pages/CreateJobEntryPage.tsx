@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@erp-digital-printing/ui/Button";
 import { TextField } from "@erp-digital-printing/ui/TextField";
+import { DateTimePicker } from "@erp-digital-printing/ui/DateTimePicker";
 import { Typography } from "@erp-digital-printing/ui/Typography";
 import { HelperText } from "@erp-digital-printing/ui/HelperText";
 import { Card, CardHeader, CardContent } from "@erp-digital-printing/ui/Card";
@@ -36,6 +37,7 @@ import {
   LuPencil,
   LuUserCheck,
   LuCheck,
+  LuClock,
 } from "@erp-digital-printing/ui/icons";
 
 import { toast } from "@erp-digital-printing/ui/Toast";
@@ -153,6 +155,7 @@ const CreateJobEntryPage = () => {
     if (editId) return "";
     return localStorage.getItem("job_entry_active_notes") || "";
   });
+  const [deadline, setDeadline] = useState<Date | undefined>(undefined);
   const [cartItems, setCartItems] = useState<JobItem[]>(() => {
     if (editId) return [];
     const saved = localStorage.getItem("job_entry_active_cart");
@@ -173,6 +176,9 @@ const CreateJobEntryPage = () => {
         setCustomerPhone(orderDetail.customer_phone || "");
         setSelectedResellerId(orderDetail.reseller_id || "");
         setNotes(orderDetail.notes || "");
+        setDeadline(
+          orderDetail.deadline ? new Date(orderDetail.deadline) : undefined,
+        );
 
         const mappedItems = (orderDetail.order_items ?? []).map(
           (item): JobItem => {
@@ -294,6 +300,10 @@ const CreateJobEntryPage = () => {
       localStorage.setItem("job_entry_active_notes", notes);
     }
   }, [notes, editId]);
+
+  useEffect(() => {
+    localStorage.removeItem("job_entry_active_deadline");
+  }, []);
 
   useEffect(() => {
     if (!editId) {
@@ -509,8 +519,10 @@ const CreateJobEntryPage = () => {
 
       // Clear active states
       setNotes("");
+      setDeadline(undefined);
       setCartItems([]);
       localStorage.removeItem("job_entry_active_notes");
+      localStorage.removeItem("job_entry_active_deadline");
       localStorage.removeItem("job_entry_active_cart");
 
       navigate("/ticket-order");
@@ -546,6 +558,7 @@ const CreateJobEntryPage = () => {
       customer_name: customerName.trim(),
       customer_phone: customerPhone.trim(),
       notes: notes.trim(),
+      deadline: deadline ? deadline.toISOString() : null,
       items: cartItems.map((item) => ({
         product_variant_id: item.product_variant_id,
         uom: item.uom,
@@ -1119,6 +1132,27 @@ const CreateJobEntryPage = () => {
                   </div>
                 </div>
               )}
+
+              {/* Batas Waktu / Deadline */}
+              <div className="space-y-1.5">
+                <Typography
+                  variant="small"
+                  weight="bold"
+                  className="text-xs text-foreground/80 flex items-center gap-1.5"
+                >
+                  <LuClock size={14} className="text-primary/70" />
+                  Deadline
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    (Target Selesai)
+                  </span>
+                </Typography>
+                <DateTimePicker
+                  value={deadline}
+                  onChange={setDeadline}
+                  placeholder="Pilih tanggal & waktu deadline..."
+                  isClearable
+                />
+              </div>
 
               {/* Memo/Catatan Umum */}
               <div className="space-y-1.5">

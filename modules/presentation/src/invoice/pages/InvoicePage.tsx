@@ -163,6 +163,7 @@ const InvoicePage = () => {
 
     // Helpers
     formatCurrency,
+    formatDateTime,
   } = useInvoice();
 
   const [isShareWADialogOpen, setIsShareWADialogOpen] = React.useState(false);
@@ -1775,6 +1776,23 @@ const InvoicePage = () => {
                   <span>Tanggal:</span>
                   <span>{selectedInvoice.createdAt}</span>
                 </div>
+                {(selectedInvoice.deadline || spkResponse?.deadline) && (
+                  <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold">
+                    <span>Deadline:</span>
+                    <span>
+                      {selectedInvoice.deadline ||
+                        (spkResponse?.deadline
+                          ? formatDateTime(spkResponse.deadline)
+                          : "-")}
+                    </span>
+                  </div>
+                )}
+                {selectedInvoice.notes && selectedInvoice.notes !== "-" && (
+                  <div className="flex justify-between text-foreground font-semibold">
+                    <span>Memo Transaksi:</span>
+                    <span>{selectedInvoice.notes}</span>
+                  </div>
+                )}
               </div>
 
               {/* Items in this category */}
@@ -1893,6 +1911,21 @@ const InvoicePage = () => {
                     rawData += formatLine(
                       "Desainer",
                       selectedInvoice.designerName.toUpperCase(),
+                    );
+                  }
+                  if (selectedInvoice.deadline || spkResponse?.deadline) {
+                    rawData += formatLine(
+                      "Deadline",
+                      selectedInvoice.deadline ||
+                        (spkResponse?.deadline
+                          ? formatDateTime(spkResponse.deadline)
+                          : "-"),
+                    );
+                  }
+                  if (selectedInvoice.notes && selectedInvoice.notes !== "-") {
+                    rawData += formatLine(
+                      "Memo Transaksi",
+                      selectedInvoice.notes,
                     );
                   }
 
@@ -2082,6 +2115,18 @@ const InvoicePage = () => {
                     <span>{selectedInvoice.designerName}</span>
                   </div>
                 )}
+                {selectedInvoice.deadline && (
+                  <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold">
+                    <span>Deadline:</span>
+                    <span>{selectedInvoice.deadline}</span>
+                  </div>
+                )}
+                {selectedInvoice.notes && selectedInvoice.notes !== "-" && (
+                  <div className="flex justify-between text-foreground font-semibold">
+                    <span>Memo Transaksi:</span>
+                    <span>{selectedInvoice.notes}</span>
+                  </div>
+                )}
               </div>
 
               {/* Items listing */}
@@ -2237,6 +2282,21 @@ const InvoicePage = () => {
                     rawData += formatLine(
                       "Desainer",
                       selectedInvoice.designerName.toUpperCase(),
+                    );
+                  }
+                  if (selectedInvoice.deadline || spkResponse?.deadline) {
+                    rawData += formatLine(
+                      "Deadline",
+                      selectedInvoice.deadline ||
+                        (spkResponse?.deadline
+                          ? formatDateTime(spkResponse.deadline)
+                          : "-"),
+                    );
+                  }
+                  if (selectedInvoice.notes && selectedInvoice.notes !== "-") {
+                    rawData += formatLine(
+                      "Memo Transaksi",
+                      selectedInvoice.notes,
                     );
                   }
 

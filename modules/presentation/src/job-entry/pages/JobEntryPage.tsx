@@ -18,6 +18,7 @@ import {
   LuBox,
   LuUser,
   LuLoader,
+  LuClock,
 } from "@erp-digital-printing/ui/icons";
 import {
   Dropdown,
@@ -73,6 +74,7 @@ interface JobTransaction {
   createdAt: string;
   items: JobItem[];
   notes?: string;
+  deadline?: string | null;
 }
 
 const columnHelper = createColumnHelper<JobTransaction>();
@@ -142,6 +144,7 @@ const JobEntryPage = () => {
         status: order.status === "DRAFT" ? "Pending" : "Dikirim ke Kasir",
         createdAt: order.created_at,
         notes: order.notes,
+        deadline: order.deadline,
         items: (order.order_items ?? []).map(
           (item: OrderItemModel): JobItem => {
             let dimensionText = "Pcs";
@@ -638,8 +641,30 @@ const JobEntryPage = () => {
                   <LuCalendar size={15} className="text-primary" />
                   {selectedTransaction.createdAt}
                 </span>
+                {selectedTransaction.deadline && (
+                  <div className="pt-1 border-t border-primary/10 mt-1">
+                    <span className="text-rose-500 font-bold block uppercase tracking-wider text-[10px]">
+                      Deadline
+                    </span>
+                    <span className="font-bold text-rose-600 dark:text-rose-400 text-xs flex items-center gap-1 mt-0.5">
+                      <LuClock size={13} />
+                      {selectedTransaction.deadline}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
+
+            {selectedTransaction.notes && selectedTransaction.notes !== "-" && (
+              <div className="p-3 bg-muted/40 rounded-2xl border border-border/50 text-xs space-y-1">
+                <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider">
+                  Memo Transaksi:
+                </span>
+                <span className="font-semibold text-foreground block">
+                  {selectedTransaction.notes}
+                </span>
+              </div>
+            )}
 
             {/* Order Items List (Scrollable) */}
             <div className="overflow-y-auto space-y-3 pr-2 max-h-[40vh] scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">

@@ -52,6 +52,8 @@ export interface Invoice {
   cancelReason?: string | null;
   cancelledAt?: string | null;
   payments: OrderPaymentModel[];
+  notes?: string;
+  deadline?: string | null;
 }
 
 const formatCurrency = (val: number) => {
@@ -465,6 +467,8 @@ export const useInvoice = () => {
         cancelReason: order.cancel_reason ?? null,
         cancelledAt: order.cancelled_at ?? null,
         payments: order.order_payments ?? [],
+        notes: order.notes,
+        deadline: order.deadline ? formatDateTime(order.deadline) : null,
       };
     });
   }, [response]);

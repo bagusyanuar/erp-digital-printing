@@ -20,6 +20,7 @@ export function mapOrderResponseToModel(order: OrderResponse): OrderModel {
     customer_phone: order.customer_phone,
     reseller_id: order.reseller_id,
     notes: order.notes,
+    deadline: order.deadline ?? null,
     cancel_reason: order.cancel_reason ?? null,
     cancelled_at: order.cancelled_at ?? null,
     invoiced_at: order.invoiced_at ?? null,
@@ -71,6 +72,7 @@ export class ApiOrderRepository implements OrderRepository {
         customer_name: input.customer_name,
         customer_phone: input.customer_phone,
         notes: input.notes,
+        deadline: input.deadline ?? null,
         items: input.items.map((item) => ({
           product_variant_id: item.product_variant_id,
           uom: item.uom,
@@ -184,6 +186,8 @@ export class ApiOrderRepository implements OrderRepository {
         customer_name: data.customer_name,
         customer_phone: data.customer_phone,
         status: data.status,
+        notes: data.notes ?? null,
+        deadline: data.deadline ?? null,
         spk_by_category: (data.spk_by_category ?? []).map((cat) => ({
           category_id: cat.category_id,
           category_name: cat.category_name,
@@ -266,6 +270,7 @@ export class ApiOrderRepository implements OrderRepository {
         customer_name: input.customer_name,
         customer_phone: input.customer_phone,
         notes: input.notes,
+        deadline: input.deadline ?? null,
         items: input.items.map((item) => ({
           product_variant_id: item.product_variant_id,
           uom: item.uom,
@@ -295,6 +300,7 @@ export class ApiOrderRepository implements OrderRepository {
         customer_name: input.customer_name,
         customer_phone: input.customer_phone,
         notes: input.notes,
+        deadline: input.deadline ?? null,
         items: input.items.map((item) => ({
           product_variant_id: item.product_variant_id,
           uom: item.uom,
