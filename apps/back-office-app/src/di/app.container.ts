@@ -13,6 +13,12 @@ import { getCapitalTransactionsUseCase, createCapitalTransactionUseCase, deleteC
 import { getFundTransfersUseCase, createFundTransferUseCase, getFundTransferWidgetsUseCase } from "@infrastructure/fund-transfer/containers/fund-transfer.container";
 import { getDashboardWidgetsUseCase, getWeeklyRevenueUseCase } from "@infrastructure/dashboard/containers/dashboard.container";
 import { getProfitLossUseCase, getProfitLossTrendUseCase } from "@infrastructure/report/containers/report.container";
+import {
+  getCustomerReceivablesUseCase,
+  getSettledReceivablesUseCase,
+  getCustomerReceivableSummaryUseCase,
+  payCustomerInvoiceUseCase,
+} from "@infrastructure/receivable/containers/receivable.container";
 
 
 import { getCategoryUseCase, createCategoryUseCase, getCategoryByIdUseCase, updateCategoryUseCase, assignSPKCategoryUseCase, deleteCategoryUseCase, reorderCategoryUseCase } from "@infrastructure/category/containers/category.container";
@@ -167,6 +173,12 @@ export function createAppContainer(): AppContainer {
     report: {
       getProfitLossUseCase: getProfitLossUseCase(httpClient),
       getProfitLossTrendUseCase: getProfitLossTrendUseCase(httpClient),
+    },
+    receivable: {
+      getCustomerReceivablesUseCase: getCustomerReceivablesUseCase(httpClient),
+      getSettledReceivablesUseCase: getSettledReceivablesUseCase(httpClient),
+      getCustomerReceivableSummaryUseCase: getCustomerReceivableSummaryUseCase(httpClient),
+      payCustomerInvoiceUseCase: payCustomerInvoiceUseCase(httpClient),
     },
   };
 }

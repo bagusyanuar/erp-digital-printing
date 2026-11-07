@@ -27,11 +27,24 @@ import type { GetCapitalTransactions, CreateCapitalTransaction, DeleteCapitalTra
 import type { GetFundTransfers, CreateFundTransfer, GetFundTransferWidgets } from "@core/fund-transfer/applications/usecases/fund-transfer.usecase";
 import type { GetDashboardWidgets, GetWeeklyRevenue } from "@core/dashboard/applications/usecases/dashboard.usecase";
 import type { GetProfitLoss, GetProfitLossTrend } from "@core/report";
+import type {
+  GetCustomerReceivables,
+  GetSettledReceivables,
+  GetCustomerReceivableSummary,
+  PayCustomerInvoice,
+} from "@core/receivable/applications/usecases/receivable.usecase";
 
 // ──────────────────────────────────────────────
 // Module Use Case Types
 // Tambahkan interface baru di sini saat modul bertambah.
 // ──────────────────────────────────────────────
+
+export interface ReceivableUseCases {
+  getCustomerReceivablesUseCase: GetCustomerReceivables;
+  getSettledReceivablesUseCase: GetSettledReceivables;
+  getCustomerReceivableSummaryUseCase: GetCustomerReceivableSummary;
+  payCustomerInvoiceUseCase: PayCustomerInvoice;
+}
 
 export interface ReportUseCases {
   getProfitLossUseCase: GetProfitLoss;
@@ -188,6 +201,7 @@ export interface AppContainer {
   fundTransfer: FundTransferUseCases;
   dashboard: DashboardUseCases;
   report: ReportUseCases;
+  receivable: ReceivableUseCases;
 }
 
 // ──────────────────────────────────────────────

@@ -23,6 +23,7 @@ import {
   LuBriefcase,
   LuReceipt,
   LuArrowRightLeft,
+  LuWallet,
   LuTrendingDown,
   LuScale,
   LuUsers,
@@ -225,6 +226,18 @@ export const NavSidebar = () => {
 
         {canAccessKeuangan && (
           <SidebarGroup label="Keuangan">
+            <NavLink to="/receivable" className="contents">
+              {({ isActive }) => (
+                <SidebarItem
+                  asChild
+                  icon={<LuWallet />}
+                  label="Piutang Customer"
+                  active={isActive}
+                >
+                  <button />
+                </SidebarItem>
+              )}
+            </NavLink>
             <NavLink to="/expense" className="contents">
               {({ isActive }) => (
                 <SidebarItem
