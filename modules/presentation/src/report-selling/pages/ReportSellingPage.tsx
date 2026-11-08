@@ -380,7 +380,11 @@ const ReportSellingPage = () => {
                               value={tempStatusFilter}
                               onValueChange={(val) => {
                                 setTempStatusFilter(
-                                  val as "all" | "PAID" | "UNPAID",
+                                  val as
+                                    | "all"
+                                    | "PAID"
+                                    | "UNPAID"
+                                    | "PARTIALLY_REFUNDED",
                                 );
                               }}
                             >
@@ -390,7 +394,9 @@ const ReportSellingPage = () => {
                                     ? "Semua Status"
                                     : tempStatusFilter === "PAID"
                                       ? "Lunas"
-                                      : "Belum Lunas"}
+                                      : tempStatusFilter === "PARTIALLY_REFUNDED"
+                                        ? "Refund Sebagian"
+                                        : "Belum Lunas"}
                                 </span>
                               </ComboboxTrigger>
                               <ComboboxContent
@@ -410,6 +416,9 @@ const ReportSellingPage = () => {
                                   </ComboboxItem>
                                   <ComboboxItem value="UNPAID">
                                     Belum Lunas
+                                  </ComboboxItem>
+                                  <ComboboxItem value="PARTIALLY_REFUNDED">
+                                    Refund Sebagian
                                   </ComboboxItem>
                                 </ComboboxList>
                               </ComboboxContent>
@@ -661,7 +670,10 @@ const ReportSellingPage = () => {
                       </TableRow>
                     ) : (
                       filteredSales.map((sale) => {
-                        const outstanding = sale.totalAmount - sale.paidAmount;
+                        const outstanding =
+                          sale.remainingDebt !== undefined
+                            ? sale.remainingDebt
+                            : Math.max(0, sale.totalAmount - sale.paidAmount);
 
                         // Generate a mock job number from the invoice number
                         const mockJobNumber = sale.invoiceNumber.replace(
@@ -760,56 +772,90 @@ const ReportSellingPage = () => {
 
                             {/* Payment Method */}
                             <TableCell className="py-4 px-5 text-center">
-                              <div className="flex flex-wrap gap-1 justify-center">
-                                {sale.paymentMethod
-                                  .split(", ")
-                                  .map((method) => {
-                                    let methodBadgeColor =
-                                      "bg-muted text-muted-foreground border-border/50";
-                                    const normalizedMethod =
-                                      method.toLowerCase();
-                                    if (normalizedMethod === "qris") {
-                                      methodBadgeColor =
-                                        "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
-                                    } else if (
-                                      normalizedMethod === "cash" ||
-                                      normalizedMethod === "tunai"
-                                    ) {
-                                      methodBadgeColor =
-                                        "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
-                                    } else if (
-                                      normalizedMethod === "transfer" ||
-                                      normalizedMethod === "transfer bank"
-                                    ) {
-                                      methodBadgeColor =
-                                        "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
-                                    }
+                              <div className="flex flex-col items-center gap-1.5 min-w-[70px]">
+                                {/* Metode Pembayaran Masuk */}
+                                <div className="flex flex-wrap gap-1 justify-center items-center">
+                                  {sale.paymentMethods && sale.paymentMethods.length > 0 ? (
+                                    sale.paymentMethods.map((method) => {
+                                      let methodBadgeColor =
+                                        "bg-muted text-muted-foreground border-border/50";
+                                      const normalizedMethod =
+                                        method.toLowerCase();
+                                      if (normalizedMethod === "qris") {
+                                        methodBadgeColor =
+                                          "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
+                                      } else if (
+                                        normalizedMethod === "cash" ||
+                                        normalizedMethod === "tunai"
+                                      ) {
+                                        methodBadgeColor =
+                                          "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
+                                      } else if (
+                                        normalizedMethod === "transfer" ||
+                                        normalizedMethod === "transfer bank"
+                                      ) {
+                                        methodBadgeColor =
+                                          "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
+                                      }
 
-                                    return (
+                                      return (
+                                        <span
+                                          key={method}
+                                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${methodBadgeColor}`}
+                                        >
+                                          {method}
+                                        </span>
+                                      );
+                                    })
+                                  ) : (
+                                    <span className="text-muted-foreground text-[10px]">-</span>
+                                  )}
+                                </div>
+
+                                {/* Metode Pengembalian Refund (Jika Ada) */}
+                                {Boolean(
+                                  sale.refundMethods && sale.refundMethods.length > 0,
+                                ) && (
+                                  <div className="flex flex-wrap gap-1 justify-center items-center pt-1 border-t border-border/30 w-full">
+                                    {sale.refundMethods.map((method) => (
                                       <span
-                                        key={method}
-                                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none ${methodBadgeColor}`}
+                                        key={`refund-${method}`}
+                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/50"
+                                        title={`Refund: ${method}`}
                                       >
-                                        {method}
+                                        <LuRotateCcw size={7} />
+                                        <span>{method}</span>
                                       </span>
-                                    );
-                                  })}
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </TableCell>
 
                             {/* Status Pembayaran */}
                             <TableCell className="py-4 px-5 text-center min-w-[160px]">
-                              <span
-                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none ${
-                                  sale.status === "PAID"
-                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50"
-                                    : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50"
-                                }`}
-                              >
-                                {sale.status === "PAID"
-                                  ? "Lunas"
-                                  : "Belum Lunas"}
-                              </span>
+                              <div className="flex flex-col items-center justify-center gap-1">
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none ${
+                                    sale.status === "PAID"
+                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50"
+                                      : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50"
+                                  }`}
+                                >
+                                  {sale.status === "PAID"
+                                    ? "Lunas"
+                                    : "Belum Lunas"}
+                                </span>
+                                {Boolean(sale.hasRefund && sale.orderStatus !== "REFUND") && (
+                                  <span
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border leading-none bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/50 shadow-xs"
+                                    title={`Terdapat riwayat refund sebagian senilai ${formatCurrency(sale.refundAmount || 0)}`}
+                                  >
+                                    <LuRotateCcw className="h-2.5 w-2.5" />
+                                    Refund Sebagian
+                                  </span>
+                                )}
+                              </div>
                             </TableCell>
 
                             {/* Status Pesanan */}

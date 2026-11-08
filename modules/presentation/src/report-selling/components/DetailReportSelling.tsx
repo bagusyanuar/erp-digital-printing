@@ -129,7 +129,12 @@ const DetailReportSelling: React.FC<DetailReportSellingProps> = ({
 
   if (!sale) return null;
 
-  const outstanding = sale.grand_total - sale.amount_paid;
+  const outstanding =
+    sale.remaining_debt !== undefined
+      ? sale.remaining_debt
+      : sale.status === "REFUND" || sale.status === "CANCELLED"
+        ? 0
+        : Math.max(0, sale.grand_total - sale.amount_paid);
   const customerType: string = sale.reseller_id ? "reseller" : "retail";
 
   return (
@@ -240,10 +245,18 @@ const DetailReportSelling: React.FC<DetailReportSellingProps> = ({
                         Refund
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50">
-                        <LuCircleCheck className="h-2.5 w-2.5" />
-                        Selesai
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50">
+                          <LuCircleCheck className="h-2.5 w-2.5" />
+                          Selesai
+                        </span>
+                        {Boolean(sale.has_refund && sale.status !== "REFUND") && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/50">
+                            <LuRotateCcw className="h-2.5 w-2.5" />
+                            Refund Sebagian
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -425,6 +438,17 @@ const DetailReportSelling: React.FC<DetailReportSellingProps> = ({
                   {formatCurrency(sale.grand_total)}
                 </span>
               </div>
+              {(sale.has_refund || (sale.refund_amount || 0) > 0) && (
+                <div className="flex justify-between items-center text-rose-500 font-bold">
+                  <span className="flex items-center gap-1">
+                    <LuRotateCcw size={12} />
+                    Total Refund
+                  </span>
+                  <span className="font-black">
+                    - {formatCurrency(sale.refund_amount || 0)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
                 <span>Terbayar</span>
                 <span className="font-black">

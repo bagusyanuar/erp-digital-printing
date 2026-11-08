@@ -59,6 +59,10 @@ export interface OrderModel {
   total_product_price: number;
   grand_total: number;
   amount_paid: number;
+  remaining_debt?: number;
+  pending_refund?: number;
+  has_refund?: boolean;
+  refund_amount?: number;
   order_items: OrderItemModel[];
   order_payments?: OrderPaymentModel[];
   created_at: string;

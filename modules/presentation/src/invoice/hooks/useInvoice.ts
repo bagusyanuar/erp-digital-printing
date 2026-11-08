@@ -44,8 +44,13 @@ export interface Invoice {
   invoicedAt?: string | null;
   items: InvoiceItem[];
   paymentMethods: string[];
+  refundMethods?: string[];
   totalAmount: number;
   amountPaid: number;
+  remainingDebt: number;
+  pendingRefund: number;
+  hasRefund?: boolean;
+  refundAmount?: number;
   status: "PAID" | "PARTIAL" | "UNPAID";
   orderStatus: string;
   designerName: string;
@@ -123,9 +128,9 @@ export const useInvoice = () => {
     }
   }, [dateRange]);
 
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "PAID" | "UNPAID">(
-    "ALL",
-  );
+  const [statusFilter, setStatusFilter] = useState<
+    "ALL" | "PAID" | "UNPAID" | "PARTIALLY_REFUNDED"
+  >("ALL");
   const [customerTypeFilter, setCustomerTypeFilter] = useState<
     "ALL" | "RESELLER" | "END_USER"
   >("ALL");
@@ -138,7 +143,7 @@ export const useInvoice = () => {
 
   // Temporary filter states for draft selections before clicking 'Terapkan'
   const [tempStatusFilter, setTempStatusFilter] = useState<
-    "ALL" | "PAID" | "UNPAID"
+    "ALL" | "PAID" | "UNPAID" | "PARTIALLY_REFUNDED"
   >("ALL");
   const [tempCustomerTypeFilter, setTempCustomerTypeFilter] = useState<
     "ALL" | "RESELLER" | "END_USER"
@@ -182,6 +187,7 @@ export const useInvoice = () => {
   const mappedPaymentStatus = useMemo(() => {
     if (statusFilter === "PAID") return "PAID";
     if (statusFilter === "UNPAID") return "PARTIAL_PAID,UNPAID";
+    if (statusFilter === "PARTIALLY_REFUNDED") return "PARTIALLY_REFUNDED";
     return undefined; // ALL
   }, [statusFilter]);
 
@@ -241,7 +247,7 @@ export const useInvoice = () => {
 
   const outstandingAmount = useMemo(() => {
     if (!selectedInvoice) return 0;
-    return selectedInvoice.totalAmount - selectedInvoice.amountPaid;
+    return selectedInvoice.remainingDebt;
   }, [selectedInvoice]);
 
   const totalSplitInput = useMemo(() => {
@@ -460,14 +466,41 @@ export const useInvoice = () => {
         }),
         totalAmount: order.grand_total || 0,
         amountPaid: order.amount_paid || 0,
+        remainingDebt:
+          order.remaining_debt !== undefined
+            ? order.remaining_debt
+            : order.status === "REFUND" || order.status === "CANCELLED"
+              ? 0
+              : Math.max(0, (order.grand_total || 0) - (order.amount_paid || 0)),
+        pendingRefund:
+          order.pending_refund ??
+          (order.status === "REFUND" ? order.amount_paid || 0 : 0),
+        hasRefund:
+          order.has_refund ??
+          Boolean(order.order_payments?.some((p) => p.payment_type === "REFUND")),
+        refundAmount:
+          order.refund_amount ??
+          (order.order_payments
+            ?.filter((p) => p.payment_type === "REFUND")
+            .reduce((sum, p) => sum + p.amount, 0) || 0),
         paymentMethods: Array.from(
           new Set(
             (order.order_payments ?? [])
+              .filter((pay) => pay.payment_type !== "REFUND")
+              .map((pay) => pay.payment_method.toUpperCase())
+              .filter(Boolean),
+          ),
+        ),
+        refundMethods: Array.from(
+          new Set(
+            (order.order_payments ?? [])
+              .filter((pay) => pay.payment_type === "REFUND")
               .map((pay) => pay.payment_method.toUpperCase())
               .filter(Boolean),
           ),
         ),
         status:
+          (order.remaining_debt !== undefined && order.remaining_debt <= 0.01) ||
           order.payment_status === "PAID"
             ? "PAID"
             : order.payment_status === "PARTIAL_PAID"
@@ -510,7 +543,7 @@ export const useInvoice = () => {
       (i) => i.status !== "PAID",
     ).length;
     const totalReceivable = filteredInvoices.reduce(
-      (sum, i) => sum + (i.totalAmount - i.amountPaid),
+      (sum, i) => sum + i.remainingDebt,
       0,
     );
     const totalSales = filteredInvoices.reduce(
@@ -527,7 +560,7 @@ export const useInvoice = () => {
 
   const handleOpenPay = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
-    setPayAmount(invoice.totalAmount - invoice.amountPaid);
+    setPayAmount(invoice.remainingDebt);
     setPayMethod("CASH");
     setIsSplitPayment(false);
     setSplitAmounts({ cash: 0, transfer: 0, qris: 0 });
@@ -692,7 +725,10 @@ export const useInvoice = () => {
     setIsEditPaymentMethodOpen(true);
   };
 
-  const handleOpenEditPaymentForInvoice = async (invoice: Invoice) => {
+  const handleOpenEditPaymentForInvoice = async (
+    invoice: Invoice,
+    targetType?: "PAYMENT" | "REFUND",
+  ) => {
     setSelectedInvoice(invoice);
     let pays = invoice.payments ?? [];
     if (pays.length === 0) {
@@ -703,8 +739,7 @@ export const useInvoice = () => {
       }
     }
 
-    const firstPayment = pays[0];
-    if (!firstPayment) {
+    if (pays.length === 0) {
       toast.error(
         "Pembayaran Kosong",
         "Invoice ini belum memiliki catatan riwayat pembayaran.",
@@ -712,8 +747,24 @@ export const useInvoice = () => {
       return;
     }
 
-    setEditingPayment(firstPayment);
-    setEditPaymentMethod(firstPayment.payment_method.toLowerCase());
+    let targetPayment: OrderPaymentModel | undefined;
+    if (targetType === "REFUND") {
+      targetPayment = pays.find((p) => p.payment_type === "REFUND");
+    } else if (targetType === "PAYMENT") {
+      targetPayment = pays.find((p) => p.payment_type !== "REFUND");
+    }
+
+    const selected = targetPayment || pays[0];
+    if (!selected) {
+      toast.error(
+        "Pembayaran Kosong",
+        "Data transaksi pembayaran tidak ditemukan.",
+      );
+      return;
+    }
+
+    setEditingPayment(selected);
+    setEditPaymentMethod(selected.payment_method.toLowerCase());
     setIsEditPaymentMethodOpen(true);
   };
 

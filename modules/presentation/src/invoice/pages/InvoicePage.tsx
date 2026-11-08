@@ -395,7 +395,11 @@ const InvoicePage = () => {
                           value={tempStatusFilter}
                           onChange={(e) => {
                             setTempStatusFilter(
-                              e.target.value as "ALL" | "PAID" | "UNPAID",
+                              e.target.value as
+                                | "ALL"
+                                | "PAID"
+                                | "UNPAID"
+                                | "PARTIALLY_REFUNDED",
                             );
                           }}
                           className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
@@ -403,6 +407,9 @@ const InvoicePage = () => {
                           <option value="ALL">Semua Status</option>
                           <option value="PAID">Lunas</option>
                           <option value="UNPAID">Belum Lunas</option>
+                          <option value="PARTIALLY_REFUNDED">
+                            Refund Sebagian
+                          </option>
                         </select>
                       </div>
 
@@ -574,7 +581,7 @@ const InvoicePage = () => {
                 </tr>
               ) : filteredInvoices.length > 0 ? (
                 filteredInvoices.map((inv) => {
-                  const outstanding = inv.totalAmount - inv.amountPaid;
+                  const outstanding = inv.remainingDebt;
 
                   return (
                     <tr
@@ -648,62 +655,105 @@ const InvoicePage = () => {
 
                       {/* Metode Pembayaran */}
                       <td className="py-4 px-5 text-center">
-                        <div className="flex flex-wrap gap-1 justify-center">
-                          {inv.paymentMethods.length > 0 ? (
-                            inv.paymentMethods.map((method) => {
-                              let badgeColor =
-                                "bg-muted text-muted-foreground border-border/50";
-                              const normalized = method.toLowerCase();
-                              if (normalized === "qris") {
-                                badgeColor =
-                                  "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
-                              } else if (
-                                normalized === "cash" ||
-                                normalized === "tunai"
-                              ) {
-                                badgeColor =
-                                  "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
-                              } else if (
-                                normalized === "transfer" ||
-                                normalized === "bank"
-                              ) {
-                                badgeColor =
-                                  "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
-                              }
-                              return (
+                        <div className="flex flex-col items-center justify-center gap-1.5">
+                          {/* Metode Pembayaran Masuk */}
+                          <div className="flex flex-wrap gap-1 justify-center">
+                            {inv.paymentMethods.length > 0 ? (
+                              inv.paymentMethods.map((method) => {
+                                let badgeColor =
+                                  "bg-muted text-muted-foreground border-border/50";
+                                const normalized = method.toLowerCase();
+                                if (normalized === "qris") {
+                                  badgeColor =
+                                    "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/50";
+                                } else if (
+                                  normalized === "cash" ||
+                                  normalized === "tunai"
+                                ) {
+                                  badgeColor =
+                                    "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50";
+                                } else if (
+                                  normalized === "transfer" ||
+                                  normalized === "bank"
+                                ) {
+                                  badgeColor =
+                                    "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50";
+                                }
+                                return (
+                                  <button
+                                    key={method}
+                                    type="button"
+                                    onClick={() =>
+                                      handleOpenEditPaymentForInvoice(
+                                        inv,
+                                        "PAYMENT",
+                                      )
+                                    }
+                                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none hover:opacity-80 active:scale-95 transition-all cursor-pointer ${badgeColor}`}
+                                    title="Klik untuk ubah metode pembayaran masuk"
+                                  >
+                                    <span>{method}</span>
+                                    <LuPencil size={8} className="opacity-70" />
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              <span className="text-muted-foreground text-[10px]">
+                                -
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Metode Pengembalian Refund (Jika Ada) */}
+                          {Boolean(
+                            inv.refundMethods && inv.refundMethods.length > 0,
+                          ) && (
+                            <div className="flex flex-wrap gap-1 justify-center items-center pt-1 border-t border-border/30 w-full">
+                              {inv.refundMethods!.map((method) => (
                                 <button
-                                  key={method}
+                                  key={`refund-${method}`}
                                   type="button"
                                   onClick={() =>
-                                    handleOpenEditPaymentForInvoice(inv)
+                                    handleOpenEditPaymentForInvoice(
+                                      inv,
+                                      "REFUND",
+                                    )
                                   }
-                                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border leading-none hover:opacity-80 active:scale-95 transition-all cursor-pointer ${badgeColor}`}
-                                  title="Klik untuk ubah metode pembayaran"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border leading-none hover:opacity-80 active:scale-95 transition-all cursor-pointer bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/50"
+                                  title={`Refund: ${method} (Klik untuk ubah metode refund kas keluar)`}
                                 >
+                                  <LuRotateCcw size={7} />
                                   <span>{method}</span>
-                                  <LuPencil size={8} className="opacity-70" />
+                                  <LuPencil size={7} className="opacity-70" />
                                 </button>
-                              );
-                            })
-                          ) : (
-                            <span className="text-muted-foreground text-[10px]">
-                              -
-                            </span>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </td>
 
                       {/* Payment Status Badge */}
                       <td className="py-4 px-5 text-center">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none ${
-                            inv.status === "PAID"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50"
-                              : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50"
-                          }`}
-                        >
-                          {inv.status === "PAID" ? "Lunas" : "Belum Lunas"}
-                        </span>
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border leading-none ${
+                              inv.status === "PAID"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50"
+                                : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50"
+                            }`}
+                          >
+                            {inv.status === "PAID" ? "Lunas" : "Belum Lunas"}
+                          </span>
+                          {Boolean(inv.hasRefund && inv.orderStatus !== "REFUND") && (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border leading-none bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/50 shadow-xs"
+                              title={`Terdapat riwayat refund sebagian senilai ${formatCurrency(inv.refundAmount || 0)}`}
+                            >
+                              <LuRotateCcw className="h-2.5 w-2.5" />
+                              Refund Sebagian
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Order Status Badge */}
@@ -749,7 +799,7 @@ const InvoicePage = () => {
                                 <LuReceipt className="h-3.5 w-3.5 text-primary" />
                                 <span>Detail Rincian</span>
                               </DropdownItem>
-                              {inv.orderStatus !== "REFUND" && (
+                              {!(inv.orderStatus === "REFUND" && inv.amountPaid <= 0) && (
                                 <>
                                   <DropdownItem
                                     onClick={() => handlePrintInvoice(inv)}
@@ -766,7 +816,7 @@ const InvoicePage = () => {
                                     <LuScissors className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                                     <span>Cetak SPK (Kerja)</span>
                                   </DropdownItem>
-                                  {inv.status !== "PAID" && (
+                                  {inv.remainingDebt > 0 && inv.orderStatus !== "REFUND" && (
                                     <DropdownItem
                                       onClick={() => handleOpenPay(inv)}
                                     >
@@ -806,7 +856,8 @@ const InvoicePage = () => {
                                     </DropdownItem>
                                   )}
                                   {canCancel &&
-                                    inv.orderStatus !== "CANCELLED" && (
+                                    inv.orderStatus !== "CANCELLED" &&
+                                    inv.orderStatus !== "REFUND" && (
                                       <DropdownItem
                                         onClick={() => handleOpenCancel(inv)}
                                       >
@@ -1251,7 +1302,7 @@ const InvoicePage = () => {
             </div>
 
             {/* Short info */}
-            <div className="bg-primary/5 dark:bg-primary/10 p-4 rounded-2xl border border-primary/15 space-y-1">
+            <div className="bg-primary/5 dark:bg-primary/10 p-4 rounded-2xl border border-primary/15 space-y-1.5">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase text-muted-foreground">
                   Nomor Nota
@@ -1266,6 +1317,26 @@ const InvoicePage = () => {
                   {selectedInvoice.customerName}
                 </span>
               </div>
+              <div className="flex justify-between items-center font-bold text-xs">
+                <span className="text-muted-foreground">Total Tagihan:</span>
+                <span className="font-mono font-black text-foreground">
+                  {formatCurrency(selectedInvoice.totalAmount)}
+                </span>
+              </div>
+              {Boolean(
+                selectedInvoice.hasRefund &&
+                  (selectedInvoice.refundAmount || 0) > 0,
+              ) && (
+                <div className="flex justify-between items-center text-xs font-bold pt-1 border-t border-primary/10 text-rose-600 dark:text-rose-400">
+                  <span className="flex items-center gap-1 text-[10px] uppercase font-black tracking-wider">
+                    <LuRotateCcw size={11} />
+                    Pernah Refund Sebagian:
+                  </span>
+                  <span className="font-mono font-black">
+                    - {formatCurrency(selectedInvoice.refundAmount || 0)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between items-center font-black text-xs pt-1.5 border-t border-primary/10">
                 <span className="text-rose-600 dark:text-rose-400">
                   Sisa Tagihan (Piutang):
@@ -1277,6 +1348,20 @@ const InvoicePage = () => {
                 </span>
               </div>
             </div>
+
+            {/* Refund notification banner in Repay modal */}
+            {Boolean(
+              selectedInvoice.hasRefund &&
+                (selectedInvoice.refundAmount || 0) > 0,
+            ) && (
+              <div className="flex items-center gap-2.5 p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-xs text-rose-700 dark:text-rose-400 animate-in fade-in">
+                <LuRotateCcw className="shrink-0 text-rose-600 dark:text-rose-400" size={15} />
+                <span className="leading-snug text-[11px] font-semibold">
+                  Nota ini memiliki riwayat refund sebagian sebesar{" "}
+                  <strong>{formatCurrency(selectedInvoice.refundAmount || 0)}</strong>. Sisa tagihan telah disesuaikan otomatis untuk pelunasan lanjutan.
+                </span>
+              </div>
+            )}
 
             {/* Toggle Split Payment */}
             <div className="flex items-center justify-between bg-muted/20 border border-border/50 p-3.5 rounded-2xl shadow-sm animate-in fade-in duration-200">
@@ -2907,15 +2992,28 @@ const InvoicePage = () => {
         {selectedInvoice && editingPayment && (
           <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col gap-1 border-b border-border/30 pb-4">
-              <h2 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
-                <LuPencil className="text-primary" size={18} />
-                Ubah Metode Pembayaran
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Pilih metode pembayaran pengganti untuk rincian transaksi ini.
-              </p>
-            </div>
+            {(() => {
+              const isRefundPayment = editingPayment.payment_type === "REFUND";
+              return (
+                <div className="flex flex-col gap-1 border-b border-border/30 pb-4">
+                  <h2 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
+                    {isRefundPayment ? (
+                      <LuRotateCcw className="text-rose-500" size={18} />
+                    ) : (
+                      <LuPencil className="text-primary" size={18} />
+                    )}
+                    {isRefundPayment
+                      ? "Ubah Metode Refund (Kas Keluar)"
+                      : "Ubah Metode Pembayaran (Kas Masuk)"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {isRefundPayment
+                      ? "Pilih metode kas keluar pengganti untuk riwayat pengembalian dana ini."
+                      : "Pilih metode pembayaran pengganti untuk rincian transaksi penjualan ini."}
+                  </p>
+                </div>
+              );
+            })()}
 
             {/* Info Box */}
             <div className="bg-muted/40 p-4 rounded-lg border border-border/50 space-y-2">
@@ -2926,8 +3024,28 @@ const InvoicePage = () => {
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground font-medium">Tipe Transaksi:</span>
+                {editingPayment.payment_type === "REFUND" ? (
+                  <span className="inline-flex items-center gap-1 uppercase px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                    <LuRotateCcw size={9} />
+                    Pengembalian Dana / Refund (Kas Keluar)
+                  </span>
+                ) : (
+                  <span className="uppercase px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                    Pembayaran Penjualan (Kas Masuk)
+                  </span>
+                )}
+              </div>
+              <div className="flex justify-between items-center text-xs">
                 <span className="text-muted-foreground font-medium">Nominal:</span>
-                <span className="font-bold text-foreground">
+                <span
+                  className={`font-mono font-bold ${
+                    editingPayment.payment_type === "REFUND"
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-foreground"
+                  }`}
+                >
+                  {editingPayment.payment_type === "REFUND" ? "- " : "+ "}
                   {formatCurrency(editingPayment.amount)}
                 </span>
               </div>
@@ -2944,11 +3062,12 @@ const InvoicePage = () => {
               selectedInvoice.payments.length > 1 && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground block">
-                    Pilih Transaksi Pembayaran:
+                    Pilih Transaksi (Pembayaran / Refund):
                   </label>
-                  <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
+                  <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-1">
                     {selectedInvoice.payments.map((p, idx) => {
                       const isCurrent = editingPayment.id === p.id;
+                      const isRefund = p.payment_type === "REFUND";
                       return (
                         <button
                           key={p.id}
@@ -2956,17 +3075,36 @@ const InvoicePage = () => {
                           onClick={() => handleSelectEditingPayment(p)}
                           className={`flex justify-between items-center p-2 rounded-lg border text-xs font-semibold transition-all text-left ${
                             isCurrent
-                              ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
+                              ? isRefund
+                                ? "border-rose-500 bg-rose-500/10 text-rose-600 ring-1 ring-rose-500"
+                                : "border-primary bg-primary/10 text-primary ring-1 ring-primary"
                               : "border-border/60 hover:bg-muted/50 text-muted-foreground hover:text-foreground"
                           }`}
                         >
                           <div className="flex items-center gap-2">
                             <span>#{idx + 1}</span>
-                            <span className="uppercase px-1.5 py-0.5 rounded text-[9px] bg-muted border border-border/50 font-bold">
+                            {isRefund ? (
+                              <span className="inline-flex items-center gap-1 uppercase px-1.5 py-0.5 rounded text-[8px] bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold border border-rose-500/20">
+                                <LuRotateCcw size={8} />
+                                Refund
+                              </span>
+                            ) : (
+                              <span className="uppercase px-1.5 py-0.5 rounded text-[8px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+                                Bayar
+                              </span>
+                            )}
+                            <span className="uppercase px-1.5 py-0.5 rounded text-[9px] bg-muted border border-border/50 font-bold text-foreground">
                               {p.payment_method}
                             </span>
                           </div>
-                          <span className="font-bold text-foreground">
+                          <span
+                            className={`font-mono font-bold ${
+                              isRefund
+                                ? "text-rose-600 dark:text-rose-400"
+                                : "text-emerald-600 dark:text-emerald-400"
+                            }`}
+                          >
+                            {isRefund ? "- " : "+ "}
                             {formatCurrency(p.amount)}
                           </span>
                         </button>

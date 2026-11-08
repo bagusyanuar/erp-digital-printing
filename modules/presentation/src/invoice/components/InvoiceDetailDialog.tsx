@@ -149,7 +149,13 @@ export const InvoiceDetailDialog: React.FC<InvoiceDetailDialogProps> = ({
     });
   }, [order]);
 
-  const outstanding = order ? Math.max(0, order.grand_total - order.amount_paid) : 0;
+  const outstanding = order
+    ? order.remaining_debt !== undefined
+      ? order.remaining_debt
+      : order.status === "REFUND" || order.status === "CANCELLED"
+        ? 0
+        : Math.max(0, order.grand_total - order.amount_paid)
+    : 0;
   const isReseller = Boolean(order?.reseller_id);
 
   return (
@@ -278,16 +284,26 @@ export const InvoiceDetailDialog: React.FC<InvoiceDetailDialogProps> = ({
                           <LuRotateCcw size={10} />
                           Refund
                         </span>
-                      ) : outstanding === 0 ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                          <LuCircleCheck size={10} />
-                          Lunas
-                        </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border bg-amber-500/10 text-amber-600 border-amber-500/20">
-                          <LuClock size={10} />
-                          Sebagian (DP)
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {outstanding === 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                              <LuCircleCheck size={10} />
+                              Lunas
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border bg-amber-500/10 text-amber-600 border-amber-500/20">
+                              <LuClock size={10} />
+                              Sebagian (DP)
+                            </span>
+                          )}
+                          {Boolean(order.has_refund) && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border bg-rose-500/10 text-rose-600 border-rose-500/20">
+                              <LuRotateCcw size={10} />
+                              Refund Sebagian
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -494,8 +510,24 @@ export const InvoiceDetailDialog: React.FC<InvoiceDetailDialogProps> = ({
                     {formatCurrency(order.grand_total)}
                   </span>
                 </div>
+                {Boolean(
+                  order.has_refund ||
+                    (order.refund_amount && order.refund_amount > 0),
+                ) && (
+                  <div className="flex justify-between items-center text-rose-600 dark:text-rose-400">
+                    <span className="flex items-center gap-1">
+                      <LuRotateCcw size={11} />
+                      Total Refund
+                    </span>
+                    <span className="font-mono font-bold">
+                      - {formatCurrency(order.refund_amount || 0)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
-                  <span>Terbayar</span>
+                  <span>
+                    {order.has_refund ? "Terbayar (Bersih)" : "Terbayar"}
+                  </span>
                   <span className="font-mono font-bold">
                     {formatCurrency(order.amount_paid)}
                   </span>

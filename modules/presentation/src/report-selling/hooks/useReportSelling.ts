@@ -18,6 +18,11 @@ export interface SalesTransaction {
   totalAmount: number;
   paidAmount: number;
   paymentMethod: string;
+  paymentMethods: string[];
+  refundMethods: string[];
+  hasRefund?: boolean;
+  refundAmount?: number;
+  remainingDebt?: number;
   status: "PAID" | "DOWN_PAYMENT" | "UNPAID";
   orderStatus: string;
   productCategory: string;
@@ -94,9 +99,9 @@ export const useReportSelling = () => {
   const debouncedSearch = useDebounce(searchQuery, 750);
   const [customerTypeFilter, setCustomerTypeFilter] = useState<string>("all");
   const [operatorFilter, setOperatorFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "PAID" | "UNPAID">(
-    "all",
-  );
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "PAID" | "UNPAID" | "PARTIALLY_REFUNDED"
+  >("all");
   const [orderStatusFilter, setOrderStatusFilter] = useState<
     "all" | "SUCCESS" | "REFUND"
   >("all");
@@ -104,7 +109,7 @@ export const useReportSelling = () => {
     useState<string>("all");
   const [tempOperatorFilter, setTempOperatorFilter] = useState<string>("all");
   const [tempStatusFilter, setTempStatusFilter] = useState<
-    "all" | "PAID" | "UNPAID"
+    "all" | "PAID" | "UNPAID" | "PARTIALLY_REFUNDED"
   >("all");
   const [tempOrderStatusFilter, setTempOrderStatusFilter] = useState<
     "all" | "SUCCESS" | "REFUND"
@@ -166,6 +171,7 @@ export const useReportSelling = () => {
   const mappedPaymentStatus = useMemo(() => {
     if (statusFilter === "PAID") return "PAID";
     if (statusFilter === "UNPAID") return "PARTIAL_PAID,UNPAID";
+    if (statusFilter === "PARTIALLY_REFUNDED") return "PARTIALLY_REFUNDED";
     return undefined; // ALL
   }, [statusFilter]);
 
@@ -432,23 +438,51 @@ export const useReportSelling = () => {
       );
       const productCategory =
         order.order_items?.[0]?.product_name || "Lain-lain";
-      const uniqueMethods = Array.from(
+      const paymentMethods = Array.from(
         new Set(
           (order.order_payments ?? [])
-            .map((p) => p.payment_method)
+            .filter((p) => p.payment_type !== "REFUND")
+            .map((p) => p.payment_method.toUpperCase())
+            .filter(Boolean),
+        ),
+      );
+      const refundMethods = Array.from(
+        new Set(
+          (order.order_payments ?? [])
+            .filter((p) => p.payment_type === "REFUND")
+            .map((p) => p.payment_method.toUpperCase())
             .filter(Boolean),
         ),
       );
       const paymentMethod =
-        uniqueMethods.length > 0 ? uniqueMethods.join(", ") : "CASH";
+        paymentMethods.length > 0 ? paymentMethods.join(", ") : "CASH";
+      const hasRefund =
+        order.has_refund ??
+        Boolean(order.order_payments?.some((p) => p.payment_type === "REFUND"));
+      const refundAmount =
+        order.refund_amount ??
+        (order.order_payments
+          ?.filter((p) => p.payment_type === "REFUND")
+          .reduce((sum, p) => sum + p.amount, 0) || 0);
+      const remainingDebt =
+        order.remaining_debt !== undefined
+          ? order.remaining_debt
+          : order.status === "REFUND" || order.status === "CANCELLED"
+            ? 0
+            : Math.max(0, (order.grand_total || 0) - (order.amount_paid || 0));
       const operatorName =
         order.order_payments?.[0]?.cashier_name ||
         order.designer_name ||
         "Sistem";
 
       let status: "PAID" | "DOWN_PAYMENT" | "UNPAID" = "UNPAID";
-      if (order.payment_status === "PAID") {
+      if (
+        (order.remaining_debt !== undefined && order.remaining_debt <= 0.01) ||
+        order.payment_status === "PAID"
+      ) {
         status = "PAID";
+      } else if (order.payment_status === "PARTIAL_PAID") {
+        status = "DOWN_PAYMENT";
       }
 
       let customerType: "retail" | "reseller" | "corporate" = "retail";
@@ -468,6 +502,11 @@ export const useReportSelling = () => {
         totalAmount: order.grand_total,
         paidAmount: order.amount_paid,
         paymentMethod,
+        paymentMethods,
+        refundMethods,
+        hasRefund,
+        refundAmount,
+        remainingDebt,
         status,
         orderStatus: order.status,
         productCategory,

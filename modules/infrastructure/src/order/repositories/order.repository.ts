@@ -28,6 +28,10 @@ export function mapOrderResponseToModel(order: OrderResponse): OrderModel {
     total_product_price: order.total_product_price,
     grand_total: order.grand_total,
     amount_paid: order.amount_paid,
+    remaining_debt: order.remaining_debt ?? 0,
+    pending_refund: order.pending_refund ?? 0,
+    has_refund: order.has_refund ?? false,
+    refund_amount: order.refund_amount ?? 0,
     order_items: (order.order_items ?? []).map((item) => ({
       id: item.id,
       product_variant_id: item.product_variant_id,
