@@ -11,7 +11,7 @@ import type { GetAttributes, CreateAttribute, GetAttributeById, UpdateAttribute,
 import type { GetProducts, CreateProduct, GetProductById, UpdateProduct, DeleteProduct, ReorderProduct } from "@core/product/applications/usecases/product.usecase";
 import type { SaveDraftOrder, GetOrders, SubmitOrder, PayOrder, RepayOrder, RefundOrder, CancelOrder, GetOrderSpk, GetOrderPayments, UpdateOrderStatus, GetOrderById, UpdateOrder, GetOrderReportWidgets, GetSalesReportWidgets, GetSalesTrend, GetCategorySales, GetPaymentSales, GetProductSales, MergeOrder, CreateDirectOrder, UpdatePaymentMethod } from "@core/order/applications/usecases/order.usecase";
 
-import type { GetCashFlowReport, GetCashFlowSummary, CreateCashFlowAdjustment, GetCashAccounts } from "@core/cash-flow/applications/usecases/cash-flow.usecase";
+import type { GetCashFlowReport, GetCashFlowSummary, CreateCashFlowAdjustment, GetCashAccounts, ExportCashFlow } from "@core/cash-flow/applications/usecases/cash-flow.usecase";
 import type {
   GetUsers,
   CreateUser,
@@ -26,7 +26,7 @@ import type { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAna
 import type { GetCapitalTransactions, CreateCapitalTransaction, DeleteCapitalTransaction } from "@core/capital/applications/usecases/capital.usecase";
 import type { GetFundTransfers, CreateFundTransfer, GetFundTransferWidgets } from "@core/fund-transfer/applications/usecases/fund-transfer.usecase";
 import type { GetDashboardWidgets, GetWeeklyRevenue } from "@core/dashboard/applications/usecases/dashboard.usecase";
-import type { GetProfitLoss, GetProfitLossTrend } from "@core/report";
+import type { ExportSalesReport, GetProfitLoss, GetProfitLossTrend } from "@core/report";
 import type {
   GetCustomerReceivables,
   GetSettledReceivables,
@@ -62,6 +62,7 @@ export interface ReceivableUseCases {
 export interface ReportUseCases {
   getProfitLossUseCase: GetProfitLoss;
   getProfitLossTrendUseCase: GetProfitLossTrend;
+  exportSalesReportUseCase: ExportSalesReport;
 }
 
 export interface DashboardUseCases {
@@ -171,6 +172,7 @@ export interface CashFlowUseCases {
   getCashFlowSummaryUseCase: GetCashFlowSummary;
   createCashFlowAdjustmentUseCase: CreateCashFlowAdjustment;
   getCashAccountsUseCase: GetCashAccounts;
+  exportCashFlowUseCase: ExportCashFlow;
 }
 
 export interface UserUseCases {

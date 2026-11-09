@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "@erp-digital-printing/ui/Toast";
 import { useOrderDI } from "@presentation/order/hooks/useOrderDI";
 import { orderKeys } from "@infrastructure/order/keys";
 import { useCategoryDI } from "@presentation/category/hooks/useCategoryDI";
@@ -7,6 +8,8 @@ import { categoryKeys } from "@infrastructure/category/keys/category.key";
 import { useUserDI } from "../../user/hooks/useUserDI";
 import { userKeys } from "@infrastructure/user/keys/user.key";
 import { useDebounce } from "../../shared/hooks/useDebounce";
+import { useReportSellingDI } from "./useReportSellingDI";
+import { downloadBlob } from "@presentation/shared/utils/download.utils";
 import type { DateRange } from "@erp-digital-printing/ui/DateRangePicker";
 import type { OrderModel } from "@core/order/domains/models/order.model";
 
@@ -71,6 +74,7 @@ export const useReportSelling = () => {
   } = useOrderDI();
   const { getUsersUseCase } = useUserDI();
   const { getCategoriesUseCase } = useCategoryDI();
+  const { exportSalesReportUseCase } = useReportSellingDI();
   const [activeTab, setActiveTab] = useState<"data" | "category" | "analytic">(
     "data",
   );
@@ -204,6 +208,34 @@ export const useReportSelling = () => {
       return undefined;
     }
   }, [dateRange]);
+
+  const { mutate: exportSalesReport, isPending: isExporting } = useMutation({
+    mutationFn: async () => {
+      const result = await exportSalesReportUseCase.execute({
+        startDate: startDateStr,
+        endDate: endDateStr,
+      });
+
+      const defaultFilename =
+        startDateStr && endDateStr
+          ? startDateStr === endDateStr
+            ? `Laporan_Penjualan_${startDateStr.replace(/-/g, "")}.xlsx`
+            : `Laporan_Penjualan_${startDateStr.replace(/-/g, "")}_${endDateStr.replace(/-/g, "")}.xlsx`
+          : "Laporan_Penjualan.xlsx";
+
+      downloadBlob(result.blob, result.filename || defaultFilename);
+      return result;
+    },
+    onSuccess: () => {
+      toast.success("Berhasil Export", "Laporan penjualan berhasil diunduh.");
+    },
+    onError: (err: Error) => {
+      toast.error(
+        "Gagal Export",
+        err.message || "Terjadi kesalahan saat mengunduh laporan penjualan.",
+      );
+    },
+  });
 
   // Fetch report widgets data from backend API
   const { data: widgetsData, isLoading: isLoadingWidgets } = useQuery({
@@ -769,5 +801,7 @@ export const useReportSelling = () => {
     setCategorySearch,
     totalProductSales: productSalesRaw?.total ?? 0,
     response,
+    exportSalesReport,
+    isExporting,
   };
 };

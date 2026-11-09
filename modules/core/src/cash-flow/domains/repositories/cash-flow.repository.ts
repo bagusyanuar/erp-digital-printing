@@ -1,5 +1,10 @@
 import type { PaginatedResponse } from "@core/shared/api/pagination";
-import type { CashFlowFilterInput, CreateAdjustmentInput } from "../../applications/inputs/cash-flow.input";
+import type {
+  CashFlowFilterInput,
+  CreateAdjustmentInput,
+  ExportCashFlowParams,
+  ExportCashFlowResult,
+} from "../../applications/inputs/cash-flow.input";
 import type { CashFlowTransactionModel, CashFlowSummaryModel, CashAccountModel } from "../models/cash-flow.model";
 
 export interface CashFlowRepository {
@@ -7,4 +12,5 @@ export interface CashFlowRepository {
   getSummary(filter: Omit<CashFlowFilterInput, "page" | "limit">): Promise<CashFlowSummaryModel>;
   createAdjustment(input: CreateAdjustmentInput): Promise<CashFlowTransactionModel>;
   getAccounts(): Promise<CashAccountModel[]>;
+  exportExcel(params?: ExportCashFlowParams): Promise<ExportCashFlowResult>;
 }

@@ -4,7 +4,8 @@ import {
   GetCashFlowReport,
   GetCashFlowSummary,
   CreateCashFlowAdjustment,
-  GetCashAccounts
+  GetCashAccounts,
+  ExportCashFlow,
 } from "@core/cash-flow/applications/usecases/cash-flow.usecase";
 
 export function getCashFlowReportUseCase(http: HttpClient) {
@@ -21,4 +22,8 @@ export function createCashFlowAdjustmentUseCase(http: HttpClient) {
 
 export function getCashAccountsUseCase(http: HttpClient) {
   return new GetCashAccounts(new ApiCashFlowRepository(http));
+}
+
+export function exportCashFlowUseCase(http: HttpClient) {
+  return new ExportCashFlow(new ApiCashFlowRepository(http));
 }

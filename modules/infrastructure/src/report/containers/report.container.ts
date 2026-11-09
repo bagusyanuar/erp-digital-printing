@@ -1,5 +1,5 @@
 import type { HttpClient } from "@erp-digital-printing/http";
-import { GetProfitLoss, GetProfitLossTrend } from "@core/report";
+import { ExportSalesReport, GetProfitLoss, GetProfitLossTrend } from "@core/report";
 import { ApiReportRepository } from "../repositories/report.repository";
 
 export function getProfitLossUseCase(http: HttpClient): GetProfitLoss {
@@ -10,5 +10,10 @@ export function getProfitLossUseCase(http: HttpClient): GetProfitLoss {
 export function getProfitLossTrendUseCase(http: HttpClient): GetProfitLossTrend {
   const repository = new ApiReportRepository(http);
   return new GetProfitLossTrend(repository);
+}
+
+export function exportSalesReportUseCase(http: HttpClient): ExportSalesReport {
+  const repository = new ApiReportRepository(http);
+  return new ExportSalesReport(repository);
 }
 

@@ -22,6 +22,7 @@ import { Dialog } from "@erp-digital-printing/ui/Dialog";
 import { toast } from "@erp-digital-printing/ui/Toast";
 import { DateRangePicker, type DateRange } from "@erp-digital-printing/ui/DateRangePicker";
 import { useDebounce } from "../../shared/hooks/useDebounce";
+import { downloadBlob } from "@presentation/shared/utils/download.utils";
 import {
   Table,
   TableHeader,
@@ -109,6 +110,7 @@ const CashFlowPage = () => {
     getCashFlowSummaryUseCase,
     createCashFlowAdjustmentUseCase,
     getCashAccountsUseCase,
+    exportCashFlowUseCase,
   } = useCashFlowDI();
   const { getUsersUseCase } = useUserDI();
   const { getOrdersUseCase } = useOrderDI();
@@ -419,11 +421,48 @@ const CashFlowPage = () => {
     });
   };
 
-  // Simulate Export Trigger
+  // Export Excel Mutation
+  const { mutate: exportCashFlow, isPending: isExporting } = useMutation({
+    mutationFn: async () => {
+      const result = await exportCashFlowUseCase.execute({
+        startDate: activeFilters.startDate,
+        endDate: activeFilters.endDate,
+        paymentMethod: activeFilters.paymentMethod,
+        type: activeFilters.type,
+        referenceType: activeFilters.referenceType,
+        cashierId: activeFilters.cashierId,
+        search: activeFilters.search,
+      });
+
+      const defaultFilename =
+        activeFilters.startDate && activeFilters.endDate
+          ? activeFilters.startDate === activeFilters.endDate
+            ? `Laporan_Arus_Kas_${activeFilters.startDate.replace(/-/g, "")}.xlsx`
+            : `Laporan_Arus_Kas_${activeFilters.startDate.replace(/-/g, "")}_${activeFilters.endDate.replace(/-/g, "")}.xlsx`
+          : "Laporan_Arus_Kas.xlsx";
+
+      downloadBlob(result.blob, result.filename || defaultFilename);
+      return result;
+    },
+    onSuccess: () => {
+      toast.success("Berhasil Export", "Laporan arus kas berhasil diunduh.");
+    },
+    onError: (err: Error) => {
+      toast.error(
+        "Gagal Export",
+        err.message || "Terjadi kesalahan saat mengunduh laporan arus kas.",
+      );
+    },
+  });
+
   const handleExport = (format: "pdf" | "excel") => {
-    toast.success(
-      "Mengekspor Laporan...",
-      `Sedang menyiapkan laporan Cash Flow dalam format ${format.toUpperCase()}.`
+    if (format === "excel") {
+      exportCashFlow();
+      return;
+    }
+    toast.info(
+      "Format Segera Hadir",
+      `Ekspor laporan dalam format ${format.toUpperCase()} akan segera tersedia.`
     );
   };
 
@@ -458,11 +497,12 @@ const CashFlowPage = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleExport("excel")}
+            onClick={() => exportCashFlow()}
+            disabled={isExporting}
             className="h-9 px-3 rounded-xl font-bold border-border hover:bg-muted/70 flex items-center gap-1.5 text-xs"
           >
             <LuFileSpreadsheet size={14} className="text-emerald-600" />
-            Export Excel
+            {isExporting ? "Mengekspor..." : "Export Excel"}
           </Button>
           <Button
             size="sm"

@@ -1,4 +1,6 @@
 import type {
+  ExportSalesReportParams,
+  ExportSalesReportResult,
   ProfitLossModel,
   ProfitLossParams,
   ProfitLossTrendItemModel,
@@ -45,6 +47,43 @@ export class ApiReportRepository implements ReportRepository {
         ApiResponse<ProfitLossTrendItemResponse[]>
       >("/reports/profit-loss/trend", { params: query });
       return (response.data || []).map(mapProfitLossTrendResponseToModel);
+    });
+  }
+
+  async exportSalesReport(
+    params?: ExportSalesReportParams,
+  ): Promise<ExportSalesReportResult> {
+    return safeApiCall(async () => {
+      const query: Record<string, string | undefined> = {};
+      if (params?.date) query.date = params.date;
+      if (params?.startDate) query.start_date = params.startDate;
+      if (params?.endDate) query.end_date = params.endDate;
+
+      const response = await this.http.getInstance().get<Blob>(
+        "/reports/sales/export",
+        {
+          params: query,
+          responseType: "blob",
+        },
+      );
+
+      const disposition = response.headers["content-disposition"] as
+        | string
+        | undefined;
+      let filename: string | undefined;
+      if (disposition) {
+        const match = disposition.match(
+          /filename=(?:["']?)(.*?)(?:["']?)(?:;|$)/,
+        );
+        if (match?.[1]) {
+          filename = match[1];
+        }
+      }
+
+      return {
+        blob: response.data,
+        filename,
+      };
     });
   }
 }

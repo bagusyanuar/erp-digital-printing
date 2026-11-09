@@ -124,6 +124,8 @@ const ReportSellingPage = () => {
     setCategorySearch,
     totalProductSales,
     response,
+    exportSalesReport,
+    isExporting,
   } = useReportSelling();
 
   return (
@@ -144,10 +146,12 @@ const ReportSellingPage = () => {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
+            onClick={() => exportSalesReport()}
+            disabled={isExporting}
             className="rounded-xl flex items-center gap-2 font-bold h-10 border-border/40 hover:bg-muted"
           >
             <LuFileSpreadsheet size={16} />
-            Export Excel
+            {isExporting ? "Mengekspor..." : "Export Excel"}
           </Button>
         </div>
       </div>

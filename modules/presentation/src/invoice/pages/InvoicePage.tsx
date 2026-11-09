@@ -192,7 +192,7 @@ const InvoicePage = () => {
   const invoiceDetailRef = React.useRef<HTMLDivElement>(null);
   const shareReceiptRef = React.useRef<HTMLDivElement>(null);
 
-  const handleShareWA = async () => {
+  const handleShareWA = async (openWhatsApp = true) => {
     try {
       setIsCapturingInvoice(true);
       const targetElement = shareReceiptRef.current || invoiceDetailRef.current;
@@ -210,16 +210,21 @@ const InvoicePage = () => {
         if (blob) {
           const item = new ClipboardItem({ "image/png": blob });
           await navigator.clipboard.write([item]);
-          toast.success("Gambar disalin!", "Silakan paste di chat WA.");
-          setIsShareWADialogOpen(true);
 
-          const customerPhone = selectedInvoice?.customerPhone || "";
-          const cleanPhone = customerPhone.replace(/\D/g, "");
-          const waNumber = cleanPhone.startsWith("0")
-            ? "62" + cleanPhone.slice(1)
-            : cleanPhone;
-          const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(`Halo Kak ${selectedInvoice?.customerName || ""},\nBerikut adalah rincian nota transaksinya ya. Terima kasih!`)}`;
-          window.open(waUrl, "_blank");
+          if (openWhatsApp) {
+            toast.success("Gambar disalin!", "Membuka WhatsApp, silakan paste gambar di chat.");
+            setIsShareWADialogOpen(true);
+
+            const customerPhone = selectedInvoice?.customerPhone || "";
+            const cleanPhone = customerPhone.replace(/\D/g, "");
+            const waNumber = cleanPhone.startsWith("0")
+              ? "62" + cleanPhone.slice(1)
+              : cleanPhone;
+            const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(`Halo Kak ${selectedInvoice?.customerName || ""},\nBerikut adalah rincian nota transaksinya ya. Terima kasih!`)}`;
+            window.open(waUrl, "_blank");
+          } else {
+            toast.success("Gambar berhasil disalin ulang!", "Silakan tempel (Ctrl + V) di chat WhatsApp.");
+          }
         }
       }, "image/png");
     } catch (err: unknown) {
@@ -1259,7 +1264,7 @@ const InvoicePage = () => {
               <Button
                 variant="outline"
                 className="rounded-xl text-xs font-bold px-4 border-border/50 h-10 hover:bg-muted flex items-center gap-1.5"
-                onClick={handleShareWA}
+                onClick={() => handleShareWA(true)}
                 disabled={isCapturingInvoice}
               >
                 {isCapturingInvoice ? (
@@ -2960,7 +2965,7 @@ const InvoicePage = () => {
           </p>
           <div className="pt-4 w-full flex flex-col gap-2">
             <Button
-              onClick={handleShareWA}
+              onClick={() => handleShareWA(false)}
               disabled={isCapturingInvoice}
               className="w-full rounded-xl font-bold flex items-center justify-center gap-2"
             >

@@ -1,6 +1,11 @@
 import type { HttpClient } from "@erp-digital-printing/http";
 import type { CashFlowRepository } from "@core/cash-flow/domains/repositories/cash-flow.repository";
-import type { CashFlowFilterInput, CreateAdjustmentInput } from "@core/cash-flow/applications/inputs/cash-flow.input";
+import type {
+  CashFlowFilterInput,
+  CreateAdjustmentInput,
+  ExportCashFlowParams,
+  ExportCashFlowResult,
+} from "@core/cash-flow/applications/inputs/cash-flow.input";
 import type { CashFlowTransactionModel, CashFlowSummaryModel, CashAccountModel } from "@core/cash-flow/domains/models/cash-flow.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import type { ApiResponse } from "../../libs/api-response";
@@ -52,6 +57,46 @@ export class ApiCashFlowRepository implements CashFlowRepository {
         "/reports/cash-flow/accounts"
       );
       return response.data.map(mapAccountResponseToModel);
+    });
+  }
+
+  async exportExcel(params?: ExportCashFlowParams): Promise<ExportCashFlowResult> {
+    return safeApiCall(async () => {
+      const query: Record<string, string | undefined> = {};
+      if (params?.date) query.date = params.date;
+      if (params?.startDate) query.start_date = params.startDate;
+      if (params?.endDate) query.end_date = params.endDate;
+      if (params?.paymentMethod) query.payment_method = params.paymentMethod;
+      if (params?.type) query.type = params.type;
+      if (params?.referenceType) query.reference_type = params.referenceType;
+      if (params?.cashierId) query.cashier_id = params.cashierId;
+      if (params?.search) query.search = params.search;
+
+      const response = await this.http.getInstance().get<Blob>(
+        "/reports/cash-flow/export",
+        {
+          params: query,
+          responseType: "blob",
+        },
+      );
+
+      const disposition = response.headers["content-disposition"] as
+        | string
+        | undefined;
+      let filename: string | undefined;
+      if (disposition) {
+        const match = disposition.match(
+          /filename=(?:["']?)(.*?)(?:["']?)(?:;|$)/,
+        );
+        if (match?.[1]) {
+          filename = match[1];
+        }
+      }
+
+      return {
+        blob: response.data,
+        filename,
+      };
     });
   }
 }

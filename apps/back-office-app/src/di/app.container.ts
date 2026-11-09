@@ -12,7 +12,7 @@ import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCas
 import { getCapitalTransactionsUseCase, createCapitalTransactionUseCase, deleteCapitalTransactionUseCase } from "@infrastructure/capital/containers/capital.container";
 import { getFundTransfersUseCase, createFundTransferUseCase, getFundTransferWidgetsUseCase } from "@infrastructure/fund-transfer/containers/fund-transfer.container";
 import { getDashboardWidgetsUseCase, getWeeklyRevenueUseCase } from "@infrastructure/dashboard/containers/dashboard.container";
-import { getProfitLossUseCase, getProfitLossTrendUseCase } from "@infrastructure/report/containers/report.container";
+import { getProfitLossUseCase, getProfitLossTrendUseCase, exportSalesReportUseCase } from "@infrastructure/report/containers/report.container";
 import {
   getCustomerReceivablesUseCase,
   getSettledReceivablesUseCase,
@@ -39,7 +39,7 @@ import {
 import { getAttributeUseCase, createAttributeUseCase, getAttributeByIdUseCase, updateAttributeUseCase, deleteAttributeUseCase } from "@infrastructure/attribute/containers/attribute.container";
 import { getProductUseCase, createProductUseCase, getProductByIdUseCase, updateProductUseCase, deleteProductUseCase, reorderProductUseCase } from "@infrastructure/product/containers/product.container";
 import { saveDraftUseCase, getOrdersUseCase, submitOrderUseCase, payOrderUseCase, repayOrderUseCase, refundOrderUseCase, cancelOrderUseCase, getOrderPaymentsUseCase, getOrderSpkUseCase, updateOrderStatusUseCase, getOrderByIdUseCase, updateOrderUseCase, getOrderReportWidgetsUseCase, getSalesReportWidgetsUseCase, getSalesTrendUseCase, getCategorySalesUseCase, getPaymentSalesUseCase, getProductSalesUseCase, mergeOrderUseCase, createDirectOrderUseCase, updatePaymentMethodUseCase } from "@infrastructure/order/containers/order.container";
-import { getCashFlowReportUseCase, getCashFlowSummaryUseCase, createCashFlowAdjustmentUseCase, getCashAccountsUseCase } from "@infrastructure/cash-flow/containers/cash-flow.container";
+import { getCashFlowReportUseCase, getCashFlowSummaryUseCase, createCashFlowAdjustmentUseCase, getCashAccountsUseCase, exportCashFlowUseCase } from "@infrastructure/cash-flow/containers/cash-flow.container";
 import {
   getUsersUseCase,
   createUserUseCase,
@@ -136,6 +136,7 @@ export function createAppContainer(): AppContainer {
       getCashFlowSummaryUseCase: getCashFlowSummaryUseCase(httpClient),
       createCashFlowAdjustmentUseCase: createCashFlowAdjustmentUseCase(httpClient),
       getCashAccountsUseCase: getCashAccountsUseCase(httpClient),
+      exportCashFlowUseCase: exportCashFlowUseCase(httpClient),
     },
     user: {
       getUsersUseCase: getUsersUseCase(httpClient),
@@ -179,6 +180,7 @@ export function createAppContainer(): AppContainer {
     report: {
       getProfitLossUseCase: getProfitLossUseCase(httpClient),
       getProfitLossTrendUseCase: getProfitLossTrendUseCase(httpClient),
+      exportSalesReportUseCase: exportSalesReportUseCase(httpClient),
     },
     receivable: {
       getCustomerReceivablesUseCase: getCustomerReceivablesUseCase(httpClient),

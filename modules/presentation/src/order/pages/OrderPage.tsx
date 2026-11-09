@@ -133,7 +133,7 @@ const OrderPage = () => {
     handleProcessPayment();
   };
 
-  const handleShareWA = async () => {
+  const handleShareWA = async (openWhatsApp = true) => {
     try {
       setIsCapturingReceipt(true);
       const targetElement = shareReceiptRef.current;
@@ -151,22 +151,27 @@ const OrderPage = () => {
         if (blob) {
           const item = new ClipboardItem({ "image/png": blob });
           await navigator.clipboard.write([item]);
-          toast.success("Gambar disalin!", "Silakan paste di chat WA.");
-          setIsShareWADialogOpen(true);
 
-          const customerPhone = lastCompletedOrder?.customerPhone || "";
-          const cleanPhone = customerPhone.replace(/\D/g, "");
-          const waNumber = cleanPhone.startsWith("0")
-            ? "62" + cleanPhone.slice(1)
-            : cleanPhone;
+          if (openWhatsApp) {
+            toast.success("Gambar disalin!", "Membuka WhatsApp, silakan paste gambar di chat.");
+            setIsShareWADialogOpen(true);
 
-          const isTemp = isTemporaryReceipt;
-          const messageText = isTemp
-            ? `Halo Kak ${lastCompletedOrder?.customerName || ""},\nBerikut adalah rincian nota sementara (Draft) transaksinya ya. Terima kasih!`
-            : `Halo Kak ${lastCompletedOrder?.customerName || ""},\nBerikut adalah rincian nota transaksinya ya. Terima kasih!`;
+            const customerPhone = lastCompletedOrder?.customerPhone || "";
+            const cleanPhone = customerPhone.replace(/\D/g, "");
+            const waNumber = cleanPhone.startsWith("0")
+              ? "62" + cleanPhone.slice(1)
+              : cleanPhone;
 
-          const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(messageText)}`;
-          window.open(waUrl, "_blank");
+            const isTemp = isTemporaryReceipt;
+            const messageText = isTemp
+              ? `Halo Kak ${lastCompletedOrder?.customerName || ""},\nBerikut adalah rincian nota sementara (Draft) transaksinya ya. Terima kasih!`
+              : `Halo Kak ${lastCompletedOrder?.customerName || ""},\nBerikut adalah rincian nota transaksinya ya. Terima kasih!`;
+
+            const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(messageText)}`;
+            window.open(waUrl, "_blank");
+          } else {
+            toast.success("Gambar berhasil disalin ulang!", "Silakan tempel (Ctrl + V) di chat WhatsApp.");
+          }
         }
       }, "image/png");
     } catch (err: unknown) {
@@ -1594,7 +1599,7 @@ const OrderPage = () => {
                 <Button
                   variant="outline"
                   className="h-10 px-5 rounded-xl font-bold border-border/60 hover:bg-muted/50 flex items-center justify-center gap-1.5 w-full"
-                  onClick={handleShareWA}
+                  onClick={() => handleShareWA(true)}
                   disabled={isCapturingReceipt}
                 >
                   {isCapturingReceipt ? (
@@ -1841,7 +1846,7 @@ const OrderPage = () => {
           </p>
           <div className="pt-4 w-full flex flex-col gap-2">
             <Button
-              onClick={handleShareWA}
+              onClick={() => handleShareWA(false)}
               disabled={isCapturingReceipt}
               className="w-full rounded-xl font-bold flex items-center justify-center gap-2"
             >

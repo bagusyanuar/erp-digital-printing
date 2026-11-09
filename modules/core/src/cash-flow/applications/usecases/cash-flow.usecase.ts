@@ -1,5 +1,10 @@
 import type { CashFlowRepository } from "../../domains/repositories/cash-flow.repository";
-import type { CashFlowFilterInput, CreateAdjustmentInput } from "../inputs/cash-flow.input";
+import type {
+  CashFlowFilterInput,
+  CreateAdjustmentInput,
+  ExportCashFlowParams,
+  ExportCashFlowResult,
+} from "../inputs/cash-flow.input";
 import type { CashFlowTransactionModel, CashFlowSummaryModel, CashAccountModel } from "../../domains/models/cash-flow.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 
@@ -28,5 +33,12 @@ export class GetCashAccounts {
   constructor(private readonly repository: CashFlowRepository) {}
   async execute(): Promise<CashAccountModel[]> {
     return await this.repository.getAccounts();
+  }
+}
+
+export class ExportCashFlow {
+  constructor(private readonly repository: CashFlowRepository) {}
+  async execute(params?: ExportCashFlowParams): Promise<ExportCashFlowResult> {
+    return await this.repository.exportExcel(params);
   }
 }

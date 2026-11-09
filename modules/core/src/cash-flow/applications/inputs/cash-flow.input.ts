@@ -16,3 +16,19 @@ export interface CreateAdjustmentInput {
   paymentMethod: string;
   description: string;
 }
+
+export interface ExportCashFlowParams {
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  paymentMethod?: string;
+  type?: string;
+  referenceType?: string;
+  cashierId?: string;
+  search?: string;
+}
+
+export interface ExportCashFlowResult {
+  blob: Blob;
+  filename?: string;
+}
