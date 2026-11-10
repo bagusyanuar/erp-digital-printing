@@ -1,6 +1,6 @@
 import type { CreateExpenseInput, ExpenseQueryParams, PayExpenseInput } from "@core/expense/applications/inputs/expense.input";
 import type { ExpenseModel, CategoryExpenseBreakdownModel } from "@core/expense/domains/models/expense.model";
-import type { ExpenseRepository, ExpenseReportWidgetsParams, ExpenseReportWidgetsModel, ExpenseAnalyticsSummaryParams, ExpenseAnalyticsSummaryModel, CategoryExpensesParams } from "@core/expense/domains/repositories/expense.repository";
+import type { ExpenseRepository, ExpenseReportWidgetsParams, ExpenseReportWidgetsModel, ExpenseAnalyticsSummaryParams, ExpenseAnalyticsSummaryModel, CategoryExpensesParams, ExportExpenseParams, ExportExpenseResult } from "@core/expense/domains/repositories/expense.repository";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
 import { safeApiCall } from "@infrastructure/libs/error";
 import { mapCreateInputToRequest, mapResponseToModel, mapParamsToQuery, mapPayInputToRequest } from "../mappers/expense.mapper";
@@ -130,6 +130,48 @@ export class ApiExpenseRepository implements ExpenseRepository {
         page: response.meta?.pagination.current_page ?? 1,
         total: response.meta?.pagination.total_items ?? 0,
         limit: response.meta?.pagination.limit ?? 10,
+      };
+    });
+  }
+
+  async exportExcel(
+    params?: ExportExpenseParams,
+  ): Promise<ExportExpenseResult> {
+    return safeApiCall(async () => {
+      const query: Record<string, string | undefined> = {};
+      if (params?.date) query.date = params.date;
+      if (params?.startDate) query.start_date = params.startDate;
+      if (params?.endDate) query.end_date = params.endDate;
+      if (params?.group) query.group = params.group;
+      if (params?.expenseCategoryId) query.expense_category_id = params.expenseCategoryId;
+      if (params?.categoryId) query.category_id = params.categoryId;
+      if (params?.search) query.search = params.search;
+      if (params?.status) query.status = params.status;
+
+      const response = await this.http.getInstance().get<Blob>(
+        "/expenses/export",
+        {
+          params: query,
+          responseType: "blob",
+        },
+      );
+
+      const disposition = response.headers["content-disposition"] as
+        | string
+        | undefined;
+      let filename: string | undefined;
+      if (disposition) {
+        const match = disposition.match(
+          /filename=(?:["']?)(.*?)(?:["']?)(?:;|$)/,
+        );
+        if (match?.[1]) {
+          filename = match[1];
+        }
+      }
+
+      return {
+        blob: response.data,
+        filename,
       };
     });
   }

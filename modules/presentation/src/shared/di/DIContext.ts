@@ -22,11 +22,11 @@ import type {
   GetProfile,
 } from "@core/user/applications/usecases/user.usecase";
 import type { GetSuppliers, CreateSupplier, GetSupplierById, UpdateSupplier, DeleteSupplier, ReorderSupplier } from "@core/supplier/applications/usecases/supplier.usecase";
-import type { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAnalyticsSummary, PayExpense, GetCategoryExpenses } from "@core/expense/applications/usecases/expense.usecase";
+import type { CreateExpense, GetExpenses, GetExpenseReportWidgets, GetExpenseAnalyticsSummary, PayExpense, GetCategoryExpenses, ExportExpenseReport } from "@core/expense/applications/usecases/expense.usecase";
 import type { GetCapitalTransactions, CreateCapitalTransaction, DeleteCapitalTransaction } from "@core/capital/applications/usecases/capital.usecase";
 import type { GetFundTransfers, CreateFundTransfer, GetFundTransferWidgets } from "@core/fund-transfer/applications/usecases/fund-transfer.usecase";
 import type { GetDashboardWidgets, GetWeeklyRevenue } from "@core/dashboard/applications/usecases/dashboard.usecase";
-import type { ExportSalesReport, GetProfitLoss, GetProfitLossTrend } from "@core/report";
+import type { ExportProfitLoss, ExportSalesReport, GetProfitLoss, GetProfitLossTrend } from "@core/report";
 import type {
   GetCustomerReceivables,
   GetSettledReceivables,
@@ -63,6 +63,7 @@ export interface ReportUseCases {
   getProfitLossUseCase: GetProfitLoss;
   getProfitLossTrendUseCase: GetProfitLossTrend;
   exportSalesReportUseCase: ExportSalesReport;
+  exportProfitLossUseCase: ExportProfitLoss;
 }
 
 export interface DashboardUseCases {
@@ -192,6 +193,7 @@ export interface ExpenseUseCases {
   getExpenseAnalyticsSummaryUseCase: GetExpenseAnalyticsSummary;
   payExpenseUseCase: PayExpense;
   getCategoryExpensesUseCase: GetCategoryExpenses;
+  exportExpenseReportUseCase: ExportExpenseReport;
 }
 
 

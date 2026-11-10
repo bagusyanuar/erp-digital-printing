@@ -42,7 +42,9 @@ import {
   PieChart,
   Pie,
 } from "recharts";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "@erp-digital-printing/ui/Toast";
+import { downloadBlob } from "@presentation/shared/utils/download.utils";
 import { useExpenseDI } from "@presentation/expense/hooks/useExpenseDI";
 import { expenseKeys } from "@infrastructure/expense/keys";
 import { useCategoryDI } from "@presentation/category/hooks/useCategoryDI";
@@ -256,6 +258,7 @@ const ReportExpensePage = () => {
     getExpensesUseCase,
     getExpenseReportWidgetsUseCase,
     getCategoryExpensesUseCase,
+    exportExpenseReportUseCase,
   } = useExpenseDI();
   const { getCategoriesUseCase } = useCategoryDI();
   const [activeTab, setActiveTab] = useState<"data" | "category" | "analytic">(
@@ -520,6 +523,66 @@ const ReportExpensePage = () => {
     return undefined;
   }, [categoryWidgetsData, categoryExpensesResponse]);
 
+  const { mutate: exportExpense, isPending: isExporting } = useMutation({
+    mutationFn: async () => {
+      const isCategoryTab = activeTab === "category";
+      const exportParams = isCategoryTab
+        ? {
+            startDate: categoryDateRange?.from
+              ? toLocalDateString(categoryDateRange.from)
+              : undefined,
+            endDate: categoryDateRange?.to
+              ? toLocalDateString(categoryDateRange.to)
+              : undefined,
+            search: debouncedCategorySearch.trim() || undefined,
+            categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
+            group: "PRODUCTION",
+            status:
+              statusFilter === "all"
+                ? undefined
+                : statusFilter === "UNPAID"
+                  ? "UNPAID,PARTIAL"
+                  : "PAID",
+          }
+        : {
+            startDate: dateRange?.from
+              ? toLocalDateString(dateRange.from)
+              : undefined,
+            endDate: dateRange?.to ? toLocalDateString(dateRange.to) : undefined,
+            search: debouncedSearch.trim() || undefined,
+            status:
+              statusFilter === "all"
+                ? undefined
+                : statusFilter === "UNPAID"
+                  ? "UNPAID,PARTIAL"
+                  : "PAID",
+          };
+
+      const result = await exportExpenseReportUseCase.execute(exportParams);
+
+      const startDateStr = exportParams.startDate;
+      const endDateStr = exportParams.endDate;
+      const defaultFilename =
+        startDateStr && endDateStr
+          ? startDateStr === endDateStr
+            ? `Laporan_Pengeluaran_${startDateStr.replace(/-/g, "")}.xlsx`
+            : `Laporan_Pengeluaran_${startDateStr.replace(/-/g, "")}_${endDateStr.replace(/-/g, "")}.xlsx`
+          : "Laporan_Pengeluaran.xlsx";
+
+      downloadBlob(result.blob, result.filename || defaultFilename);
+      return result;
+    },
+    onSuccess: () => {
+      toast.success("Berhasil Export", "Laporan pengeluaran berhasil diunduh.");
+    },
+    onError: (err: Error) => {
+      toast.error(
+        "Gagal Export",
+        err.message || "Terjadi kesalahan saat mengunduh laporan pengeluaran.",
+      );
+    },
+  });
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -572,10 +635,12 @@ const ReportExpensePage = () => {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
+            onClick={() => exportExpense()}
+            disabled={isExporting}
             className="rounded-xl flex items-center gap-2 font-bold h-10 border-border/40 hover:bg-muted"
           >
-            <LuFileSpreadsheet size={16} />
-            Export Excel
+            <LuFileSpreadsheet size={16} className="text-emerald-600" />
+            {isExporting ? "Mengekspor..." : "Export Excel"}
           </Button>
         </div>
       </div>

@@ -42,6 +42,22 @@ export interface CategoryExpensesParams {
   sortOrder?: "asc" | "desc";
 }
 
+export interface ExportExpenseParams {
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  group?: "PRODUCTION" | "OPERATIONAL" | string;
+  expenseCategoryId?: string;
+  categoryId?: string;
+  search?: string;
+  status?: string;
+}
+
+export interface ExportExpenseResult {
+  blob: Blob;
+  filename?: string;
+}
+
 export interface ExpenseRepository {
   create(input: CreateExpenseInput): Promise<ExpenseModel>;
   getExpenses(params: ExpenseQueryParams): Promise<PaginatedResponse<ExpenseModel>>;
@@ -49,4 +65,5 @@ export interface ExpenseRepository {
   getExpenseAnalyticsSummary(params: ExpenseAnalyticsSummaryParams): Promise<ExpenseAnalyticsSummaryModel>;
   getCategoryExpenses(params?: CategoryExpensesParams): Promise<PaginatedResponse<CategoryExpenseBreakdownModel>>;
   pay(id: string, input: PayExpenseInput): Promise<void>;
+  exportExcel(params?: ExportExpenseParams): Promise<ExportExpenseResult>;
 }

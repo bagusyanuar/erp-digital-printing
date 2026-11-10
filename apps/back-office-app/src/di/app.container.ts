@@ -8,11 +8,11 @@ import { useAuthStore } from "@presentation/auth/stores/auth.store";
 import type { AppContainer } from "@presentation/shared/di/DIContext";
 import { getResellerUseCase, createResellerUseCase, getResellerByIdUseCase, updateResellerUseCase, deleteResellerUseCase } from "@infrastructure/reseller/containers/reseller.container";
 import { getSupplierUseCase, createSupplierUseCase, getSupplierByIdUseCase, updateSupplierUseCase, deleteSupplierUseCase, reorderSupplierUseCase } from "@infrastructure/supplier/containers/supplier.container";
-import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCase, getExpenseAnalyticsSummaryUseCase, payExpenseUseCase, getCategoryExpensesUseCase } from "@infrastructure/expense/containers/expense.container";
+import { createExpenseUseCase, getExpensesUseCase, getExpenseReportWidgetsUseCase, getExpenseAnalyticsSummaryUseCase, payExpenseUseCase, getCategoryExpensesUseCase, exportExpenseReportUseCase } from "@infrastructure/expense/containers/expense.container";
 import { getCapitalTransactionsUseCase, createCapitalTransactionUseCase, deleteCapitalTransactionUseCase } from "@infrastructure/capital/containers/capital.container";
 import { getFundTransfersUseCase, createFundTransferUseCase, getFundTransferWidgetsUseCase } from "@infrastructure/fund-transfer/containers/fund-transfer.container";
 import { getDashboardWidgetsUseCase, getWeeklyRevenueUseCase } from "@infrastructure/dashboard/containers/dashboard.container";
-import { getProfitLossUseCase, getProfitLossTrendUseCase, exportSalesReportUseCase } from "@infrastructure/report/containers/report.container";
+import { getProfitLossUseCase, getProfitLossTrendUseCase, exportSalesReportUseCase, exportProfitLossUseCase } from "@infrastructure/report/containers/report.container";
 import {
   getCustomerReceivablesUseCase,
   getSettledReceivablesUseCase,
@@ -162,6 +162,7 @@ export function createAppContainer(): AppContainer {
       getExpenseAnalyticsSummaryUseCase: getExpenseAnalyticsSummaryUseCase(httpClient),
       payExpenseUseCase: payExpenseUseCase(httpClient),
       getCategoryExpensesUseCase: getCategoryExpensesUseCase(httpClient),
+      exportExpenseReportUseCase: exportExpenseReportUseCase(httpClient),
     },
     capital: {
       getCapitalTransactionsUseCase: getCapitalTransactionsUseCase(httpClient),
@@ -181,6 +182,7 @@ export function createAppContainer(): AppContainer {
       getProfitLossUseCase: getProfitLossUseCase(httpClient),
       getProfitLossTrendUseCase: getProfitLossTrendUseCase(httpClient),
       exportSalesReportUseCase: exportSalesReportUseCase(httpClient),
+      exportProfitLossUseCase: exportProfitLossUseCase(httpClient),
     },
     receivable: {
       getCustomerReceivablesUseCase: getCustomerReceivablesUseCase(httpClient),

@@ -20,9 +20,21 @@ export interface ExportSalesReportResult {
   filename?: string;
 }
 
+export interface ExportProfitLossParams {
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface ExportProfitLossResult {
+  blob: Blob;
+  filename?: string;
+}
+
 export interface ReportRepository {
   getProfitLoss(params?: ProfitLossParams): Promise<ProfitLossModel>;
   getProfitLossTrend(params?: ProfitLossTrendParams): Promise<ProfitLossTrendItemModel[]>;
   exportSalesReport(params?: ExportSalesReportParams): Promise<ExportSalesReportResult>;
+  exportProfitLoss(params?: ExportProfitLossParams): Promise<ExportProfitLossResult>;
 }
 

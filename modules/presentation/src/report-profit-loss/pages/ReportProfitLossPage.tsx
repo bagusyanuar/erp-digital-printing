@@ -32,7 +32,9 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "@erp-digital-printing/ui/Toast";
+import { downloadBlob } from "@presentation/shared/utils/download.utils";
 import { reportKeys } from "@infrastructure/report/keys/report.key";
 import { useReportProfitLossDI } from "../hooks/useReportProfitLossDI";
 import type { ProfitLossModel } from "@core/report";
@@ -86,8 +88,11 @@ export const ReportProfitLossPage: React.FC = () => {
     }).format(val);
   };
 
-  const { getProfitLossUseCase, getProfitLossTrendUseCase } =
-    useReportProfitLossDI();
+  const {
+    getProfitLossUseCase,
+    getProfitLossTrendUseCase,
+    exportProfitLossUseCase,
+  } = useReportProfitLossDI();
 
   const toLocalDateString = (d: Date): string => {
     const year = d.getFullYear();
@@ -103,6 +108,34 @@ export const ReportProfitLossPage: React.FC = () => {
     }),
     [dateRange],
   );
+
+  const { mutate: exportProfitLoss, isPending: isExporting } = useMutation({
+    mutationFn: async () => {
+      const result = await exportProfitLossUseCase.execute({
+        startDate: queryParams.startDate,
+        endDate: queryParams.endDate,
+      });
+
+      const defaultFilename =
+        queryParams.startDate && queryParams.endDate
+          ? queryParams.startDate === queryParams.endDate
+            ? `Laporan_Laba_Rugi_${queryParams.startDate.replace(/-/g, "")}.xlsx`
+            : `Laporan_Laba_Rugi_${queryParams.startDate.replace(/-/g, "")}_${queryParams.endDate.replace(/-/g, "")}.xlsx`
+          : "Laporan_Laba_Rugi.xlsx";
+
+      downloadBlob(result.blob, result.filename || defaultFilename);
+      return result;
+    },
+    onSuccess: () => {
+      toast.success("Berhasil Export", "Laporan laba rugi berhasil diunduh.");
+    },
+    onError: (err: Error) => {
+      toast.error(
+        "Gagal Export",
+        err.message || "Terjadi kesalahan saat mengunduh laporan laba rugi.",
+      );
+    },
+  });
 
   const { data: reportData, isLoading: isLoadingReport } = useQuery({
     queryKey: reportKeys.profitLoss(queryParams),
@@ -183,10 +216,12 @@ export const ReportProfitLossPage: React.FC = () => {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
+            onClick={() => exportProfitLoss()}
+            disabled={isExporting}
             className="rounded-xl flex items-center gap-2 font-bold h-10 border-border/40 hover:bg-muted"
           >
-            <LuFileSpreadsheet size={16} />
-            Export Excel
+            <LuFileSpreadsheet size={16} className="text-emerald-600" />
+            {isExporting ? "Mengekspor..." : "Export Excel"}
           </Button>
         </div>
       </div>

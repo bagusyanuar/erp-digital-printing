@@ -1,5 +1,7 @@
 import type { ProfitLossModel, ProfitLossTrendItemModel } from "../../domains/models/report.model";
 import type {
+  ExportProfitLossParams,
+  ExportProfitLossResult,
   ExportSalesReportParams,
   ExportSalesReportResult,
   ProfitLossParams,
@@ -28,6 +30,14 @@ export class ExportSalesReport {
 
   async execute(params?: ExportSalesReportParams): Promise<ExportSalesReportResult> {
     return await this.reportRepository.exportSalesReport(params);
+  }
+}
+
+export class ExportProfitLoss {
+  constructor(private readonly reportRepository: ReportRepository) {}
+
+  async execute(params?: ExportProfitLossParams): Promise<ExportProfitLossResult> {
+    return await this.reportRepository.exportProfitLoss(params);
   }
 }
 

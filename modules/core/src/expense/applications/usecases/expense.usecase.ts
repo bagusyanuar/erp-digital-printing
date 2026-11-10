@@ -1,4 +1,4 @@
-import type { ExpenseRepository, ExpenseReportWidgetsParams, ExpenseReportWidgetsModel, ExpenseAnalyticsSummaryParams, ExpenseAnalyticsSummaryModel, CategoryExpensesParams } from "../../domains/repositories/expense.repository";
+import type { ExpenseRepository, ExpenseReportWidgetsParams, ExpenseReportWidgetsModel, ExpenseAnalyticsSummaryParams, ExpenseAnalyticsSummaryModel, CategoryExpensesParams, ExportExpenseParams, ExportExpenseResult } from "../../domains/repositories/expense.repository";
 import type { CreateExpenseInput, ExpenseQueryParams, PayExpenseInput } from "../inputs/expense.input";
 import type { ExpenseModel, CategoryExpenseBreakdownModel } from "../../domains/models/expense.model";
 import type { PaginatedResponse } from "@core/shared/api/pagination";
@@ -48,5 +48,13 @@ export class GetCategoryExpenses {
 
   async execute(params?: CategoryExpensesParams): Promise<PaginatedResponse<CategoryExpenseBreakdownModel>> {
     return await this.expenseRepository.getCategoryExpenses(params);
+  }
+}
+
+export class ExportExpenseReport {
+  constructor(private readonly expenseRepository: ExpenseRepository) {}
+
+  async execute(params?: ExportExpenseParams): Promise<ExportExpenseResult> {
+    return await this.expenseRepository.exportExcel(params);
   }
 }
